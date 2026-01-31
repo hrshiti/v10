@@ -1,9 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Grid, Clock, Crown, ArrowRight } from 'lucide-react';
 
 const ProgressCard = () => {
     const navigate = useNavigate();
+    const [progress, setProgress] = useState(0);
+
+    useEffect(() => {
+        // Get stored progress or default to 0
+        const storedProgress = localStorage.getItem('dailyWorkoutProgress');
+        if (storedProgress) {
+            setProgress(parseInt(storedProgress, 10));
+        }
+
+        // Listen for storage events to update real-time if changed elsewhere
+        const handleStorageChange = () => {
+            const updated = localStorage.getItem('dailyWorkoutProgress');
+            if (updated) setProgress(parseInt(updated, 10));
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
 
     return (
         <div className="bg-white dark:bg-[#1A1F2B] rounded-[2rem] p-4 shadow-xl relative overflow-hidden transition-colors duration-300">
@@ -32,7 +50,6 @@ const ProgressCard = () => {
                     </div>
                 </div>
 
-                {/* Circular Progress - Reduced Size */}
                 <div className="relative w-20 h-20 flex items-center justify-center">
                     <div className="absolute inset-0 bg-emerald-400 opacity-20 rounded-2xl -rotate-12 translate-x-1"></div>
                     <div className="relative z-10 w-full h-full bg-emerald-400 rounded-2xl flex items-center justify-center overflow-hidden">
@@ -53,13 +70,13 @@ const ProgressCard = () => {
                                 strokeWidth="6"
                                 fill="transparent"
                                 strokeDasharray={2 * Math.PI * 28}
-                                strokeDashoffset={(2 * Math.PI * 28) * (1 - 0.72)}
+                                strokeDashoffset={(2 * Math.PI * 28) * (1 - (progress / 100))}
                                 strokeLinecap="round"
-                                className="text-[#FFBCB0]"
+                                className="text-[#FFBCB0] transition-all duration-1000 ease-out"
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center flex-col">
-                            <span className="text-base font-bold text-gray-900">72%</span>
+                            <span className="text-base font-bold text-gray-900">{Math.round(progress)}%</span>
                         </div>
                     </div>
                 </div>

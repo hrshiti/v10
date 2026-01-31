@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, PlayCircle, Clock, Zap } from 'lucide-react';
 
 const Workouts = () => {
+    const navigate = useNavigate();
     const [activeCategory, setActiveCategory] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -68,7 +70,11 @@ const Workouts = () => {
                 {filteredWorkouts.length > 0 ? (
                     <div className="grid grid-cols-2 gap-4">
                         {filteredWorkouts.map((workout) => (
-                            <div key={workout.id} className="bg-white dark:bg-[#1A1F2B] p-3 rounded-[1.5rem] shadow-sm border border-gray-100 dark:border-gray-800 relative group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                            <div
+                                key={workout.id}
+                                onClick={() => navigate(`/workout/${workout.id}`)}
+                                className="bg-white dark:bg-[#1A1F2B] p-3 rounded-[1.5rem] shadow-sm border border-gray-100 dark:border-gray-800 relative group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                            >
                                 <div className="bg-gray-100 dark:bg-gray-800 h-32 rounded-2xl mb-3 relative overflow-hidden">
                                     <img src={workout.image} alt={workout.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                     {/* Overlay */}
@@ -76,11 +82,6 @@ const Workouts = () => {
                                         <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
                                             <PlayCircle className="text-white fill-white" size={20} />
                                         </div>
-                                    </div>
-                                    {/* Duration Badge */}
-                                    <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                        <Clock size={10} className="text-white" />
-                                        <span className="text-[9px] font-bold text-white">{workout.duration}</span>
                                     </div>
                                 </div>
 

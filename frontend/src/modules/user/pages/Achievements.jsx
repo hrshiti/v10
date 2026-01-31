@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Trophy, Award, Target, Flame, Zap, Star, Lock, CheckCircle, TrendingUp, Calendar, Dumbbell, Heart } from 'lucide-react';
-import SettingPageLayout from '../components/SettingPageLayout';
+import { useNavigate } from 'react-router-dom';
+import { Trophy, Award, Target, Flame, Zap, Star, Lock, CheckCircle, TrendingUp, Calendar, Dumbbell, Heart, ChevronLeft } from 'lucide-react';
 
 const Achievements = () => {
+    const navigate = useNavigate();
     const [selectedCategory, setSelectedCategory] = useState('All');
 
     // User stats
@@ -208,178 +209,191 @@ const Achievements = () => {
     };
 
     return (
-        <SettingPageLayout title="Achievements">
-            {/* Stats Overview */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-4 text-white">
-                    <Trophy size={24} className="mb-2" />
-                    <p className="text-2xl font-bold">{userStats.totalAchievements}</p>
-                    <p className="text-xs text-emerald-100">Achievements</p>
-                </div>
-                <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-4 text-white">
-                    <Star size={24} className="mb-2" />
-                    <p className="text-2xl font-bold">{userStats.totalPoints}</p>
-                    <p className="text-xs text-amber-100">Total Points</p>
-                </div>
-                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-4 text-white">
-                    <Flame size={24} className="mb-2" />
-                    <p className="text-2xl font-bold">{userStats.currentStreak}</p>
-                    <p className="text-xs text-orange-100">Day Streak</p>
-                </div>
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-4 text-white">
-                    <Zap size={24} className="mb-2" />
-                    <p className="text-2xl font-bold">Level {userStats.level}</p>
-                    <p className="text-xs text-purple-100">Current Level</p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-gray-50 dark:bg-[#121212] transition-colors duration-300 font-sans">
+            <div className="max-w-md mx-auto min-h-screen bg-gray-50 dark:bg-[#121212] relative shadow-xl flex flex-col">
 
-            {/* Category Filter */}
-            <div className="mb-6">
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    {categories.map((cat) => (
+                {/* Header - Fixed layout */}
+                <div className="bg-[#1A1F2B] dark:bg-[#0D1117] text-white pt-8 px-5 pb-6 shadow-md transition-colors duration-300 sticky top-0 z-20">
+                    <div className="flex items-center gap-4">
                         <button
-                            key={cat}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-bold transition-all duration-300 ${selectedCategory === cat
-                                    ? 'bg-emerald-500 text-white shadow-lg scale-105'
-                                    : 'bg-white dark:bg-[#1A1F2B] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800'
-                                }`}
+                            onClick={() => navigate(-1)}
+                            className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors"
                         >
-                            {cat}
+                            <ChevronLeft size={24} />
                         </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Unlocked Achievements */}
-            {unlockedAchievements.length > 0 && (
-                <div className="mb-6">
-                    <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-2">
-                        Unlocked ({unlockedAchievements.length})
-                    </h2>
-                    <div className="space-y-3">
-                        {unlockedAchievements.map((achievement) => {
-                            const Icon = achievement.icon;
-                            return (
-                                <div
-                                    key={achievement.id}
-                                    className="bg-white dark:bg-[#1A1F2B] rounded-2xl p-4 border border-gray-100 dark:border-gray-800 transition-all duration-300 hover:shadow-lg"
-                                >
-                                    <div className="flex items-start gap-4">
-                                        <div className={`w-16 h-16 rounded-2xl ${colorBgClasses[achievement.color]} flex items-center justify-center flex-shrink-0`}>
-                                            <Icon size={28} className={`${colorClasses[achievement.color].replace('bg-', 'text-')}`} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2 mb-1">
-                                                <h3 className="font-bold text-gray-900 dark:text-white text-sm">
-                                                    {achievement.title}
-                                                </h3>
-                                                <div className="flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded-lg flex-shrink-0">
-                                                    <Star size={12} className="text-amber-600 dark:text-amber-400" />
-                                                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                                                        {achievement.points}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                                                {achievement.description}
-                                            </p>
-                                            <div className="flex items-center gap-2">
-                                                <CheckCircle size={14} className="text-emerald-500" />
-                                                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                                                    Unlocked on {new Date(achievement.unlockedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        <h1 className="text-xl font-bold">Achievements</h1>
                     </div>
                 </div>
-            )}
 
-            {/* Locked Achievements (In Progress) */}
-            {lockedAchievements.length > 0 && (
-                <div>
-                    <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-2">
-                        In Progress ({lockedAchievements.length})
-                    </h2>
-                    <div className="space-y-3">
-                        {lockedAchievements.map((achievement) => {
-                            const Icon = achievement.icon;
-                            return (
-                                <div
-                                    key={achievement.id}
-                                    className="bg-white dark:bg-[#1A1F2B] rounded-2xl p-4 border border-gray-100 dark:border-gray-800 transition-all duration-300 opacity-75 hover:opacity-100"
-                                >
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 relative">
-                                            <Icon size={28} className="text-gray-400" />
-                                            <div className="absolute inset-0 flex items-center justify-center bg-gray-900/20 rounded-2xl">
-                                                <Lock size={16} className="text-gray-500" />
-                                            </div>
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2 mb-1">
-                                                <h3 className="font-bold text-gray-900 dark:text-white text-sm">
-                                                    {achievement.title}
-                                                </h3>
-                                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-lg flex-shrink-0">
-                                                    <Star size={12} className="text-gray-400" />
-                                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                                                        {achievement.points}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                                                {achievement.description}
-                                            </p>
+                {/* Content - Scrollable */}
+                <div className="flex-1 p-5 pb-24 overflow-y-auto">
 
-                                            {/* Progress Bar */}
-                                            <div className="space-y-1">
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <span className="text-gray-500 dark:text-gray-400">
-                                                        {achievement.current} / {achievement.target}
-                                                    </span>
-                                                    <span className="font-bold text-gray-600 dark:text-gray-300">
-                                                        {achievement.progress}%
-                                                    </span>
-                                                </div>
-                                                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full ${colorClasses[achievement.color]} transition-all duration-500`}
-                                                        style={{ width: `${achievement.progress}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                    {/* Stats Overview */}
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-4 text-white shadow-lg">
+                            <Trophy size={20} className="mb-2 opacity-80" />
+                            <p className="text-2xl font-bold">{userStats.totalAchievements}</p>
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-emerald-100">Unlocked</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-4 text-white shadow-lg">
+                            <Star size={20} className="mb-2 opacity-80" />
+                            <p className="text-2xl font-bold">{userStats.totalPoints}</p>
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-amber-100">Points</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-4 text-white shadow-lg">
+                            <Flame size={20} className="mb-2 opacity-80" />
+                            <p className="text-2xl font-bold">{userStats.currentStreak}</p>
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-orange-100">Streak</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-4 text-white shadow-lg">
+                            <Zap size={20} className="mb-2 opacity-80" />
+                            <p className="text-2xl font-bold">{userStats.level}</p>
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-purple-100">Level</p>
+                        </div>
                     </div>
-                </div>
-            )}
 
-            {/* Empty State */}
-            {filteredAchievements.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
-                    <Trophy size={48} className="text-gray-300 mb-4" />
-                    <p className="font-bold text-gray-800 dark:text-gray-200">No achievements in this category</p>
-                    <p className="text-sm text-gray-500">Try selecting a different category</p>
-                </div>
-            )}
+                    {/* Category Filter */}
+                    <div className="mb-6">
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-5 px-5">
+                            {categories.map((cat) => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setSelectedCategory(cat)}
+                                    className={`px-4 py-2 rounded-full whitespace-nowrap text-xs font-bold transition-all duration-300 transform ${selectedCategory === cat
+                                        ? 'bg-emerald-500 text-white shadow-md scale-105'
+                                        : 'bg-white dark:bg-[#1A1F2B] text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-800'
+                                        }`}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-            {/* Motivational Footer */}
-            <div className="mt-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white text-center">
-                <Target size={32} className="mx-auto mb-3" />
-                <h3 className="font-bold text-lg mb-2">Keep Pushing!</h3>
-                <p className="text-sm text-purple-100">
-                    You're doing great! Complete more workouts to unlock new achievements and earn points.
-                </p>
+                    {/* Unlocked Achievements */}
+                    {unlockedAchievements.length > 0 && (
+                        <div className="mb-6">
+                            <h2 className="text-xs font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4 ml-1">
+                                Unlocked ({unlockedAchievements.length})
+                            </h2>
+                            <div className="space-y-4">
+                                {unlockedAchievements.map((achievement) => {
+                                    const Icon = achievement.icon;
+                                    return (
+                                        <div
+                                            key={achievement.id}
+                                            className="bg-white dark:bg-[#1A1F2B] rounded-3xl p-4 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden"
+                                        >
+                                            <div className={`absolute top-0 right-0 w-24 h-24 bg-${achievement.color}-500 blur-3xl opacity-10 -translate-y-10 translate-x-10`}></div>
+
+                                            <div className="flex items-start gap-4">
+                                                <div className={`w-14 h-14 rounded-2xl ${colorBgClasses[achievement.color]} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                                                    <Icon size={24} className={`${colorClasses[achievement.color].replace('bg-', 'text-')}`} />
+                                                </div>
+                                                <div className="flex-1 min-w-0 pt-0.5">
+                                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                                        <h3 className="font-bold text-gray-900 dark:text-white text-sm leading-tight">
+                                                            {achievement.title}
+                                                        </h3>
+                                                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full flex-shrink-0 border border-amber-100 dark:border-amber-500/20">
+                                                            <Star size={10} className="text-amber-500 fill-amber-500" />
+                                                            <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                                                                {achievement.points}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-relaxed line-clamp-2">
+                                                        {achievement.description}
+                                                    </p>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <CheckCircle size={12} className="text-emerald-500 fill-emerald-500/20" />
+                                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wide">
+                                                            Unlocked {new Date(achievement.unlockedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Locked Achievements */}
+                    {lockedAchievements.length > 0 && (
+                        <div>
+                            <h2 className="text-xs font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4 ml-1">
+                                In Progress ({lockedAchievements.length})
+                            </h2>
+                            <div className="space-y-4">
+                                {lockedAchievements.map((achievement) => {
+                                    const Icon = achievement.icon;
+                                    return (
+                                        <div
+                                            key={achievement.id}
+                                            className="bg-white dark:bg-[#1A1F2B] rounded-3xl p-4 border border-gray-100 dark:border-gray-800 shadow-sm opacity-90"
+                                        >
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 relative">
+                                                    <Icon size={24} className="text-gray-400" />
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-gray-900/10 dark:bg-black/20 rounded-2xl">
+                                                        <Lock size={14} className="text-gray-500 dark:text-gray-400" />
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 min-w-0 pt-0.5">
+                                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                                        <h3 className="font-bold text-gray-900 dark:text-white text-sm leading-tight">
+                                                            {achievement.title}
+                                                        </h3>
+                                                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full flex-shrink-0">
+                                                            <Star size={10} className="text-gray-400" />
+                                                            <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                                                                {achievement.points}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed line-clamp-2">
+                                                        {achievement.description}
+                                                    </p>
+
+                                                    {/* Progress Bar */}
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wide">
+                                                            <span className="text-gray-400">
+                                                                {achievement.current} / {achievement.target}
+                                                            </span>
+                                                            <span className="text-gray-600 dark:text-gray-300">
+                                                                {achievement.progress}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full ${colorClasses[achievement.color]} transition-all duration-500`}
+                                                                style={{ width: `${achievement.progress}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Empty State */}
+                    {filteredAchievements.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
+                            <Trophy size={48} className="text-gray-300 mb-4" />
+                            <p className="font-bold text-gray-800 dark:text-gray-200">No achievements yet</p>
+                            <p className="text-xs text-gray-500 mt-1">Check back later for new challenges!</p>
+                        </div>
+                    )}
+                </div>
             </div>
-        </SettingPageLayout>
+        </div>
     );
 };
 

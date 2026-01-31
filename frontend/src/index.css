@@ -9,3 +9,15 @@
     --color-dark-surface: #1A1F2B;
     --color-dark-header: #0D1117;
 }
+
+body {
+    background-color: #121212;
+    /* Default to dark background to prevent flashing */
+}
+
+@media (prefers-color-scheme: light) {
+    body:not(.dark) {
+        background-color: #f9fafb;
+        /* Light mode bg-gray-50 */
+    }
+}
