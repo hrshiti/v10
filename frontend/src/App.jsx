@@ -1,0 +1,40 @@
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
+import Dashboard from './modules/user/Dashboard';
+import Home from './modules/user/pages/Home';
+import Calendar from './modules/user/pages/Calendar';
+import Workouts from './modules/user/pages/Workouts';
+import Profile from './modules/user/pages/Profile';
+import Settings from './modules/user/pages/Settings';
+import FAQ from './modules/user/pages/FAQ';
+import TermsAndConditions from './modules/user/pages/TermsAndConditions';
+import AboutUs from './modules/user/pages/AboutUs';
+import PrivacyPolicy from './modules/user/pages/PrivacyPolicy';
+import Achievements from './modules/user/pages/Achievements';
+
+function App() {
+  return (
+    <div className="App">
+      <ThemeProvider>
+        <Routes>
+          <Route path="/" element={<Dashboard />}>
+            <Route index element={<Home />} />
+            <Route path="calendar" element={<Calendar />} />
+            <Route path="workouts" element={<Workouts />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+          {/* Settings Navigation Routes */}
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/terms" element={<TermsAndConditions />} />
+          <Route path="/about" element={<AboutUs />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/achievements" element={<Achievements />} />
+        </Routes>
+      </ThemeProvider>
+    </div>
+  );
+}
+
+export default App;
