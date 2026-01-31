@@ -12,12 +12,17 @@ import TermsAndConditions from './modules/user/pages/TermsAndConditions';
 import AboutUs from './modules/user/pages/AboutUs';
 import PrivacyPolicy from './modules/user/pages/PrivacyPolicy';
 import Achievements from './modules/user/pages/Achievements';
+import AdminRoutes from './modules/admin/routes/AdminRoutes';
 
 function App() {
   return (
     <div className="App">
       <ThemeProvider>
         <Routes>
+          {/* Admin Routes */}
+          <Route path="/admin/*" element={<AdminRoutes />} />
+
+          {/* User Routes */}
           <Route path="/" element={<Dashboard />}>
             <Route index element={<Home />} />
             <Route path="calendar" element={<Calendar />} />
@@ -25,6 +30,7 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
           </Route>
+          
           {/* Settings Navigation Routes */}
           <Route path="/faq" element={<FAQ />} />
           <Route path="/terms" element={<TermsAndConditions />} />
