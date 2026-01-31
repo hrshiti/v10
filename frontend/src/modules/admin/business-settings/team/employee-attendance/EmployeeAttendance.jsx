@@ -1,17 +1,340 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Search,
   Calendar,
   ChevronDown,
   Download,
-  UserCheck,
-  Users
+  Users,
+  Plus,
+  X,
+  CheckCircle
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+
+// --- Reusable Components ---
+
+const CustomDropdown = ({ options, value, onChange, isDarkMode, placeholder = "Select", minWidth = "180px" }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = (option) => {
+    onChange(option);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" style={{ minWidth }} ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-3 border rounded-xl text-[14px] font-bold flex justify-between items-center cursor-pointer transition-none ${isDarkMode
+            ? 'bg-[#1a1a1a] border-white/10 text-white'
+            : isOpen ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 text-gray-500 shadow-sm text-gray-400'
+          }`}
+      >
+        <span className={`truncate ${value ? (isDarkMode ? 'text-white' : (options.includes(value) ? 'text-black' : 'text-[#f97316]')) : ''}`}>
+          {(options.includes(value) || !value) ? (value || placeholder) : value}
+        </span>
+        <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#f97316]' : 'text-gray-400'}`} />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute top-full left-0 right-0 mt-1 max-h-[250px] overflow-y-auto rounded-lg shadow-xl border z-50 custom-scrollbar ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'
+          }`}>
+          {options.map((option) => (
+            <div
+              key={option}
+              onClick={() => handleSelect(option)}
+              className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-colors ${isDarkMode
+                  ? 'text-gray-300 hover:bg-white/5'
+                  : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                }`}
+            >
+              {option}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CustomDatePicker = ({ value, onChange, isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const pickerRef = useRef(null);
+
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+
+  const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+  const firstDay = getFirstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth());
+  const blanks = Array(firstDay).fill(null);
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  const handleDateClick = (day) => {
+    const dateString = `${String(day).padStart(2, '0')}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${currentDate.getFullYear()}`;
+    onChange(dateString);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative min-w-[260px]" ref={pickerRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-3 border rounded-xl text-[14px] font-bold flex items-center gap-3 cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'
+          }`}
+      >
+        <Calendar size={18} className="text-gray-400" />
+        <span className={value ? (isDarkMode ? 'text-white' : 'text-gray-700') : 'text-gray-400'}>{value || 'dd-mm-yyyy'}</span>
+        <ChevronDown size={14} className={`ml-auto text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute top-full left-0 mt-2 p-4 rounded-xl shadow-2xl border z-50 w-[320px] ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'
+          }`}>
+          <div className="flex gap-2 mb-4">
+            <select
+              value={months[currentDate.getMonth()]}
+              onChange={(e) => setCurrentDate(new Date(currentDate.getFullYear(), months.indexOf(e.target.value), 1))}
+              className={`w-1/2 p-2 rounded border text-sm font-bold outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200'}`}
+            >
+              {months.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <select
+              value={currentDate.getFullYear()}
+              onChange={(e) => setCurrentDate(new Date(e.target.value, currentDate.getMonth(), 1))}
+              className={`w-1/2 p-2 rounded border text-sm font-bold outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200'}`}
+            >
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+              <div key={d} className="text-center text-xs font-bold text-gray-500">{d}</div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {blanks.map((_, i) => <div key={`blank-${i}`} />)}
+            {days.map(d => (
+              <div
+                key={d}
+                onClick={() => handleDateClick(d)}
+                className={`h-8 flex items-center justify-center text-sm rounded hover:bg-orange-50 hover:text-orange-600 cursor-pointer ${isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700'
+                  }`}
+              >
+                {d}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center justify-between w-[70px] px-3 py-2 border rounded-lg cursor-pointer ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white text-[#333] border-gray-300 shadow-sm'
+          }`}
+      >
+        <span className="text-[14px] font-bold">{rowsPerPage}</span>
+        <ChevronDown size={14} className="text-gray-500" />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute bottom-full right-0 mb-1 w-[80px] rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+          {[5, 10, 20, 50].map((rows) => (
+            <div
+              key={rows}
+              onClick={() => {
+                setRowsPerPage(rows);
+                setIsOpen(false);
+              }}
+              className={`px-3 py-2 text-[14px] font-bold text-center cursor-pointer hover:bg-gray-100 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+            >
+              {rows}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Generate Report Modal (Image 5)
+const GenerateReportModal = ({ isOpen, onClose, isDarkMode }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`w-full max-w-[500px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        {/* Header */}
+        <div className={`px-6 py-5 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+          <div className="flex items-center gap-3">
+            <Calendar size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
+            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Generate Report</h2>
+          </div>
+          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-8">
+          <label className={`block text-[14px] font-bold mb-3 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>OTP*</label>
+          <input
+            type="text"
+            placeholder="OTP"
+            className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
+          />
+        </div>
+
+        {/* Footer */}
+        <div className={`px-6 py-4 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600">
+            Validate
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Generate Multiple Log Modal (Image 3)
+const GenerateMultipleLogModal = ({ isOpen, onClose, isDarkMode }) => {
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
+  const [employee, setEmployee] = useState('');
+
+  if (!isOpen) return null;
+
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(String);
+  const employees = ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`w-full max-w-[550px] rounded-lg shadow-2xl overflow-visible ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        {/* Header */}
+        <div className={`px-6 py-5 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+          <div className="flex items-center gap-3">
+            <Calendar size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
+            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Generate Multiple Log</h2>
+          </div>
+          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-8 space-y-6 overflow-visible">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Select Month*</label>
+              <CustomDropdown
+                placeholder="Select Month"
+                options={months}
+                value={month}
+                onChange={setMonth}
+                isDarkMode={isDarkMode}
+                minWidth="100%"
+              />
+            </div>
+            <div>
+              <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Select Year*</label>
+              <CustomDropdown
+                placeholder="Select Year"
+                options={years}
+                value={year}
+                onChange={setYear}
+                isDarkMode={isDarkMode}
+                minWidth="100%"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Select Employee</label>
+            <CustomDropdown
+              placeholder="Select Employee"
+              options={employees}
+              value={employee}
+              onChange={setEmployee}
+              isDarkMode={isDarkMode}
+              minWidth="100%"
+              labelStyle="orange"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className={`px-6 py-6 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button className="bg-[#f97316] text-white px-10 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600">
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main Component ---
 
 const EmployeeAttendance = () => {
   const { isDarkMode } = useOutletContext();
   const [searchQuery, setSearchQuery] = useState('');
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  // Filter States
+  const [selectedTrainer, setSelectedTrainer] = useState('');
+  const [selectedShift, setSelectedShift] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  // Modal State
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isMultipleLogModalOpen, setIsMultipleLogModalOpen] = useState(false);
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'} max-w-full overflow-x-hidden`}>
@@ -49,38 +372,50 @@ const EmployeeAttendance = () => {
 
       {/* Filters Row 1 */}
       <div className="flex flex-wrap items-center gap-4 pt-4 transition-none">
-        <div className="relative min-w-[180px]">
-          <select className={`appearance-none w-full pl-4 pr-10 py-3 border rounded-xl text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-gray-500 shadow-sm'}`}>
-            <option>Select Trainer</option>
-          </select>
-          <ChevronDown size={14} className="absolute right-3 top-4 text-gray-400 pointer-events-none" />
-        </div>
+        <CustomDropdown
+          placeholder="Select Trainer"
+          options={['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA']}
+          value={selectedTrainer}
+          onChange={setSelectedTrainer}
+          isDarkMode={isDarkMode}
+        />
 
-        <div className="relative min-w-[180px]">
-          <select className={`appearance-none w-full pl-4 pr-10 py-3 border rounded-xl text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-gray-500 shadow-sm'}`}>
-            <option>Select Shift</option>
-          </select>
-          <ChevronDown size={14} className="absolute right-3 top-4 text-gray-400 pointer-events-none" />
-        </div>
+        <CustomDropdown
+          placeholder="Select Shift"
+          options={['Full Time', 'Shift Time']}
+          value={selectedShift}
+          onChange={setSelectedShift}
+          isDarkMode={isDarkMode}
+        />
 
-        <div className={`flex items-center gap-3 px-4 py-3 border rounded-xl min-w-[260px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>
-          <Calendar size={18} className="text-gray-400" />
-          <span className="text-[14px] font-bold text-gray-400">dd-mm-yyyy</span>
-          <ChevronDown size={14} className="text-gray-400 ml-auto" />
-        </div>
+        <CustomDatePicker
+          value={startDate}
+          onChange={setStartDate}
+          isDarkMode={isDarkMode}
+        />
 
-        <div className={`flex items-center gap-3 px-4 py-3 border rounded-xl min-w-[260px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>
-          <Calendar size={18} className="text-gray-400" />
-          <span className="text-[14px] font-bold text-gray-400">dd-mm-yyyy</span>
-          <ChevronDown size={14} className="text-gray-400 ml-auto" />
-        </div>
+        <CustomDatePicker
+          value={endDate}
+          onChange={setEndDate}
+          isDarkMode={isDarkMode}
+        />
 
         <button className="bg-[#f97316] text-white px-8 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Apply</button>
       </div>
 
       {/* Filters Row 2 - Clear Button */}
       <div className="transition-none">
-        <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Clear</button>
+        <button
+          onClick={() => {
+            setSelectedTrainer('');
+            setSelectedShift('');
+            setStartDate('');
+            setEndDate('');
+          }}
+          className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md"
+        >
+          Clear
+        </button>
       </div>
 
       {/* Search & Actions Row */}
@@ -96,11 +431,17 @@ const EmployeeAttendance = () => {
           />
         </div>
         <div className="flex gap-4">
-          <button className={`flex items-center gap-3 px-6 py-3 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f1f5f9] border-gray-100 shadow-sm text-gray-700'}`}>
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className={`flex items-center gap-3 px-6 py-3 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f1f5f9] border-gray-100 shadow-sm text-gray-700'}`}
+          >
             <Download size={20} className="text-gray-400" />
             Generate XLS Report
           </button>
-          <button className={`flex items-center gap-3 px-6 py-3 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f1f5f9] border-gray-100 shadow-sm text-gray-700'}`}>
+          <button
+            onClick={() => setIsMultipleLogModalOpen(true)}
+            className={`flex items-center gap-3 px-6 py-3 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f1f5f9] border-gray-100 shadow-sm text-gray-700'}`}
+          >
             <Download size={20} className="text-gray-400" />
             Generate Multiple Log
           </button>
@@ -142,26 +483,28 @@ const EmployeeAttendance = () => {
 
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
-            <div className="relative">
-              <select className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}>
-                <option>5</option>
-                <option>10</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
-            </div>
+            <RowsPerPageDropdown
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              isDarkMode={isDarkMode}
+            />
           </div>
         </div>
       </div>
+
+      <GenerateReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
+
+      <GenerateMultipleLogModal
+        isOpen={isMultipleLogModalOpen}
+        onClose={() => setIsMultipleLogModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };
-
-// Internal Plus icon for the stats card as I can't use Plus inside the component without import but it's imported at top.
-const Plus = ({ size, className }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-);
 
 export default EmployeeAttendance;

@@ -37,7 +37,8 @@ const Profile = () => {
             'Terms': '/terms',
             'About': '/about',
             'Privacy': '/privacy',
-            'Achievements': '/achievements'
+            'Achievements': '/achievements',
+            'Admin': '/admin'
         };
 
         if (routes[item]) {
@@ -164,12 +165,20 @@ const Profile = () => {
                         <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
                     </button>
 
-                    <button onClick={() => handleMenuClick('Achievements')} className="w-full p-4 flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
+                    <button onClick={() => handleMenuClick('Achievements')} className="w-full p-4 flex items-center justify-between group border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
                         <div className="flex items-center gap-4">
                             <Award size={20} className="text-gray-400" />
                             <span className="font-bold text-gray-700 dark:text-gray-200 text-sm">Achievements</span>
                         </div>
                         <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
+                    </button>
+
+                    <button onClick={() => handleMenuClick('Admin')} className="w-full p-4 flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
+                        <div className="flex items-center gap-4">
+                            <Shield size={20} className="text-[#f97316]" />
+                            <span className="font-bold text-[#f97316] text-sm">Admin Panel</span>
+                        </div>
+                        <ChevronRight className="text-gray-300 group-hover:text-[#f97316]" size={18} />
                     </button>
                 </div>
             </div>

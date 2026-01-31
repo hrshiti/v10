@@ -1,14 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
   ChevronDown,
-  MoreVertical
+  X
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+
+const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center justify-between w-[70px] px-3 py-2 border rounded-lg cursor-pointer ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white text-[#f97316] border-[#f97316] shadow-sm'
+          }`}
+      >
+        <span className="text-[14px] font-bold">{rowsPerPage}</span>
+        <ChevronDown size={14} className="text-[#f97316]" />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute bottom-full right-0 mb-1 w-[80px] rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+          {[5, 10, 20, 50].map((rows) => (
+            <div
+              key={rows}
+              onClick={() => {
+                setRowsPerPage(rows);
+                setIsOpen(false);
+              }}
+              className={`px-3 py-2 text-[14px] font-bold text-center cursor-pointer hover:bg-gray-100 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+            >
+              {rows}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ReplyModal = ({ isOpen, onClose, isDarkMode }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
+      <div className={`w-[500px] rounded-lg shadow-2xl transition-all ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        {/* Header */}
+        <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <h3 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Reply</h3>
+          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+          <label className={`block text-[14px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>Remark*</label>
+          <textarea
+            rows={6}
+            placeholder="Remark..."
+            className={`w-full px-4 py-3 border rounded-xl text-[14px] font-medium outline-none resize-none ${isDarkMode
+                ? 'bg-[#1a1a1a] border-white/10 text-white placeholder-gray-500'
+                : 'bg-white border-gray-300 text-black placeholder-gray-400'
+              }`}
+          />
+        </div>
+
+        {/* Footer */}
+        <div className={`p-4 border-t flex justify-end gap-3 ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button
+            onClick={onClose}
+            className={`px-6 py-2 rounded-lg text-[14px] font-bold border transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            Cancel
+          </button>
+          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2 rounded-lg text-[14px] font-bold shadow-md active:scale-95 transition-none">
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const FeedbackManagement = () => {
   const { isDarkMode } = useOutletContext();
   const [searchQuery, setSearchQuery] = useState('');
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [isReplyModalOpen, setIsReplyModalOpen] = useState(false);
 
   const feedbackData = [
     { id: '788', userName: 'Mili Harry', userMessage: 'please help me to make my everyday weight training program chart for Monday to Saturday', replyMessage: '', date: '21 Nov, 2025 01:19 PM' },
@@ -44,7 +137,7 @@ const FeedbackManagement = () => {
         <div className="px-6 py-5 border-b bg-white dark:bg-white/5 transition-none">
           <span className="text-[14px] font-black text-gray-800 dark:text-gray-200">Follow Ups</span>
         </div>
-        <div className="overflow-x-auto min-h-[500px]">
+        <div className="overflow-x-visible min-h-[500px]">
           <table className="w-full text-left">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-white border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
@@ -65,7 +158,10 @@ const FeedbackManagement = () => {
                   <td className="px-6 py-8">{row.replyMessage}</td>
                   <td className="px-6 py-8 whitespace-nowrap">{row.date}</td>
                   <td className="px-6 py-8 text-right">
-                    <button className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-bold shadow-md active:scale-95 transition-none">
+                    <button
+                      onClick={() => setIsReplyModalOpen(true)}
+                      className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-bold shadow-md active:scale-95 transition-none"
+                    >
                       Reply
                     </button>
                   </td>
@@ -85,16 +181,20 @@ const FeedbackManagement = () => {
 
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
-            <div className="relative">
-              <select className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}>
-                <option>5</option>
-                <option>10</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
-            </div>
+            <RowsPerPageDropdown
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              isDarkMode={isDarkMode}
+            />
           </div>
         </div>
       </div>
+
+      <ReplyModal
+        isOpen={isReplyModalOpen}
+        onClose={() => setIsReplyModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

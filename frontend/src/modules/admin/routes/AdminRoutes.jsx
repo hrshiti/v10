@@ -26,12 +26,13 @@ import ExpenseManagement from '../business-settings/expense-management/ExpenseMa
 import SlotManagement from '../business-settings/slot-management/SlotManagement';
 import GymDetails from '../settings/gym-details/GymDetails';
 import Biometric from '../settings/biometric/Biometric';
+import AccessControl from '../business-settings/team/access-control/AccessControl';
 
 const AdminRoutes = () => {
     return (
         <Routes>
             <Route element={<AdminLayout />}>
-                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route index element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="enquiries" element={<Enquiries />} />
                 <Route path="follow-ups" element={<FollowUps />} />
@@ -61,6 +62,7 @@ const AdminRoutes = () => {
                 <Route path="business">
                     <Route path="team" element={<Employees />} />
                     <Route path="employees" element={<Employees />} />
+                    <Route path="employees/access-control" element={<AccessControl />} />
                     <Route path="attendance" element={<EmployeeAttendance />} />
                     <Route path="payments" element={<Payments />} />
                     <Route path="expenses" element={<ExpenseManagement />} />

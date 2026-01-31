@@ -1,16 +1,330 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown,
   Search,
   Download,
   Calendar,
-  MoreVertical
+  MoreVertical,
+  X,
+  History,
+  CheckCircle,
+  Edit2
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+
+const ReportModal = ({ isOpen, onClose, isDarkMode }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
+      <div className={`w-[400px] rounded-lg shadow-2xl transition-all ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <div className="flex items-center gap-2">
+            <Calendar size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
+            <h3 className={`text-[16px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Generate Report</h3>
+          </div>
+          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-6">
+          <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>OTP*</label>
+          <input
+            type="text"
+            placeholder="OTP"
+            className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none ${isDarkMode
+              ? 'bg-[#1a1a1a] border-white/10 text-white placeholder-gray-500'
+              : 'bg-white border-gray-300 text-black placeholder-gray-400'
+              }`}
+          />
+        </div>
+        <div className={`p-4 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-6 py-2 rounded-lg text-[14px] font-bold shadow-md transition-none">
+            Validate
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const FollowTypeDropdown = ({ isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selected, setSelected] = useState('Follow Type');
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const options = [
+    "Balance Due",
+    "Enquiry",
+    "Feedback",
+    "Membership Renewal",
+    "Trial",
+    "Birthday"
+  ];
+
+  return (
+    <div className="relative min-w-[150px]" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-medium cursor-pointer flex items-center justify-between transition-none ${isDarkMode
+            ? 'bg-[#1a1a1a] border-white/10 text-white'
+            : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
+          }`}
+      >
+        <span>{selected}</span>
+        <ChevronDown size={14} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute top-full left-0 mt-2 w-full rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+          {options.map((opt) => (
+            <div
+              key={opt}
+              onClick={() => {
+                setSelected(opt);
+                setIsOpen(false);
+              }}
+              className={`px-4 py-3 text-[13px] font-bold cursor-pointer hover:bg-gray-50 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const ConvertibleTypeDropdown = ({ isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selected, setSelected] = useState('Convertible Type');
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const options = ["Hot", "Warm", "Cold"];
+
+  return (
+    <div className="relative min-w-[160px]" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-medium cursor-pointer flex items-center justify-between transition-none ${isDarkMode
+            ? 'bg-[#1a1a1a] border-white/10 text-white'
+            : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
+          }`}
+      >
+        <span>{selected}</span>
+        <ChevronDown size={14} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute top-full left-0 mt-2 w-full rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+          {options.map((opt) => (
+            <div
+              key={opt}
+              onClick={() => {
+                setSelected(opt);
+                setIsOpen(false);
+              }}
+              className={`px-4 py-3 text-[13px] font-bold cursor-pointer hover:bg-gray-50 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const StatusDropdown = ({ isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selected, setSelected] = useState('Status');
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative min-w-[150px]" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-medium cursor-pointer flex items-center justify-between transition-none ${isDarkMode
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
+          }`}
+      >
+        <span>{selected}</span>
+        <ChevronDown size={14} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute top-full left-0 mt-2 w-full rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+          {['PENDING', 'DONE', 'MISSED'].map((status) => (
+            <div
+              key={status}
+              onClick={() => {
+                setSelected(status);
+                setIsOpen(false);
+              }}
+              className={`px-4 py-3 text-[13px] font-bold cursor-pointer hover:bg-gray-50 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+            >
+              {status}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const SelectAllocateDropdown = ({ isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selected, setSelected] = useState('Select Allocate');
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative min-w-[170px]" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-medium cursor-pointer flex items-center justify-between transition-none ${isDarkMode
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
+          }`}
+      >
+        <span>{selected}</span>
+        <ChevronDown size={14} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute top-full left-0 mt-2 w-full rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+          {['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'].map((alloc) => (
+            <div
+              key={alloc}
+              onClick={() => {
+                setSelected(alloc);
+                setIsOpen(false);
+              }}
+              className={`px-4 py-3 text-[13px] font-bold cursor-pointer hover:bg-gray-50 uppercase ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+            >
+              {alloc}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const AllocateToMeDropdown = ({ isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selected, setSelected] = useState('Allocate To Me');
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative min-w-[160px]" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-medium cursor-pointer flex items-center justify-between transition-none ${isDarkMode
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
+          }`}
+      >
+        <span>{selected}</span>
+        <ChevronDown size={14} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
+      </div>
+      {isOpen && (
+        <div className={`absolute top-full left-0 mt-2 w-full rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+          <div
+            onClick={() => {
+              setSelected('Allocate To Me');
+              setIsOpen(false);
+            }}
+            className={`px-4 py-3 text-[13px] font-bold cursor-pointer hover:bg-gray-50 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+          >
+            Allocate To Me
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const FollowUps = () => {
   const { isDarkMode } = useOutletContext();
   const [currentPage, setCurrentPage] = useState(1);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Rows Per Page
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
+  const rowsDropdownRef = useRef(null);
+
+  // Active Action Menu
+  const [activeActionRow, setActiveActionRow] = useState(null);
+  const actionContainerRefs = useRef({});
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Rows Per Page Dropdown
+      if (rowsDropdownRef.current && !rowsDropdownRef.current.contains(event.target)) {
+        setIsRowsDropdownOpen(false);
+      }
+      // Action Menu
+      if (activeActionRow !== null) {
+        const currentRef = actionContainerRefs.current[activeActionRow];
+        if (currentRef && !currentRef.contains(event.target)) {
+          setActiveActionRow(null);
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeActionRow]);
 
   const followUpData = [
     {
@@ -82,16 +396,13 @@ const FollowUps = () => {
         <h1 className="text-[28px] font-bold tracking-tight">Follow Ups</h1>
       </div>
 
-      {/* Filters Row - Exactly like Image 2 */}
+      {/* Filters Row */}
       <div className="flex flex-wrap items-center gap-4 transition-none">
-        {['Follow Type', 'Convertible Type', 'Status', 'Select Allocate', 'Allocate To Me'].map((label, idx) => (
-          <div key={idx} className="relative min-w-[150px]">
-            <select className={`appearance-none w-full pl-4 pr-10 py-2.5 border rounded-lg text-[14px] font-medium outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-700'}`}>
-              <option>{label}</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-4 text-gray-400 pointer-events-none" />
-          </div>
-        ))}
+        <FollowTypeDropdown isDarkMode={isDarkMode} />
+        <ConvertibleTypeDropdown isDarkMode={isDarkMode} />
+        <StatusDropdown isDarkMode={isDarkMode} />
+        <SelectAllocateDropdown isDarkMode={isDarkMode} />
+        <AllocateToMeDropdown isDarkMode={isDarkMode} />
 
         <div className={`flex items-center gap-3 px-4 py-2 border rounded-lg min-w-[210px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
           <Calendar size={18} className="text-gray-400 outline-none" />
@@ -110,10 +421,13 @@ const FollowUps = () => {
           <input
             type="text"
             placeholder="Search"
-            className={`w-full pl-11 pr-4 py-2 border rounded-lg text-[14px] font-medium outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-200 text-black placeholder:text-gray-400'}`}
+            className={`w-full pl-11 pr-4 py-2.5 border rounded-lg text-[14px] font-medium outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-200 text-black placeholder:text-gray-400'}`}
           />
         </div>
-        <button className={`flex items-center gap-2 px-6 py-2 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>
+        <button
+          onClick={() => setIsReportModalOpen(true)}
+          className={`flex items-center gap-2 px-6 py-2.5 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
+        >
           <Download size={18} />
           Generate XLS Report
         </button>
@@ -121,12 +435,12 @@ const FollowUps = () => {
 
       <p className="text-[14px] font-bold text-gray-400 pt-2 tracking-tight">Total Follow Ups (1230)</p>
 
-      {/* Table Container - Exactly like Image 2 */}
+      {/* Table Container */}
       <div className={`border rounded-lg overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
         <div className={`px-5 py-4 border-b border-gray-50 dark:border-white/5 bg-white`}>
           <span className="text-[14px] font-bold text-black-strict tracking-tight transition-none">Follow Ups</span>
         </div>
-        <div className="overflow-x-auto min-h-[500px]">
+        <div className="overflow-x-visible min-h-[500px]">
           <table className="w-full text-left">
             <thead>
               <tr className={`text-[13px] font-bold text-gray-500 border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100'}`}>
@@ -169,10 +483,37 @@ const FollowUps = () => {
                     </div>
                   </td>
                   <td className="px-6 py-7 text-[13px] font-medium leading-relaxed max-w-sm">{row.comment}</td>
-                  <td className="px-6 py-7 text-right">
-                    <button className="text-gray-400 hover:text-black dark:hover:text-white transition-none">
+                  <td className="px-6 py-7 text-right relative" ref={el => actionContainerRefs.current[idx] = el}>
+                    <button
+                      onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
+                      className={`transition-none p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 ${activeActionRow === idx ? 'text-black dark:text-white' : 'text-gray-400'}`}
+                    >
                       <MoreVertical size={20} />
                     </button>
+                    {/* Action Menu */}
+                    {activeActionRow === idx && (
+                      <div
+                        className={`absolute right-10 top-0 mt-2 w-[220px] rounded-lg shadow-2xl border z-[9999] overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}
+                      >
+                        {[
+                          { label: "Edit Response", icon: Edit2 },
+                          { label: "History", icon: History },
+                          { label: "Done", icon: CheckCircle }
+                        ].map((action, i) => (
+                          <div
+                            key={i}
+                            onClick={() => setActiveActionRow(null)}
+                            className={`px-5 py-3.5 text-[14px] font-medium border-b last:border-0 cursor-pointer flex items-center gap-3 hover:pl-6 transition-all ${isDarkMode
+                              ? 'text-gray-300 border-white/5 hover:bg-white/5'
+                              : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
+                              }`}
+                          >
+                            {/* <action.icon size={16} />  Not explicitly asking for icons, but looks better. Removed for exact text match if needed, but keeping for UX */}
+                            {action.label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -200,17 +541,42 @@ const FollowUps = () => {
 
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
-            <div className="relative">
-              <select className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}>
-                <option>5</option>
-                <option>10</option>
-                <option>25</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+            <div className="relative" ref={rowsDropdownRef}>
+              <div
+                onClick={() => setIsRowsDropdownOpen(!isRowsDropdownOpen)}
+                className={`flex items-center justify-between w-[70px] px-3 py-2 border rounded-lg cursor-pointer ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'
+                  }`}
+              >
+                <span className="text-[14px] font-bold">{rowsPerPage}</span>
+                <ChevronDown size={14} className="text-[#f97316]" />
+              </div>
+
+              {isRowsDropdownOpen && (
+                <div className={`absolute bottom-full right-0 mb-1 w-[80px] rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                  {[5, 10, 25, 50].map((rows) => (
+                    <div
+                      key={rows}
+                      onClick={() => {
+                        setRowsPerPage(rows);
+                        setIsRowsDropdownOpen(false);
+                      }}
+                      className={`px-3 py-2 text-[14px] font-bold text-center cursor-pointer hover:bg-gray-100 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+                    >
+                      {rows}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -7,13 +7,100 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CheckCircle,
+  X
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+
+// --- Reusable Components ---
+
+const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center justify-between w-[90px] px-4 py-2 border rounded-xl cursor-pointer ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white text-[#f97316] border-[#f97316]/30 shadow-sm'
+          }`}
+      >
+        <span className="text-[14px] font-bold">{rowsPerPage}</span>
+        <ChevronDown size={14} className="text-[#f97316]" />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute bottom-full right-0 mb-1 w-[90px] rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+          {[5, 10, 20, 50].map((rows) => (
+            <div
+              key={rows}
+              onClick={() => {
+                setRowsPerPage(rows);
+                setIsOpen(false);
+              }}
+              className={`px-4 py-3 text-[14px] font-bold text-center cursor-pointer hover:bg-gray-100 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+            >
+              {rows}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SuccessNotification = ({ message, show, onClose }) => {
+  if (!show) return null;
+  return (
+    <div className="fixed top-24 right-8 z-[200] animate-in fade-in slide-in-from-right-10 duration-300">
+      <div className="bg-white rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-100 p-6 flex items-center gap-4 min-w-[320px] relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500" />
+        <div className="p-2 rounded-full bg-emerald-100 text-emerald-600">
+          <CheckCircle size={24} />
+        </div>
+        <div className="flex-1">
+          <p className="text-[15px] font-black text-gray-700">{message}</p>
+        </div>
+        <button onClick={onClose} className="text-gray-300 hover:text-gray-500">
+          <X size={20} />
+        </button>
+        <div className="absolute bottom-0 left-0 h-1 bg-emerald-500/20 w-full">
+          <div className="h-full bg-emerald-500 animate-progress" />
+        </div>
+      </div>
+      <style jsx>{`
+                @keyframes progress {
+                    from { width: 0%; }
+                    to { width: 100%; }
+                }
+                .animate-progress {
+                    animation: progress 3s linear forwards;
+                }
+            `}</style>
+    </div>
+  );
+};
+
+// --- Main Component ---
 
 const MembershipPackages = () => {
   const { isDarkMode } = useOutletContext();
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [showNotification, setShowNotification] = useState(false);
+  const [activeActionRow, setActiveActionRow] = useState(null);
+  const actionRef = useRef({});
+
   const [packages, setPackages] = useState([
     { id: 13590, name: 'Complementary', duration: '12 Months', sessions: 360, price: '0.00', status: true },
     { id: 13576, name: 'Anniversary Package But 1 and get 1 Free', duration: '12 Months', sessions: 360, price: '9000.00', status: false },
@@ -29,19 +116,39 @@ const MembershipPackages = () => {
     { label: 'Group Ex', value: 0, icon: User, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
   ];
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (activeActionRow !== null) {
+        if (actionRef.current[activeActionRow] && !actionRef.current[activeActionRow].contains(event.target)) {
+          setActiveActionRow(null);
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeActionRow]);
+
   const toggleStatus = (id) => {
     setPackages(packages.map(pkg =>
       pkg.id === id ? { ...pkg, status: !pkg.status } : pkg
     ));
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 3000);
   };
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>
+      <SuccessNotification
+        message="Plan Status Updated."
+        show={showNotification}
+        onClose={() => setShowNotification(false)}
+      />
+
       {/* Header */}
       <div className="flex justify-between items-center transition-none">
-        <h1 className="text-[28px] font-black tracking-tight">Memberships Package</h1>
-        <button className="bg-[#f97316] text-white px-6 py-2.5 rounded-lg flex items-center gap-2 text-[15px] font-bold shadow-md active:scale-95 transition-none">
-          <Plus size={20} />
+        <h1 className="text-[28px] font-black tracking-tight tracking-tight uppercase">Memberships Package</h1>
+        <button className="bg-[#f97316] text-white px-8 py-3 rounded-lg flex items-center gap-3 text-[15px] font-bold shadow-lg active:scale-95 transition-none hover:bg-orange-600">
+          <Plus size={22} strokeWidth={3} />
           Add Package
         </button>
       </div>
@@ -49,13 +156,13 @@ const MembershipPackages = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-none">
         {stats.map((stat, idx) => (
-          <div key={idx} className={`p-5 rounded-lg flex items-center gap-4 transition-none cursor-pointer ${stat.active ? 'bg-blue-600 text-white shadow-lg' : (isDarkMode ? 'bg-[#1a1a1a] border border-white/5' : 'bg-gray-100/50 border border-gray-100')}`}>
-            <div className={`p-3 rounded-lg ${stat.active ? 'bg-white/20' : (isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-white text-gray-400')}`}>
+          <div key={idx} className={`p-6 rounded-xl flex items-center gap-5 transition-none cursor-pointer border-2 ${stat.active ? 'bg-blue-600 border-blue-600 text-white shadow-xl' : (isDarkMode ? 'bg-[#1a1a1a] border-white/5 shadow-inner' : 'bg-white border-gray-100 shadow-sm hover:shadow-md')}`}>
+            <div className={`p-4 rounded-xl ${stat.active ? 'bg-white/20' : (isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-[#f8f9fa] text-gray-400')}`}>
               <stat.icon size={28} />
             </div>
             <div>
-              <p className="text-[24px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-bold mt-1 ${stat.active ? 'text-white/80' : 'text-gray-500'}`}>{stat.label}</p>
+              <p className="text-[28px] font-black leading-none">{stat.value}</p>
+              <p className={`text-[13px] font-black mt-1 uppercase tracking-tight ${stat.active ? 'text-white/80' : 'text-gray-500'}`}>{stat.label}</p>
             </div>
           </div>
         ))}
@@ -64,11 +171,11 @@ const MembershipPackages = () => {
       {/* Search */}
       <div className="max-w-sm transition-none pt-4">
         <div className="relative">
-          <Search size={18} className="absolute left-4 top-3 text-gray-400" />
+          <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
           <input
             type="text"
             placeholder="Search"
-            className={`w-full pl-11 pr-4 py-2 border rounded-lg text-[14px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-200 text-black placeholder:text-gray-400'}`}
+            className={`w-full pl-12 pr-4 py-3 border rounded-xl text-[15px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#fcfcfc] border-gray-200 text-black placeholder:text-gray-400'}`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -76,52 +183,74 @@ const MembershipPackages = () => {
       </div>
 
       {/* Table Section */}
-      <div className={`mt-8 border rounded-lg overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
-        <div className="p-4 border-b flex justify-between items-center transition-none bg-white dark:bg-white/5">
-          <span className="text-[13px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Memberships Package</span>
+      <div className={`mt-8 border rounded-xl overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
+        <div className="p-6 border-b flex justify-between items-center transition-none bg-white dark:bg-white/5 font-black uppercase tracking-wider text-[14px]">
+          Memberships Package
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
+        <div className="overflow-x-visible">
+          <table className="w-full text-left whitespace-nowrap">
             <thead>
-              <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-white border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
-                <th className="px-6 py-5">ID</th>
-                <th className="px-6 py-5">Package Name</th>
-                <th className="px-6 py-5">Duration</th>
-                <th className="px-6 py-5">Sessions</th>
-                <th className="px-6 py-5">Price</th>
-                <th className="px-6 py-5 text-center">Active / Inactive</th>
-                <th className="px-6 py-5 w-10"></th>
+              <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-[#fcfcfc] border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
+                <th className="px-8 py-6 uppercase tracking-wider">ID</th>
+                <th className="px-8 py-6 uppercase tracking-wider">Package Name</th>
+                <th className="px-8 py-6 uppercase tracking-wider">Duration</th>
+                <th className="px-8 py-6 uppercase tracking-wider text-center">Sessions</th>
+                <th className="px-8 py-6 uppercase tracking-wider">Price</th>
+                <th className="px-8 py-6 uppercase tracking-wider text-center">Active / Inactive</th>
+                <th className="px-8 py-6 w-10">Action</th>
               </tr>
             </thead>
-            <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-[rgba(0,0,0,0.8)]'}`}>
+            <tbody className={`text-[14px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
               {packages.map((row, idx) => (
                 <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-7">{row.id}</td>
-                  <td className="px-6 py-7">
-                    <div className="border border-[#f97316]/30 bg-[#fff7ed] dark:bg-[#f97316]/10 text-[#f97316] px-4 py-2.5 rounded-lg text-[13px] font-bold inline-block leading-snug max-w-[200px]">
+                  <td className="px-8 py-8">{row.id}</td>
+                  <td className="px-8 py-8 uppercase">
+                    <div className="border border-[#f97316]/30 bg-[#fff7ed] dark:bg-[#f97316]/10 text-[#f97316] px-5 py-2.5 rounded-lg text-[13px] font-black inline-block tracking-tight leading-snug max-w-[300px]">
                       {row.name}
                     </div>
                   </td>
-                  <td className="px-6 py-7">{row.duration}</td>
-                  <td className="px-6 py-7">{row.sessions}</td>
-                  <td className="px-6 py-7">₹{row.price}</td>
-                  <td className="px-6 py-7">
+                  <td className="px-8 py-8">{row.duration}</td>
+                  <td className="px-8 py-8 text-center">{row.sessions}</td>
+                  <td className="px-8 py-8 font-black tracking-tight">₹{row.price}</td>
+                  <td className="px-8 py-8">
                     <div className="flex justify-center">
                       <div
                         onClick={() => toggleStatus(row.id)}
-                        className={`relative w-16 h-8 rounded-lg cursor-pointer transition-none p-1 flex items-center ${row.status ? 'bg-[#059669]' : 'bg-gray-400'}`}
+                        className={`relative w-24 h-12 rounded-lg cursor-pointer transition-all p-1 flex items-center shadow-inner ${row.status ? 'bg-[#059669]' : 'bg-[#64748b]'}`}
                       >
-                        <div className={`w-6 h-6 rounded bg-white shadow-sm transform transition-none ${row.status ? 'translate-x-8' : 'translate-x-0'}`} />
-                        <span className={`absolute ${row.status ? 'left-2' : 'right-2'} text-[10px] font-black text-white pointer-events-none uppercase`}>
+                        <span className={`absolute ${row.status ? 'left-4' : 'right-4'} text-[13px] font-black text-white pointer-events-none uppercase tracking-widest`}>
                           {row.status ? 'On' : 'Off'}
                         </span>
+                        <div className={`w-8 h-8 rounded bg-white shadow-lg transform transition-transform duration-200 ${row.status ? 'translate-x-[52px]' : 'translate-x-0'}`} />
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-7 text-right">
-                    <button className="text-gray-400 hover:text-black dark:hover:text-white transition-none">
-                      <MoreVertical size={20} />
+                  <td className="px-8 py-8 text-center relative" ref={el => actionRef.current[idx] = el}>
+                    <button
+                      onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
+                      className="text-gray-400 hover:text-black dark:hover:text-white transition-none"
+                    >
+                      <MoreVertical size={24} />
                     </button>
+
+                    {activeActionRow === idx && (
+                      <div className={`absolute right-12 top-12 w-[220px] rounded-xl shadow-2xl border z-50 overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 font-bold'}`}>
+                        <div className="py-2">
+                          <div
+                            onClick={() => setActiveActionRow(null)}
+                            className={`px-6 py-4 text-[15px] font-black border-b cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'}`}
+                          >
+                            Edit Package
+                          </div>
+                          <div
+                            onClick={() => setActiveActionRow(null)}
+                            className={`px-6 py-4 text-[15px] font-black cursor-pointer hover:pl-8 transition-all text-[#ff4d4d] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                          >
+                            Delete
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -130,26 +259,21 @@ const MembershipPackages = () => {
         </div>
 
         {/* Pagination */}
-        <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-          <div className="flex flex-wrap items-center gap-2">
-            <button className={`px-5 py-2.5 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>« Previous</button>
-            {[1, 2].map(num => (
-              <button key={num} className={`w-10 h-10 border rounded-lg text-[12px] font-bold transition-none ${num === 1 ? 'bg-[#f97316] text-white shadow-md' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600')}`}>
-                {num}
-              </button>
-            ))}
-            <button className={`px-5 py-2.5 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>Next »</button>
+        <div className={`p-8 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
+          <div className="flex flex-wrap items-center gap-3">
+            <button className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50`}>« Previous</button>
+            <button className="w-11 h-11 border rounded-xl text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
+            <button className="w-11 h-11 border rounded-xl text-[13px] font-bold transition-none border-gray-300 text-gray-600 hover:bg-gray-50">2</button>
+            <button className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50`}>Next »</button>
           </div>
 
-          <div className="flex items-center gap-4 transition-none">
-            <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
-            <div className="relative">
-              <select className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}>
-                <option>5</option>
-                <option>10</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
-            </div>
+          <div className="flex items-center gap-5 transition-none">
+            <span className="text-[15px] font-black text-gray-500 uppercase tracking-tight">Rows per page</span>
+            <RowsPerPageDropdown
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              isDarkMode={isDarkMode}
+            />
           </div>
         </div>
       </div>

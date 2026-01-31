@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import Dashboard from './modules/user/Dashboard';
 import Home from './modules/user/pages/Home';
@@ -24,6 +24,7 @@ function App() {
       <ThemeProvider>
         <Routes>
           {/* Admin Routes */}
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/*" element={<AdminRoutes />} />
 
           {/* Auth Routes */}
