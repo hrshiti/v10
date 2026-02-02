@@ -41,8 +41,8 @@ const CustomDropdown = ({ options, value, onChange, isDarkMode, placeholder = "S
       <div
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-2.5 border rounded-xl text-[14px] font-bold flex justify-between items-center cursor-pointer transition-none ${isDarkMode
-            ? 'bg-[#1a1a1a] border-white/10 text-white'
-            : isOpen ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 text-[#f97316] shadow-sm'
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : isOpen ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 text-[#f97316] shadow-sm'
           }`}
       >
         <span className={`truncate ${value ? (isDarkMode ? 'text-white' : 'text-black') : 'text-[#f97316]'}`}>
@@ -62,8 +62,8 @@ const CustomDropdown = ({ options, value, onChange, isDarkMode, placeholder = "S
                 setIsOpen(false);
               }}
               className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-colors ${isDarkMode
-                  ? 'text-gray-300 hover:bg-white/5'
-                  : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                ? 'text-gray-300 hover:bg-white/5'
+                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                 }`}
             >
               {option}
@@ -289,7 +289,7 @@ const Members = () => {
                 <th className="px-6 py-6 uppercase tracking-wider text-center">Status</th>
                 <th className="px-6 py-6 uppercase tracking-wider">Customer Service Executive</th>
                 <th className="px-6 py-6 uppercase tracking-wider text-center">Vaccination(Coivid-19)</th>
-                <th className="px-6 py-6 w-10">Action</th>
+                <th className="px-6 py-6 border-l dark:border-white/5 w-[80px] text-center">Action</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -311,12 +311,12 @@ const Members = () => {
                   </td>
                   <td className="px-6 py-8">{row.executive}</td>
                   <td className="px-6 py-8 text-center">{row.vaccination}</td>
-                  <td className="px-6 py-8 text-center relative" ref={el => actionRef.current[idx] = el}>
+                  <td className="px-6 py-8 text-center relative border-l dark:border-white/5" ref={el => actionRef.current[idx] = el}>
                     <button
                       onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
-                      className="text-gray-400 hover:text-black dark:hover:text-white transition-none"
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-90"
                     >
-                      <MoreVertical size={24} />
+                      <MoreVertical size={22} />
                     </button>
 
                     {activeActionRow === idx && (

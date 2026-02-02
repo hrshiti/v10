@@ -94,8 +94,8 @@ const CustomDatePicker = ({ value, onChange, isDarkMode }) => {
                 key={d}
                 onClick={() => handleDateClick(d)}
                 className={`h-8 flex items-center justify-center text-sm rounded cursor-pointer transition-none ${value && parseInt(value.split('-')[0]) === d && parseInt(value.split('-')[1]) === (currentDate.getMonth() + 1) && parseInt(value.split('-')[2]) === currentDate.getFullYear()
-                    ? 'bg-[#f97316] text-white'
-                    : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600')
+                  ? 'bg-[#f97316] text-white'
+                  : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600')
                   }`}
               >
                 {d}
@@ -199,10 +199,10 @@ const MembershipAnalytics = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
   const stats = [
-    { label: 'General Training', value: 'General Training', icon: User, active: true },
-    { label: 'Personal Training', value: 'Personal Training', icon: User },
-    { label: 'Group Ex', value: 'Group Ex', icon: User },
-    { label: 'Complete Fitness', value: 'Complete Fitness', icon: User },
+    { label: 'General Training', icon: User, active: 'bg-blue-600', hover: 'hover:bg-blue-600', ring: 'ring-blue-400' },
+    { label: 'Personal Training', icon: User, active: 'bg-emerald-600', hover: 'hover:bg-emerald-600', ring: 'ring-emerald-400' },
+    { label: 'Group Ex', icon: User, active: 'bg-purple-600', hover: 'hover:bg-purple-600', ring: 'ring-purple-400' },
+    { label: 'Complete Fitness', icon: User, active: 'bg-red-500', hover: 'hover:bg-red-500', ring: 'ring-red-400' },
   ];
 
   const reportData = [
@@ -218,18 +218,33 @@ const MembershipAnalytics = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 transition-none">
-        {stats.map((stat, idx) => (
-          <div
-            key={idx}
-            onClick={() => setSelectedCategory(stat.label)}
-            className={`p-6 rounded-xl flex items-center gap-5 transition-none cursor-pointer border-2 ${stat.label === selectedCategory ? 'bg-blue-600 border-blue-600 text-white shadow-xl' : (isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-white border-gray-100 shadow-sm')}`}
-          >
-            <div className={`p-4 rounded-xl ${stat.label === selectedCategory ? 'bg-white/20' : (isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-[#f8f9fa] text-gray-400')}`}>
-              <stat.icon size={28} />
+        {stats.map((stat, idx) => {
+          const isActive = selectedCategory === stat.label;
+          return (
+            <div
+              key={idx}
+              onClick={() => setSelectedCategory(stat.label)}
+              className={`group p-6 rounded-xl flex items-center gap-5 transition-all duration-300 cursor-pointer border-2
+                ${isActive
+                  ? `${stat.active} border-transparent text-white shadow-xl ring-1 ${stat.ring}`
+                  : (isDarkMode
+                    ? `bg-[#1a1a1a] border-white/5 text-white ${stat.hover} hover:border-transparent hover:shadow-lg`
+                    : `bg-white border-gray-100 text-gray-700 ${stat.hover} hover:text-white hover:border-transparent hover:shadow-lg`
+                  )}`}
+            >
+              <div className={`p-4 rounded-xl transition-all duration-300
+                ${isActive
+                  ? 'bg-white/20 text-white'
+                  : (isDarkMode
+                    ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                    : 'bg-[#f8f9fa] text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                  )}`}>
+                <stat.icon size={28} />
+              </div>
+              <span className={`text-[16px] font-black transition-colors duration-300 ${isActive ? 'text-white' : 'group-hover:text-white'}`}>{stat.label}</span>
             </div>
-            <span className={`text-[16px] font-black ${stat.label === selectedCategory ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>{stat.label}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="flex flex-wrap items-center gap-4 transition-none pt-4">

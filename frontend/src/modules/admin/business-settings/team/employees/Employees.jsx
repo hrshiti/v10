@@ -23,20 +23,23 @@ const ToastNotification = ({ message, onClose, isDarkMode }) => {
   }, [onClose]);
 
   return (
-    <div className={`fixed top-4 right-4 z-[110] flex flex-col min-w-[300px] rounded-lg shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border border-white/10 text-white' : 'bg-white shadow-lg text-gray-800'
+    <div className={`fixed top-6 right-6 z-[120] flex flex-col min-w-[320px] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] animate-in slide-in-from-right duration-500 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border border-white/10 text-white' : 'bg-white text-gray-800'
       }`}>
-      <div className="flex items-center gap-3 px-6 py-4">
-        <div className="bg-[#10b981] rounded-full p-1 min-w-[24px]">
-          <CheckCircle size={16} className="text-white" />
+      <div className="flex items-center gap-4 px-6 py-5">
+        <div className="w-10 h-10 rounded-full bg-[#ecfdf5] dark:bg-[#064e3b] flex items-center justify-center border border-[#10b981]/20">
+          <CheckCircle size={22} className="text-[#10b981]" />
         </div>
-        <span className="text-[14px] font-bold flex-1">{message}</span>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-          <X size={16} />
+        <div className="flex-1">
+          <span className="text-[15px] font-black tracking-tight">{message}</span>
+        </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+          <X size={20} />
         </button>
       </div>
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#10b981]" />
       {/* Progress Bar */}
-      <div className="h-1 bg-gray-100 w-full">
-        <div className="h-full bg-[#10b981] animate-[progress_3s_linear_forwards]"></div>
+      <div className="h-1.5 bg-gray-100 dark:bg-white/5 w-full relative">
+        <div className="h-full bg-[#10b981] transition-all duration-[3000ms] ease-linear" style={{ width: '100%' }}></div>
       </div>
     </div>
   );
@@ -205,7 +208,7 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode }) => {
 
 const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', mobile: '', email: '', gender: '', marital: 'Single',
+    firstName: '', lastName: '', mobile: '', email: '', gender: '', marital: '',
     birthDate: '', anniversaryDate: '',
     language: [], gymRole: [],
     gymActivities: '',
@@ -247,9 +250,25 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
 
           {/* Profile Upload */}
           <div className="flex justify-center mb-8">
-            <div className={`w-32 h-32 rounded-full border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors ${isDarkMode ? 'border-white/20 hover:bg-white/5' : 'border-gray-300'}`}>
+            <input
+              type="file"
+              id="employee-photo-upload"
+              className="hidden"
+              accept="image/*"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  // Handle file upload here if needed
+                  console.log("File selected:", e.target.files[0].name);
+                }
+              }}
+            />
+            <label
+              htmlFor="employee-photo-upload"
+              className={`w-32 h-32 rounded-full border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors ${isDarkMode ? 'border-white/20 hover:bg-white/5' : 'border-gray-300'}`}
+            >
+              <Upload size={24} className="text-gray-400 mb-1" />
               <span className={`text-[13px] font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Upload</span>
-            </div>
+            </label>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -290,11 +309,11 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
               <label className={`block text-[13px] font-bold mb-3 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Marital Status</label>
               <div className="flex gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" defaultChecked />
+                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('marital', 'Single')} />
                   <span className={`text-[14px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Single</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" />
+                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('marital', 'Married')} />
                   <span className={`text-[14px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Married</span>
                 </label>
               </div>
@@ -498,15 +517,19 @@ const Employees = () => {
         }
       }
     };
+    window.addEventListener('scroll', () => setActiveActionRow(null), true);
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', () => setActiveActionRow(null), true);
+    };
   }, [activeActionRow]);
 
   const toggleStatus = (id) => {
     setEmployees(employees.map(emp =>
       emp.id === id ? { ...emp, active: !emp.active } : emp
     ));
-    setNotification('Employee Status Updated.');
+    setNotification('Employee Status Updated Successfully.');
   };
 
   return (
@@ -574,7 +597,7 @@ const Employees = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-[rgba(0,0,0,0.8)]'}`}>
-              {employees.map((emp, idx) => (
+              {employees.slice(0, rowsPerPage).map((emp, idx) => (
                 <tr key={emp.id} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                   <td className="px-6 py-8">{emp.id}</td>
                   <td className="px-6 py-8 uppercase">{emp.name}</td>
@@ -605,15 +628,16 @@ const Employees = () => {
                     </button>
                     {/* Action Menu Popup */}
                     {activeActionRow === idx && (
-                      <div className={`absolute right-4 top-14 w-[180px] rounded-lg shadow-2xl border z-50 overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
-                        <div className="py-1">
+                      <div className={`absolute right-0 w-[180px] rounded-xl shadow-2xl border z-[100] overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'
+                        } ${idx >= employees.slice(0, rowsPerPage).length - 2 ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
+                        <div className="py-2">
                           {['Edit', 'Delete', 'Add to Essl', 'UnBlock from Essl'].map((action, i) => (
                             <div
                               key={i}
                               onClick={() => setActiveActionRow(null)}
-                              className={`px-4 py-3 text-[13px] font-medium border-b last:border-0 cursor-pointer hover:pl-5 transition-all ${isDarkMode
+                              className={`px-5 py-3.5 text-[14px] font-black border-b last:border-0 cursor-pointer hover:pl-7 transition-all ${isDarkMode
                                 ? 'text-gray-300 border-white/5 hover:bg-white/5'
-                                : action === 'Delete' ? 'text-red-500 hover:bg-red-50' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
+                                : action === 'Delete' ? 'text-red-500 hover:bg-red-50' : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-[#f97316]'
                                 }`}
                             >
                               {action}

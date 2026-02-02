@@ -268,11 +268,14 @@ const Payments = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activeActionRow]);
 
+  // State for active stat card
+  const [selectedStat, setSelectedStat] = useState('');
+
   const stats = [
-    { label: 'Total Revenue', value: '₹ 6198261', icon: Wallet, color: 'bg-[#3b82f6]', textColor: 'text-white' },
-    { label: 'Total Pending Payment', value: '0', icon: Wallet, color: isDarkMode ? 'bg-[#1a1a1a]' : 'bg-[#f3f4f6]', textColor: isDarkMode ? 'text-white' : 'text-gray-800' },
-    { label: 'Total Renewal Payments', value: '0', icon: Wallet, color: isDarkMode ? 'bg-[#1a1a1a]' : 'bg-[#f3f4f6]', textColor: isDarkMode ? 'text-white' : 'text-gray-800' },
-    { label: 'Total Due Paid Payments', value: '0', icon: Wallet, color: isDarkMode ? 'bg-[#1a1a1a]' : 'bg-[#f3f4f6]', textColor: isDarkMode ? 'text-white' : 'text-gray-800' },
+    { label: 'Total Revenue', value: '₹ 6198261', icon: Wallet, active: 'bg-blue-600', hover: 'hover:bg-blue-600', ring: 'ring-blue-400' },
+    { label: 'Total Pending Payment', value: '0', icon: Wallet, active: 'bg-emerald-600', hover: 'hover:bg-emerald-600', ring: 'ring-emerald-400' },
+    { label: 'Total Renewal Payments', value: '0', icon: Wallet, active: 'bg-red-500', hover: 'hover:bg-red-500', ring: 'ring-red-400' },
+    { label: 'Total Due Paid Payments', value: '0', icon: Wallet, active: 'bg-purple-600', hover: 'hover:bg-purple-600', ring: 'ring-purple-400' },
   ];
 
   const payments = [
@@ -294,17 +297,36 @@ const Payments = () => {
 
       {/* Stats row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-6 rounded-xl flex items-center gap-6 transition-none border-none shadow-sm ${stat.color} ${stat.textColor}`}>
-            <div className={`p-3 rounded-xl ${stat.label === 'Total Revenue' ? 'bg-white/20' : (isDarkMode ? 'bg-white/5' : 'bg-white shadow-inner')}`}>
-              <stat.icon size={28} className={stat.label === 'Total Revenue' ? 'text-white' : 'text-gray-400'} />
+        {stats.map((stat, idx) => {
+          const isActive = selectedStat === stat.label;
+          return (
+            <div
+              key={idx}
+              onClick={() => setSelectedStat(stat.label)}
+              className={`group p-6 rounded-xl flex items-center gap-6 transition-all duration-300 cursor-pointer border-none shadow-sm 
+                ${isActive
+                  ? `${stat.active} text-white shadow-lg ring-1 ${stat.ring}`
+                  : (isDarkMode
+                    ? `bg-[#1a1a1a] text-white ${stat.hover} hover:shadow-lg`
+                    : `bg-[#f3f4f6] text-gray-800 ${stat.hover} hover:text-white hover:shadow-lg`
+                  )}`}
+            >
+              <div className={`p-3 rounded-xl transition-all duration-300 
+                ${isActive
+                  ? 'bg-white/20 text-white'
+                  : (isDarkMode
+                    ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                    : 'bg-white shadow-inner text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                  )}`}>
+                <stat.icon size={28} />
+              </div>
+              <div>
+                <p className={`text-[24px] font-black leading-none uppercase transition-colors duration-300 ${isActive ? 'text-white' : 'group-hover:text-white'}`}>{stat.value}</p>
+                <p className={`text-[12px] font-bold mt-1 opacity-80 uppercase leading-tight transition-colors duration-300 ${isActive ? 'text-white/80' : 'group-hover:text-white/80'}`}>{stat.label}.</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[24px] font-black leading-none uppercase">{stat.value}</p>
-              <p className="text-[12px] font-bold mt-1 opacity-80 uppercase leading-tight">{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Filters Row */}

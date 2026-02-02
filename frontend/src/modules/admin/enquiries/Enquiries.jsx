@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import AddEnquiryModal from './AddEnquiryModal';
+import DateRangeFilter from '../components/DateRangeFilter';
+import GenerateReportModal from '../components/GenerateReportModal';
 
 const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, onSelect, activeVal }) => {
   const dropdownRef = useRef(null);
@@ -41,8 +43,8 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
       <div
         onClick={onToggle}
         className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-bold outline-none cursor-pointer flex items-center justify-between transition-none ${isDarkMode
-            ? 'bg-[#1a1a1a] border-white/10 text-white'
-            : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-300 text-gray-500'}`
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-300 text-gray-500'}`
           }`}
       >
         <span>{activeVal || label}</span>
@@ -57,8 +59,8 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
               key={i}
               onClick={() => onSelect(opt)}
               className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-none ${isDarkMode
-                  ? 'text-gray-300 hover:bg-white/5'
-                  : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                ? 'text-gray-300 hover:bg-white/5'
+                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                 }`}
             >
               {opt}
@@ -70,267 +72,9 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
   );
 };
 
-const DateRangeFilter = ({ isDarkMode }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  // Range State: null or Date object
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+// Removed manual DateRangeFilter
 
-  // View State (for the calendar grid)
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-
-  // Sidebar Active State
-  const [activeSidebar, setActiveSidebar] = useState('Today'); // Default active
-
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Helper to format Date for display
-  const formatDate = (date) => {
-    if (!date) return '';
-    const d = String(date.getDate()).padStart(2, '0');
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const y = date.getFullYear();
-    return `${d}-${m}-${y}`;
-  };
-
-  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
-
-  const handleDateClick = (day) => {
-    const clickedDate = new Date(currentYear, currentMonth, day);
-
-    // Logic for range selection
-    if (!startDate || (startDate && endDate)) {
-      // Start new range
-      setStartDate(clickedDate);
-      setEndDate(null);
-      setActiveSidebar(''); // Clear sidebar selection if manual picking
-    } else {
-      // Complete the range
-      if (clickedDate < startDate) {
-        setEndDate(startDate);
-        setStartDate(clickedDate);
-      } else {
-        setEndDate(clickedDate);
-      }
-      setActiveSidebar('');
-    }
-  };
-
-  const isDateSelected = (day) => {
-    const date = new Date(currentYear, currentMonth, day);
-    if (!startDate) return false;
-    if (endDate) {
-      return date >= startDate && date <= endDate;
-    }
-    return date.getTime() === startDate.getTime();
-  };
-
-  const isStartOrEnd = (day) => {
-    const date = new Date(currentYear, currentMonth, day);
-    if (!startDate) return false;
-    if (endDate) {
-      return date.getTime() === startDate.getTime() || date.getTime() === endDate.getTime();
-    }
-    return date.getTime() === startDate.getTime();
-  }
-
-  const setPredefinedRange = (type) => {
-    setActiveSidebar(type);
-    const today = new Date();
-    let start = new Date();
-    let end = new Date();
-
-    switch (type) {
-      case 'Today':
-        // start and end are already today
-        break;
-      case 'Yesterday':
-        start.setDate(today.getDate() - 1);
-        end.setDate(today.getDate() - 1);
-        break;
-      case 'Last Week':
-        start.setDate(today.getDate() - 7);
-        break;
-      case 'Last Months': // Assuming Last 30 days
-        start.setDate(today.getDate() - 30);
-        break;
-      case 'This Year':
-        start = new Date(today.getFullYear(), 0, 1);
-        end = new Date(today.getFullYear(), 11, 31);
-        break;
-      default:
-        break;
-    }
-    setStartDate(start);
-    setEndDate(end);
-    // Update view to match start date
-    setCurrentMonth(start.getMonth());
-    setCurrentYear(start.getFullYear());
-  };
-
-  // Initialize with Today on mount if empty
-  useEffect(() => {
-    if (!startDate) setPredefinedRange('Today');
-  }, []);
-
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
-  return (
-    <div className="relative" ref={containerRef}>
-      {/* Trigger Button */}
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-3 px-4 py-2 border rounded-lg min-w-[260px] cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-300'
-          } ${isOpen && !isDarkMode ? 'border-[#f97316]' : ''}`}
-      >
-        <Calendar size={18} className="text-gray-400" />
-        <span className={`text-[14px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-600'}`}>
-          {startDate ? `${formatDate(startDate)} - ${formatDate(endDate || startDate)}` : 'dd/mm/yyyy'}
-        </span>
-        <ChevronDown size={16} className={`ml-auto ${isOpen ? 'text-[#f97316]' : 'text-gray-400'}`} />
-      </div>
-
-      {/* Dropdown Content */}
-      {isOpen && (
-        <div className={`absolute top-full left-0 mt-2 z-50 flex shadow-2xl rounded-lg border overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'
-          }`} style={{ width: '600px' }}>
-
-          {/* Sidebar */}
-          <div className={`w-[160px] border-r py-2 flex flex-col ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-            {['Today', 'Yesterday', 'Last Week', 'Last Months', 'This Year'].map(item => (
-              <button
-                key={item}
-                onClick={() => setPredefinedRange(item)}
-                className={`text-left px-5 py-3 text-[14px] font-medium transition-colors ${activeSidebar === item
-                    ? (isDarkMode ? 'bg-white/10 text-white' : 'bg-gray-100 text-black')
-                    : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:bg-gray-50')
-                  }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-
-          {/* Calendar Area */}
-          <div className="flex-1 p-5">
-
-            {/* Month/Year Navigation */}
-            <div className="flex gap-4 mb-6">
-              <div className={`border rounded px-4 py-2 flex-1 text-center font-bold ${isDarkMode ? 'border-white/20 text-white' : 'border-gray-300 text-gray-700'
-                }`}>
-                {months[currentMonth]}
-              </div>
-              <div className={`border rounded px-4 py-2 w-[100px] text-center font-bold ${isDarkMode ? 'border-white/20 text-white' : 'border-gray-300 text-gray-700'
-                }`}>
-                {currentYear}
-              </div>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 mb-4">
-              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                <div key={day} className={`text-center text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-800'}`}>
-                  {day}
-                </div>
-              ))}
-              {/* Empty Slots */}
-              {Array.from({ length: getFirstDayOfMonth(currentYear, currentMonth) }).map((_, i) => (
-                <div key={`empty-${i}`} className="h-10"></div>
-              ))}
-              {/* Days */}
-              {Array.from({ length: getDaysInMonth(currentYear, currentMonth) }).map((_, i) => {
-                const day = i + 1;
-                const isSelected = isDateSelected(day);
-                const isEndpoint = isStartOrEnd(day);
-
-                return (
-                  <button
-                    key={day}
-                    onClick={() => handleDateClick(day)}
-                    className={`h-9 w-9 mx-auto flex items-center justify-center text-[13px] rounded transition-all ${isEndpoint
-                        ? 'bg-[#f97316] text-white font-bold'
-                        : isSelected
-                          ? 'bg-orange-100 text-orange-600 font-bold' // Range middle style
-                          : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100')
-                      }`}
-                  >
-                    {day}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-white/10">
-              <button
-                onClick={() => setIsOpen(false)}
-                className={`px-5 py-2 rounded-lg text-[14px] font-bold ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="px-6 py-2 rounded-lg text-[14px] font-bold bg-[#f97316] hover:bg-orange-600 text-white shadow-md active:scale-95"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const ReportModal = ({ isOpen, onClose, isDarkMode }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
-      <div className={`w-[400px] rounded-lg shadow-2xl transition-all ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
-        <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-          <div className="flex items-center gap-2">
-            <Calendar size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
-            <h3 className={`text-[16px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Generate Report</h3>
-          </div>
-          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
-            <X size={20} />
-          </button>
-        </div>
-        <div className="p-6">
-          <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>OTP*</label>
-          <input
-            type="text"
-            placeholder="OTP"
-            className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none ${isDarkMode
-                ? 'bg-[#1a1a1a] border-white/10 text-white placeholder-gray-500'
-                : 'bg-white border-gray-300 text-black placeholder-gray-400'
-              }`}
-          />
-        </div>
-        <div className={`p-4 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-6 py-2 rounded-lg text-[14px] font-bold shadow-md transition-none">
-            Validate
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+// Local ReportModal removed
 
 const Enquiries = () => {
   const { isDarkMode } = useOutletContext();
@@ -361,19 +105,15 @@ const Enquiries = () => {
     'Follow up': ['Yes', 'No']
   };
 
-  // State for Assign Trainer dropdown
-  const [isAssignTrainerOpen, setIsAssignTrainerOpen] = useState(false);
-  const [selectedTrainer, setSelectedTrainer] = useState('');
-  const trainerOptions = ['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'];
-  const assignTrainerRef = useRef(null);
-
+  // State for active stat card
+  const [selectedStat, setSelectedStat] = useState('');
 
   const stats = [
-    { label: 'Open Enquiry', value: '743', icon: Users, color: 'bg-blue-600', active: true },
-    { label: 'Close Enquiry', value: '477', icon: UserMinus, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
-    { label: 'Not Interested', value: '5', icon: UserMinus, color: isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50' },
-    { label: 'Call Done', value: '1', icon: CheckCircle2, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
-    { label: 'Call Not Connected', value: '0', icon: PhoneOff, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
+    { label: 'Open Enquiry', value: '743', icon: Users, color: 'bg-blue-600', hover: 'hover:bg-blue-700', active: 'bg-blue-700', ring: 'ring-blue-400' },
+    { label: 'Close Enquiry', value: '477', icon: UserMinus, color: 'bg-purple-600', hover: 'hover:bg-purple-600', active: 'bg-purple-700', ring: 'ring-purple-400' },
+    { label: 'Not Interested', value: '5', icon: UserMinus, color: 'bg-red-500', hover: 'hover:bg-red-500', active: 'bg-red-600', ring: 'ring-red-400' },
+    { label: 'Call Done', value: '1', icon: CheckCircle2, color: 'bg-emerald-500', hover: 'hover:bg-emerald-500', active: 'bg-emerald-600', ring: 'ring-emerald-400' },
+    { label: 'Call Not Connected', value: '0', icon: PhoneOff, color: 'bg-slate-600', hover: 'hover:bg-slate-600', active: 'bg-slate-700', ring: 'ring-slate-400' },
   ];
 
   const enquiryData = [
@@ -391,6 +131,11 @@ const Enquiries = () => {
       setActiveFilter(label);
     }
   };
+
+  const [isAssignTrainerOpen, setIsAssignTrainerOpen] = useState(false);
+  const [selectedTrainer, setSelectedTrainer] = useState('');
+  const trainerOptions = ['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'];
+  const assignTrainerRef = useRef(null);
 
   const handleFilterSelect = (label, value) => {
     setFilterValues(prev => ({ ...prev, [label]: value }));
@@ -453,26 +198,72 @@ const Enquiries = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-5 rounded-lg flex items-center gap-4 transition-none cursor-pointer ${stat.active ? 'bg-blue-600 text-white shadow-lg' : (isDarkMode ? 'bg-[#1a1a1a] border border-white/5' : 'bg-gray-100/50 border border-gray-100')}`}>
-            <div className={`p-3 rounded-lg ${stat.active ? 'bg-white/20' : (isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-white text-gray-400')}`}>
-              <stat.icon size={28} />
+        {stats.map((stat, idx) => {
+          const isActive = selectedStat === stat.label;
+          return (
+            <div
+              key={idx}
+              onClick={() => setSelectedStat(stat.label)}
+              className={`group p-5 rounded-lg flex items-center gap-4 transition-all duration-300 cursor-pointer 
+                ${isActive
+                  ? `${stat.active} text-white shadow-lg ring-1 ${stat.ring} ${stat.hover}`
+                  : (isDarkMode
+                    ? `bg-[#1a1a1a] border border-white/5 text-white ${stat.hover} hover:border-transparent hover:shadow-lg`
+                    : `bg-white border border-gray-200 text-black ${stat.hover} hover:text-white hover:border-transparent hover:shadow-lg`
+                  )}`}
+            >
+              <div className={`p-3 rounded-lg transition-all duration-300 
+                ${isActive
+                  ? 'bg-white/20 text-white'
+                  : (isDarkMode
+                    ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                    : 'bg-gray-100 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                  )}`}>
+                <stat.icon size={28} />
+              </div>
+              <div>
+                <p className={`text-[24px] font-black leading-none transition-colors duration-300 ${isActive ? 'text-white' : 'group-hover:text-white'}`}>{stat.value}</p>
+                <p className={`text-[13px] font-bold mt-1 transition-colors duration-300 
+                  ${isActive
+                    ? 'text-white/80'
+                    : (isDarkMode ? 'text-gray-500 group-hover:text-white/80' : 'text-gray-500 group-hover:text-white/80')
+                  }`}>
+                  {stat.label}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[24px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-bold mt-1 ${stat.active ? 'text-white/80' : 'text-gray-500'}`}>{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Second Stats Row */}
       <div className="flex gap-4 transition-none">
-        <div className={`p-5 rounded-lg flex items-center gap-4 w-full max-w-[215px] transition-none cursor-pointer ${isDarkMode ? 'bg-[#1a1a1a] border border-white/5' : 'bg-gray-100/50 border border-gray-100'}`}>
-          <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-white text-gray-400'}`}>
+        <div
+          onClick={() => setSelectedStat('Enquiry Ratio')}
+          className={`group p-5 rounded-lg flex items-center gap-4 w-full max-w-[215px] transition-all duration-300 cursor-pointer 
+            ${selectedStat === 'Enquiry Ratio'
+              ? 'bg-orange-600 text-white shadow-lg ring-1 ring-orange-400'
+              : (isDarkMode
+                ? 'bg-[#1a1a1a] border border-white/5 hover:bg-orange-600 hover:border-orange-600 hover:shadow-lg'
+                : 'bg-white border border-gray-200 hover:bg-orange-600 hover:text-white hover:border-orange-600 hover:shadow-lg'
+              )}`}
+        >
+          <div className={`p-3 rounded-lg transition-all duration-300 
+            ${selectedStat === 'Enquiry Ratio'
+              ? 'bg-white/20 text-white'
+              : (isDarkMode
+                ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                : 'bg-gray-100 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+              )}`}>
             <BarChart2 size={28} />
           </div>
-          <p className="text-[15px] font-bold text-gray-700 dark:text-gray-300">Enquiry Ratio</p>
+          <p className={`text-[15px] font-bold transition-colors duration-300 
+            ${selectedStat === 'Enquiry Ratio'
+              ? 'text-white'
+              : (isDarkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-700 group-hover:text-white')
+            }`}>
+            Enquiry Ratio
+          </p>
         </div>
       </div>
 
@@ -494,10 +285,10 @@ const Enquiries = () => {
 
       {/* Filters Row 2 - DateRangeFilter + Buttons */}
       <div className="flex flex-wrap items-center gap-3 transition-none">
-        <DateRangeFilter isDarkMode={isDarkMode} />
-
-        <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Apply</button>
-        <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Clear</button>
+        <DateRangeFilter
+          isDarkMode={isDarkMode}
+          onApply={(range) => console.log('Range Applied:', range)}
+        />
       </div>
 
       {/* Search & Export */}
@@ -526,8 +317,8 @@ const Enquiries = () => {
           <div
             onClick={() => setIsAssignTrainerOpen(!isAssignTrainerOpen)}
             className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-bold outline-none cursor-pointer flex items-center justify-between ${isDarkMode
-                ? 'bg-[#1a1a1a] border-white/10 text-white'
-                : `bg-white ${isAssignTrainerOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-300 text-gray-600'}`
+              ? 'bg-[#1a1a1a] border-white/10 text-white'
+              : `bg-white ${isAssignTrainerOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-300 text-gray-600'}`
               }`}
           >
             <span>{selectedTrainer || 'Assign Trainer'}</span>
@@ -545,8 +336,8 @@ const Enquiries = () => {
                     setIsAssignTrainerOpen(false);
                   }}
                   className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-none ${isDarkMode
-                      ? 'text-gray-300 hover:bg-white/5'
-                      : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                    ? 'text-gray-300 hover:bg-white/5'
+                    : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                     }`}
                 >
                   {opt}
@@ -613,7 +404,7 @@ const Enquiries = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-[rgba(0,0,0,0.8)]'}`}>
-              {enquiryData.map((row, idx) => (
+              {enquiryData.slice(0, rowsPerPage).map((row, idx) => (
                 <tr key={idx} className={`border-b transition-none relative ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                   <td className="px-6 py-5"><input type="checkbox" className="w-4 h-4 rounded accent-[#f97316]" /></td>
                   <td className="px-6 py-5">{row.id}</td>
@@ -649,8 +440,8 @@ const Enquiries = () => {
                           <div
                             key={i}
                             className={`px-4 py-3 text-[14px] font-medium border-b last:border-0 cursor-pointer ${isDarkMode
-                                ? 'text-gray-300 border-white/5 hover:bg-white/5'
-                                : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
+                              ? 'text-gray-300 border-white/5 hover:bg-white/5'
+                              : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
                               }`}
                             onClick={handleActionSelect}
                           >
@@ -659,8 +450,8 @@ const Enquiries = () => {
                         ))}
                         <div
                           className={`px-4 py-3 text-[14px] font-medium cursor-pointer flex items-center gap-2 ${isDarkMode
-                              ? 'text-gray-300 hover:bg-white/5'
-                              : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                            ? 'text-gray-300 hover:bg-white/5'
+                            : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                             }`}
                           onClick={handleActionSelect}
                         >
@@ -733,7 +524,7 @@ const Enquiries = () => {
         isDarkMode={isDarkMode}
       />
 
-      <ReportModal
+      <GenerateReportModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         isDarkMode={isDarkMode}

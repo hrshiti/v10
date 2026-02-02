@@ -20,6 +20,7 @@ import {
     Area
 } from 'recharts';
 import { useOutletContext, useNavigate } from 'react-router-dom';
+import DateRangeFilter from '../components/DateRangeFilter';
 
 const Dashboard = () => {
     const { isDarkMode } = useOutletContext();
@@ -33,7 +34,8 @@ const Dashboard = () => {
     const [showYearFilter, setShowYearFilter] = useState(false);
     const [activeMenu, setActiveMenu] = useState(null);
     const [rowsPerPage, setRowsPerPage] = useState(5);
-    const [selectedDateRange, setSelectedDateRange] = useState('30-01-2026 - 30-01-2026');
+    const [selectedDateRange, setSelectedDateRange] = useState('Today');
+    const [selectedDateRangeText, setSelectedDateRangeText] = useState('');
 
     // Refs for click outside detection
     const datePickerRef = useRef(null);
@@ -44,7 +46,10 @@ const Dashboard = () => {
 
     const handleRefresh = () => {
         setIsRefreshing(true);
-        setTimeout(() => setIsRefreshing(false), 500);
+        setTimeout(() => {
+            setIsRefreshing(false);
+            window.location.reload();
+        }, 500);
     };
 
     // Close dropdowns when clicking outside
@@ -199,92 +204,16 @@ const Dashboard = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <span className={`text-[14px] font-normal ${isDarkMode ? 'text-gray-400' : 'text-black'}`}>Sort by</span>
-                    <div className="relative" ref={datePickerRef}>
-                        <div
-                            onClick={() => setShowDatePicker(!showDatePicker)}
-                            className={`flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer ${isDarkMode ? 'bg-[#1e1e1e] border-white/10 text-white' : 'bg-white border-gray-300 text-black'
-                                }`}
-                        >
-                            <Calendar size={16} className="text-gray-400" />
-                            <span className="text-[13px] font-normal">{selectedDateRange}</span>
-                            <ChevronDown size={14} className="text-gray-400" />
-                        </div>
-
-                        {/* Date Picker Dropdown */}
-                        {showDatePicker && (
-                            <div className={`absolute right-0 top-full mt-2 w-[600px] max-w-[90vw] rounded-lg shadow-2xl border z-[100] ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
-                                }`}>
-                                <div className="flex">
-                                    {/* Quick Options */}
-                                    <div className={`w-40 border-r p-3 ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
-                                        {dateOptions.map((option, idx) => (
-                                            <div
-                                                key={idx}
-                                                className={`px-3 py-2 text-[13px] font-normal rounded cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
-                                                    }`}
-                                            >
-                                                {option}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Calendar */}
-                                    <div className="flex-1 p-4">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <input
-                                                type="text"
-                                                placeholder="January"
-                                                className={`px-3 py-1.5 border rounded text-[13px] outline-none ${isDarkMode ? 'bg-[#1e1e1e] border-white/10 text-white' : 'bg-white border-gray-300 text-black'
-                                                    }`}
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="2026"
-                                                className={`px-3 py-1.5 border rounded text-[13px] outline-none ml-2 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10 text-white' : 'bg-white border-gray-300 text-black'
-                                                    }`}
-                                            />
-                                        </div>
-
-                                        {/* Calendar Grid */}
-                                        <div className="grid grid-cols-7 gap-1 mb-2">
-                                            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day, idx) => (
-                                                <div key={idx} className={`text-center text-[11px] font-bold py-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
-                                                    {day}
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="grid grid-cols-7 gap-1">
-                                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                                                <button
-                                                    key={day}
-                                                    className={`text-center py-2 text-[13px] rounded hover:bg-gray-100 dark:hover:bg-white/5 ${day === 30 ? 'bg-[#f97316] text-white hover:bg-[#f97316]' : isDarkMode ? 'text-gray-300' : 'text-black'
-                                                        }`}
-                                                >
-                                                    {day}
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-200 dark:border-white/10">
-                                            <button
-                                                onClick={() => setShowDatePicker(false)}
-                                                className={`px-4 py-1.5 text-[13px] font-normal rounded ${isDarkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={() => setShowDatePicker(false)}
-                                                className="px-4 py-1.5 bg-[#f97316] text-white text-[13px] font-normal rounded hover:bg-[#ea580c]"
-                                            >
-                                                Apply
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                    <div className="relative">
+                        <DateRangeFilter
+                            isDarkMode={isDarkMode}
+                            selectedRangeLabel={selectedDateRange}
+                            align="right"
+                            onApply={(range) => {
+                                setSelectedDateRange(range.label);
+                                setSelectedDateRangeText(`${range.startDate.toLocaleDateString()} - ${range.endDate.toLocaleDateString()}`);
+                            }}
+                        />
                     </div>
                 </div>
             </div>
@@ -363,37 +292,41 @@ const Dashboard = () => {
                                         <td className={`px-5 py-4 text-[12px] font-normal max-w-md ${isDarkMode ? 'text-gray-400' : 'text-black'}`}>
                                             {item.comment}
                                         </td>
-                                        <td className="px-5 py-4 text-right relative">
-                                            <button
-                                                onClick={() => setActiveMenu(activeMenu === idx ? null : idx)}
-                                                className={`p-1 ${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-black'}`}
-                                            >
-                                                <MoreVertical size={18} />
-                                            </button>
-
-                                            {/* Three Dot Menu */}
-                                            {activeMenu === idx && (
-                                                <div
-                                                    ref={(el) => menuRefs.current[idx] = el}
-                                                    className={`absolute right-8 top-8 w-48 rounded-lg shadow-xl border z-50 py-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
-                                                        }`}
+                                        <td className="px-5 py-4 text-right">
+                                            <div className="relative inline-block" ref={(el) => menuRefs.current[idx] = el}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActiveMenu(activeMenu === idx ? null : idx);
+                                                    }}
+                                                    className={`p-1 rounded transition-colors ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-white/5' : 'text-gray-400 hover:text-black hover:bg-gray-100'}`}
                                                 >
+                                                    <MoreVertical size={18} />
+                                                </button>
+
+                                                {/* Three Dot Menu */}
+                                                {activeMenu === idx && (
                                                     <div
-                                                        onClick={() => setActiveMenu(null)}
-                                                        className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
+                                                        className={`absolute right-0 ${idx >= (followUps.length - 2) ? 'bottom-full mb-2' : 'top-full mt-1'} w-48 rounded-lg shadow-2xl border z-[999] py-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
                                                             }`}
                                                     >
-                                                        Followup Response
+                                                        <div
+                                                            onClick={() => setActiveMenu(null)}
+                                                            className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
+                                                                }`}
+                                                        >
+                                                            Followup Response
+                                                        </div>
+                                                        <div
+                                                            onClick={() => setActiveMenu(null)}
+                                                            className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
+                                                                }`}
+                                                        >
+                                                            Done
+                                                        </div>
                                                     </div>
-                                                    <div
-                                                        onClick={() => setActiveMenu(null)}
-                                                        className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
-                                                            }`}
-                                                    >
-                                                        Done
-                                                    </div>
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -553,7 +486,10 @@ const Dashboard = () => {
                 {/* Second Row of Overview Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Total Sales Card */}
-                    <div className="bg-[#10b981] rounded-lg overflow-hidden">
+                    <div
+                        onClick={() => handleCardClick('/admin/reports/sales')}
+                        className="bg-[#10b981] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    >
                         <div className="px-4 py-2 border-b border-white/10">
                             <span className="text-[12px] font-bold text-white">Total Sales</span>
                         </div>
@@ -570,7 +506,10 @@ const Dashboard = () => {
                     </div>
 
                     {/* Fresh/Renewal Sales Card */}
-                    <div className="bg-[#a855f7] rounded-lg overflow-hidden">
+                    <div
+                        onClick={() => handleCardClick('/admin/reports/sales')}
+                        className="bg-[#a855f7] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    >
                         <div className="grid grid-cols-2 h-full">
                             <div className="p-4 border-r border-white/10 flex flex-col">
                                 <p className="text-[11px] font-bold text-white/80">Fresh Sales</p>
@@ -598,7 +537,10 @@ const Dashboard = () => {
                     </div>
 
                     {/* Balance Payment Card */}
-                    <div className="bg-[#84cc16] rounded-lg overflow-hidden">
+                    <div
+                        onClick={() => handleCardClick('/admin/reports/balance-due')}
+                        className="bg-[#84cc16] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    >
                         <div className="px-4 py-2 border-b border-white/10">
                             <span className="text-[12px] font-bold text-white">Balance Payment</span>
                         </div>
@@ -615,7 +557,10 @@ const Dashboard = () => {
                     </div>
 
                     {/* PT Sales Card */}
-                    <div className="bg-[#a855f7] rounded-lg overflow-hidden">
+                    <div
+                        onClick={() => handleCardClick('/admin/reports/sales')}
+                        className="bg-[#a855f7] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    >
                         <div className="grid grid-cols-2 h-full">
                             <div className="p-4 border-r border-white/10 flex flex-col">
                                 <p className="text-[11px] font-bold text-white/80">Fresh PT Sales</p>
@@ -646,7 +591,10 @@ const Dashboard = () => {
                 {/* Third Row - Total PT Sales & Sales */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Total PT Sales Card */}
-                    <div className="bg-[#10b981] rounded-lg overflow-hidden">
+                    <div
+                        onClick={() => handleCardClick('/admin/reports/sales')}
+                        className="bg-[#10b981] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    >
                         <div className="px-4 py-2 border-b border-white/10">
                             <span className="text-[12px] font-bold text-white">Total PT Sales</span>
                         </div>
@@ -663,7 +611,10 @@ const Dashboard = () => {
                     </div>
 
                     {/* Sales Card */}
-                    <div className="bg-[#f97316] rounded-lg overflow-hidden">
+                    <div
+                        onClick={() => handleCardClick('/admin/reports/sales')}
+                        className="bg-[#f97316] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    >
                         <div className="px-4 py-2 border-b border-white/10">
                             <span className="text-[12px] font-bold text-white">Sales</span>
                         </div>

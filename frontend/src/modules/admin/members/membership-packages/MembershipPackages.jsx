@@ -11,6 +11,7 @@ import {
   X
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import AddPackageModal from './AddPackageModal';
 
 // --- Reusable Components ---
 
@@ -75,18 +76,21 @@ const SuccessNotification = ({ message, show, onClose }) => {
           <X size={20} />
         </button>
         <div className="absolute bottom-0 left-0 h-1 bg-emerald-500/20 w-full">
-          <div className="h-full bg-emerald-500 animate-progress" />
+          <div
+            className="h-full bg-emerald-500"
+            style={{
+              animation: 'progress 3s linear forwards',
+              width: '0%'
+            }}
+          />
         </div>
       </div>
-      <style jsx>{`
-                @keyframes progress {
-                    from { width: 0%; }
-                    to { width: 100%; }
-                }
-                .animate-progress {
-                    animation: progress 3s linear forwards;
-                }
-            `}</style>
+      <style>{`
+        @keyframes progress {
+          from { width: 0%; }
+          to { width: 100%; }
+        }
+      `}</style>
     </div>
   );
 };
@@ -97,9 +101,11 @@ const MembershipPackages = () => {
   const { isDarkMode } = useOutletContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
   const [showNotification, setShowNotification] = useState(false);
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionRef = useRef({});
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const [packages, setPackages] = useState([
     { id: 13590, name: 'Complementary', duration: '12 Months', sessions: 360, price: '0.00', status: true },
@@ -128,6 +134,23 @@ const MembershipPackages = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activeActionRow]);
 
+  // Filtering and Pagination
+  const filteredPackages = packages.filter(pkg =>
+    pkg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    pkg.id.toString().includes(searchQuery)
+  );
+
+  const totalPages = Math.ceil(filteredPackages.length / rowsPerPage);
+  const currentPackages = filteredPackages.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  // Reset page when search or rowsPerPage changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, rowsPerPage]);
+
   const toggleStatus = (id) => {
     setPackages(packages.map(pkg =>
       pkg.id === id ? { ...pkg, status: !pkg.status } : pkg
@@ -147,7 +170,10 @@ const MembershipPackages = () => {
       {/* Header */}
       <div className="flex justify-between items-center transition-none">
         <h1 className="text-[28px] font-black tracking-tight tracking-tight uppercase">Memberships Package</h1>
-        <button className="bg-[#f97316] text-white px-8 py-3 rounded-lg flex items-center gap-3 text-[15px] font-bold shadow-lg active:scale-95 transition-none hover:bg-orange-600">
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="bg-[#f97316] text-white px-8 py-3 rounded-lg flex items-center gap-3 text-[15px] font-bold shadow-lg active:scale-95 transition-none hover:bg-orange-600"
+        >
           <Plus size={22} strokeWidth={3} />
           Add Package
         </button>
@@ -187,7 +213,7 @@ const MembershipPackages = () => {
         <div className="p-6 border-b flex justify-between items-center transition-none bg-white dark:bg-white/5 font-black uppercase tracking-wider text-[14px]">
           Memberships Package
         </div>
-        <div className="overflow-x-visible">
+        <div className="overflow-x-auto scroll-smooth custom-scrollbar">
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-[#fcfcfc] border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
@@ -201,7 +227,7 @@ const MembershipPackages = () => {
               </tr>
             </thead>
             <tbody className={`text-[14px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {packages.map((row, idx) => (
+              {currentPackages.map((row, idx) => (
                 <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                   <td className="px-8 py-8">{row.id}</td>
                   <td className="px-8 py-8 uppercase">
@@ -261,10 +287,29 @@ const MembershipPackages = () => {
         {/* Pagination */}
         <div className={`p-8 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-3">
-            <button className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50`}>« Previous</button>
-            <button className="w-11 h-11 border rounded-xl text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
-            <button className="w-11 h-11 border rounded-xl text-[13px] font-bold transition-none border-gray-300 text-gray-600 hover:bg-gray-50">2</button>
-            <button className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              « Previous
+            </button>
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i + 1}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`w-11 h-11 border rounded-xl text-[13px] font-black transition-none ${currentPage === i + 1 ? 'bg-[#f97316] text-white shadow-lg' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50 ${currentPage === totalPages || totalPages === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-5 transition-none">
@@ -277,6 +322,11 @@ const MembershipPackages = () => {
           </div>
         </div>
       </div>
+      <AddPackageModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

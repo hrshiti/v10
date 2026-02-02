@@ -103,6 +103,9 @@ const Memberships = () => {
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionRef = useRef({});
 
+  // State for active stat card
+  const [selectedStat, setSelectedStat] = useState('');
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (activeActionRow !== null) {
@@ -116,11 +119,11 @@ const Memberships = () => {
   }, [activeActionRow]);
 
   const stats = [
-    { label: 'General Training', value: '1080', icon: User, color: 'bg-blue-600', active: true },
-    { label: 'Personal Training', value: '1', icon: User, color: isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-600/80', active: false, specialColor: true },
-    { label: 'Complete Fitness', value: '0', icon: User, color: isDarkMode ? 'bg-white/5' : 'bg-gray-100/50' },
-    { label: 'Group Ex', value: '0', icon: User, color: isDarkMode ? 'bg-white/5' : 'bg-gray-100/50' },
-    { label: 'Delete Memberships', value: '15', icon: UserMinus, color: isDarkMode ? 'bg-white/5' : 'bg-gray-100/50' },
+    { label: 'General Training', value: '1080', icon: User, active: 'bg-blue-600', hover: 'hover:bg-blue-600', ring: 'ring-blue-400' },
+    { label: 'Personal Training', value: '1', icon: User, active: 'bg-emerald-600', hover: 'hover:bg-emerald-600', ring: 'ring-emerald-400' },
+    { label: 'Complete Fitness', value: '0', icon: User, active: 'bg-purple-600', hover: 'hover:bg-purple-600', ring: 'ring-purple-400' },
+    { label: 'Group Ex', value: '0', icon: User, active: 'bg-red-500', hover: 'hover:bg-red-500', ring: 'ring-red-400' },
+    { label: 'Delete Memberships', value: '15', icon: UserMinus, active: 'bg-slate-600', hover: 'hover:bg-slate-600', ring: 'ring-slate-400' },
   ];
 
   const membershipsData = [
@@ -135,17 +138,39 @@ const Memberships = () => {
       <h1 className="text-[28px] font-black tracking-tight">Membership Management</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-6 rounded-xl flex items-center gap-5 transition-none cursor-pointer ${stat.active ? 'bg-blue-600 text-white shadow-xl' : stat.specialColor ? `${stat.color} text-white shadow-xl` : (isDarkMode ? 'bg-[#1a1a1a] border border-white/5' : 'bg-white border border-gray-100 shadow-sm')}`}>
-            <div className={`p-4 rounded-xl ${stat.active || stat.specialColor ? 'bg-white/20' : (isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-[#fcfcfc] text-gray-400')}`}>
-              <stat.icon size={28} />
+        {stats.map((stat, idx) => {
+          const isActive = selectedStat === stat.label;
+          return (
+            <div
+              key={idx}
+              onClick={() => setSelectedStat(stat.label)}
+              className={`group p-6 rounded-xl flex items-center gap-5 transition-all duration-300 cursor-pointer 
+                ${isActive
+                  ? `${stat.active} text-white shadow-xl ring-1 ${stat.ring}`
+                  : (isDarkMode
+                    ? 'bg-[#1a1a1a] border border-white/5 text-white hover:border-transparent hover:shadow-lg'
+                    : 'bg-white border border-gray-100 shadow-sm text-black hover:border-transparent hover:shadow-lg'
+                  )} ${!isActive ? stat.hover : ''}`}
+            >
+              <div className={`p-4 rounded-xl transition-all duration-300 
+                ${isActive
+                  ? 'bg-white/20 text-white'
+                  : (isDarkMode
+                    ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                    : 'bg-[#fcfcfc] text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                  )}`}>
+                <stat.icon size={28} />
+              </div>
+              <div>
+                <p className={`text-[28px] font-black leading-none transition-colors duration-300 ${isActive ? 'text-white' : 'group-hover:text-white'}`}>{stat.value}</p>
+                <p className={`text-[13px] font-black mt-1 uppercase tracking-tight transition-colors duration-300 
+                  ${isActive ? 'text-white/80' : 'text-gray-500 group-hover:text-white/80'}`}>
+                  {stat.label}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[28px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-black mt-1 uppercase tracking-tight ${stat.active || stat.specialColor ? 'text-white/80' : 'text-gray-500'}`}>{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="flex justify-between items-center gap-4 transition-none pt-4">
@@ -172,7 +197,7 @@ const Memberships = () => {
         <div className="p-6 border-b flex justify-between items-center transition-none bg-white dark:bg-white/5">
           <span className="text-[14px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Memberships</span>
         </div>
-        <div className="overflow-x-visible">
+        <div className="overflow-x-auto scroll-smooth custom-scrollbar">
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-[#fcfcfc] border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
@@ -186,7 +211,7 @@ const Memberships = () => {
                 <th className="px-6 py-6 uppercase">Assigned Trainer</th>
                 <th className="px-6 py-6 uppercase">Add on Days</th>
                 <th className="px-6 py-6 uppercase">Status</th>
-                <th className="px-6 py-6 w-10">Action</th>
+                <th className="px-6 py-6 border-l dark:border-white/5 w-[80px] text-center">Action</th>
               </tr>
             </thead>
             <tbody className={`text-[14px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -206,12 +231,12 @@ const Memberships = () => {
                       {row.status}
                     </div>
                   </td>
-                  <td className="px-6 py-8 text-center relative" ref={el => actionRef.current[idx] = el}>
+                  <td className="px-6 py-8 text-center relative border-l dark:border-white/5" ref={el => actionRef.current[idx] = el}>
                     <button
                       onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
-                      className="text-gray-400 hover:text-black dark:hover:text-white transition-none"
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-90"
                     >
-                      <MoreVertical size={22} />
+                      <MoreVertical size={20} />
                     </button>
 
                     {activeActionRow === idx && (

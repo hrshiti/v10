@@ -9,11 +9,20 @@ import {
   User
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import SingleDatePicker from '../../components/SingleDatePicker';
+import GenerateReportModal from '../../components/GenerateReportModal';
 
 const PtReport = () => {
   const { isDarkMode } = useOutletContext();
   const tableContainerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [fromDate, setFromDate] = useState('01-01-2026');
+  const [toDate, setToDate] = useState('31-01-2026');
+  const [selectedTrainer, setSelectedTrainer] = useState('Select Trainer');
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [isTrainerDropdownOpen, setIsTrainerDropdownOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const trainerRef = useRef(null);
 
   const stats = [
     { label: 'Total PT Members', value: '12', icon: User },
@@ -57,27 +66,49 @@ const PtReport = () => {
       {/* Filters Row */}
       <div className="space-y-4 pt-4 transition-none">
         <div className="flex flex-wrap items-center gap-4">
-          <div className={`flex items-center gap-3 px-4 py-2.5 border rounded-lg min-w-[200px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>
-            <Calendar size={18} className="text-gray-400" />
-            <span className="text-[14px] font-bold text-gray-400">01-01-2026</span>
-            <ChevronDown size={14} className="text-gray-400 ml-auto" />
+          <SingleDatePicker
+            value={fromDate}
+            onSelect={setFromDate}
+            isDarkMode={isDarkMode}
+          />
+          <SingleDatePicker
+            value={toDate}
+            onSelect={setToDate}
+            isDarkMode={isDarkMode}
+          />
+
+          <div className="relative min-w-[200px]" ref={trainerRef}>
+            <div
+              onClick={() => setIsTrainerDropdownOpen(!isTrainerDropdownOpen)}
+              className={`flex items-center justify-between px-4 py-2.5 border rounded-lg cursor-pointer transition-all ${isDarkMode
+                ? 'bg-[#1a1a1a] border-white/10 text-white'
+                : isTrainerDropdownOpen ? 'border-[#f97316] text-[#f97316] bg-white' : 'bg-white border-gray-200 text-gray-500 shadow-sm'
+                }`}
+            >
+              <span className="text-[14px] font-bold">{selectedTrainer}</span>
+              <ChevronDown size={14} className={isTrainerDropdownOpen ? 'text-[#f97316]' : 'text-gray-400'} />
+            </div>
+
+            {isTrainerDropdownOpen && (
+              <div className={`absolute top-full left-0 mt-1 w-full rounded-lg shadow-xl border z-50 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                {['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'].map(trainer => (
+                  <div
+                    key={trainer}
+                    onClick={() => { setSelectedTrainer(trainer); setIsTrainerDropdownOpen(false); }}
+                    className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-colors ${isDarkMode
+                      ? 'text-gray-300 hover:bg-white/5'
+                      : 'text-gray-700 hover:bg-orange-50 hover:text-[#f97316]'
+                      }`}
+                  >
+                    {trainer}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className={`flex items-center gap-3 px-4 py-2.5 border rounded-lg min-w-[200px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>
-            <Calendar size={18} className="text-gray-400" />
-            <span className="text-[14px] font-bold text-gray-400">31-01-2026</span>
-            <ChevronDown size={14} className="text-gray-400 ml-auto" />
-          </div>
-
-          <div className="relative min-w-[200px]">
-            <select className={`appearance-none w-full pl-4 pr-10 py-2.5 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-gray-500 shadow-sm'}`}>
-              <option>Select Trainer</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" />
-          </div>
-
-          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Apply</button>
-          <button className="bg-[#f4a261] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Clear</button>
+          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600">Apply</button>
+          <button className="bg-[#f4a261] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600">Clear</button>
         </div>
 
         <div className="flex justify-between items-center pt-2 transition-none">
@@ -91,8 +122,11 @@ const PtReport = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button className={`flex items-center gap-2 px-6 py-2 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f8f9fa] border-gray-200 shadow-sm text-gray-700'}`}>
-            <Download size={18} />
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className={`flex items-center gap-2 px-6 py-2.5 border rounded-xl text-[14px] font-black transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
+          >
+            <Download size={18} className="text-gray-400" />
             Generate XLS Report
           </button>
         </div>
@@ -127,7 +161,7 @@ const PtReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {ptData.map((row, idx) => (
+              {ptData.slice(0, rowsPerPage).map((row, idx) => (
                 <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                   <td className="px-6 py-8">{row.id}</td>
                   <td className="px-6 py-8 text-[#3b82f6] uppercase transition-none">
@@ -156,17 +190,26 @@ const PtReport = () => {
           </div>
 
           <div className="flex items-center gap-4 transition-none">
-            <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
+            <span className="text-[15px] font-bold text-gray-500">Rows per page</span>
             <div className="relative transition-none">
-              <select className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}>
-                <option>5</option>
-                <option>10</option>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(parseInt(e.target.value))}
+                className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}
+              >
+                {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
               <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
             </div>
           </div>
         </div>
       </div>
+
+      <GenerateReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

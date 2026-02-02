@@ -34,8 +34,8 @@ const ReportModal = ({ isOpen, onClose, isDarkMode }) => {
             type="text"
             placeholder="OTP"
             className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none ${isDarkMode
-                ? 'bg-[#1a1a1a] border-white/10 text-white placeholder-gray-500'
-                : 'bg-white border-gray-300 text-black placeholder-gray-400'
+              ? 'bg-[#1a1a1a] border-white/10 text-white placeholder-gray-500'
+              : 'bg-white border-gray-300 text-black placeholder-gray-400'
               }`}
           />
         </div>
@@ -68,8 +68,8 @@ const CustomSelect = ({ options, value, onChange, placeholder, isDarkMode }) => 
       <div
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none cursor-pointer flex items-center justify-between transition-none ${isDarkMode
-            ? 'bg-[#1a1a1a] border-white/10 text-white'
-            : `bg-white ${isOpen ? 'border-[#f97316]' : 'border-gray-300'} text-gray-700`
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316]' : 'border-gray-300'} text-gray-700`
           }`}
       >
         <span className={`${!value ? 'text-gray-400' : ''}`}>{value || placeholder}</span>
@@ -87,8 +87,8 @@ const CustomSelect = ({ options, value, onChange, placeholder, isDarkMode }) => 
                 setIsOpen(false);
               }}
               className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-none ${isDarkMode
-                  ? 'text-gray-300 hover:bg-white/5'
-                  : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                ? 'text-gray-300 hover:bg-white/5'
+                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                 }`}
             >
               {opt}
@@ -143,8 +143,8 @@ const AdvancedSingleDatePicker = ({ value, onChange, isDarkMode, placeholder = "
       <div
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none cursor-pointer flex items-center justify-between transition-none ${isDarkMode
-            ? 'bg-[#1a1a1a] border-white/10 text-white'
-            : `bg-white ${isOpen ? 'border-[#f97316]' : 'border-gray-300'} text-gray-700`
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316]' : 'border-gray-300'} text-gray-700`
           }`}
       >
         <div className="flex items-center gap-3">
@@ -175,8 +175,8 @@ const AdvancedSingleDatePicker = ({ value, onChange, isDarkMode, placeholder = "
                       key={m}
                       onClick={(e) => { e.stopPropagation(); setCurrentMonth(i); setShowMonthDropdown(false); }}
                       className={`px-3 py-2 text-xs font-bold cursor-pointer ${currentMonth === i
-                          ? 'bg-blue-600 text-white'
-                          : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
+                        ? 'bg-blue-600 text-white'
+                        : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
                         }`}
                     >
                       {m}
@@ -202,8 +202,8 @@ const AdvancedSingleDatePicker = ({ value, onChange, isDarkMode, placeholder = "
                       key={y}
                       onClick={(e) => { e.stopPropagation(); setCurrentYear(y); setShowYearDropdown(false); }}
                       className={`px-3 py-2 text-xs font-bold cursor-pointer ${currentYear === y
-                          ? 'bg-blue-600 text-white'
-                          : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
+                        ? 'bg-blue-600 text-white'
+                        : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
                         }`}
                     >
                       {y}
@@ -228,8 +228,8 @@ const AdvancedSingleDatePicker = ({ value, onChange, isDarkMode, placeholder = "
                 key={i + 1}
                 onClick={() => handleDateClick(i + 1)}
                 className={`h-8 w-8 mx-auto flex items-center justify-center text-[13px] rounded hover:bg-[#f97316] hover:text-white transition-colors ${value === `${String(i + 1).padStart(2, '0')}-${String(currentMonth + 1).padStart(2, '0')}-${currentYear}`
-                    ? 'bg-[#f97316] text-white font-bold'
-                    : (isDarkMode ? 'text-gray-300' : 'text-gray-700')
+                  ? 'bg-[#f97316] text-white font-bold'
+                  : (isDarkMode ? 'text-gray-300' : 'text-gray-700')
                   }`}
               >
                 {i + 1}
@@ -380,8 +380,8 @@ const StaffDropdown = ({ isDarkMode, selected, onSelect }) => {
       <div
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-bold outline-none cursor-pointer flex items-center justify-between transition-none ${isDarkMode
-            ? 'bg-[#1a1a1a] border-white/10 text-white'
-            : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-[#ffedd5] text-[#f97316]'}`
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-[#ffedd5] text-[#f97316]'}`
           }`}
       >
         <span>{selected || 'Staff Name'}</span>
@@ -399,8 +399,8 @@ const StaffDropdown = ({ isDarkMode, selected, onSelect }) => {
                 setIsOpen(false);
               }}
               className={`px-4 py-3 text-[14px] font-bold cursor-pointer uppercase transition-none ${isDarkMode
-                  ? 'text-gray-300 hover:bg-white/5'
-                  : 'text-gray-800 hover:bg-gray-50'
+                ? 'text-gray-300 hover:bg-white/5'
+                : 'text-gray-800 hover:bg-gray-50'
                 }`}
             >
               {opt}
@@ -549,8 +549,8 @@ const DateRangePicker = ({ isDarkMode }) => {
                 key={item}
                 onClick={() => setPredefinedRange(item)}
                 className={`text-left px-6 py-3 text-[14px] font-medium transition-colors ${activeSidebar === item
-                    ? (isDarkMode ? 'bg-white/10 text-white' : 'bg-gray-100 text-black')
-                    : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:bg-gray-50')
+                  ? (isDarkMode ? 'bg-white/10 text-white' : 'bg-gray-100 text-black')
+                  : (isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:bg-gray-50')
                   }`}
               >
                 {item}
@@ -577,8 +577,8 @@ const DateRangePicker = ({ isDarkMode }) => {
                         key={m}
                         onClick={() => { setCurrentMonth(i); setShowMonthDropdown(false); }}
                         className={`px-4 py-2 text-sm font-bold cursor-pointer ${currentMonth === i
-                            ? 'bg-blue-600 text-white'
-                            : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
+                          ? 'bg-blue-600 text-white'
+                          : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
                           }`}
                       >
                         {m}
@@ -604,8 +604,8 @@ const DateRangePicker = ({ isDarkMode }) => {
                         key={y}
                         onClick={() => { setCurrentYear(y); setShowYearDropdown(false); }}
                         className={`px-4 py-2 text-sm font-bold cursor-pointer ${currentYear === y
-                            ? 'bg-blue-600 text-white'
-                            : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
+                          ? 'bg-blue-600 text-white'
+                          : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
                           }`}
                       >
                         {y}
@@ -630,10 +630,10 @@ const DateRangePicker = ({ isDarkMode }) => {
                   key={i + 1}
                   onClick={() => handleDateClick(i + 1)}
                   className={`h-10 w-10 mx-auto flex items-center justify-center text-[13px] rounded transition-all ${isStartOrEnd(i + 1)
-                      ? 'bg-[#f97316] text-white font-bold'
-                      : isDateSelected(i + 1)
-                        ? 'bg-orange-100 text-orange-600 font-bold'
-                        : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100')
+                    ? 'bg-[#f97316] text-white font-bold'
+                    : isDateSelected(i + 1)
+                      ? 'bg-orange-100 text-orange-600 font-bold'
+                      : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100')
                     }`}
                 >
                   {i + 1}
@@ -674,6 +674,9 @@ const ExpenseManagement = () => {
   const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
   const rowsDropdownRef = useRef(null);
 
+  // State for active stat card
+  const [selectedStat, setSelectedStat] = useState('');
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (rowsDropdownRef.current && !rowsDropdownRef.current.contains(event.target)) {
@@ -701,15 +704,31 @@ const ExpenseManagement = () => {
 
       {/* Stats Cards */}
       <div className="flex gap-6 transition-none pt-2">
-        <div className={`p-6 rounded-xl flex items-center gap-6 transition-none min-w-[320px] shadow-sm bg-[#3b82f6] text-white`}>
-          <div className="p-4 rounded-xl bg-white/20">
-            <div className="w-12 h-12 border-2 border-white rounded-full flex items-center justify-center">
+        <div
+          onClick={() => setSelectedStat('Total Expenses')}
+          className={`group p-6 rounded-xl flex items-center gap-6 transition-all duration-300 cursor-pointer min-w-[320px] shadow-sm 
+            ${selectedStat === 'Total Expenses'
+              ? 'bg-blue-600 text-white shadow-lg ring-1 ring-blue-400 hover:bg-blue-700'
+              : (isDarkMode
+                ? 'bg-[#1a1a1a] text-white hover:bg-blue-600 hover:shadow-lg'
+                : 'bg-white border border-gray-100 text-black hover:bg-blue-600 hover:text-white hover:shadow-lg'
+              )}`}
+        >
+          <div className={`p-4 rounded-xl transition-all duration-300 
+            ${selectedStat === 'Total Expenses'
+              ? 'bg-white/20 text-white'
+              : (isDarkMode
+                ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                : 'bg-[#f8f9fa] text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+              )}`}>
+            <div className={`w-12 h-12 border-2 rounded-full flex items-center justify-center transition-colors duration-300 
+              ${selectedStat === 'Total Expenses' ? 'border-white' : 'border-gray-300 group-hover:border-white'}`}>
               <span className="text-[28px] font-black tracking-wider">₹</span>
             </div>
           </div>
           <div>
-            <p className="text-[36px] font-black leading-none">₹ 0</p>
-            <p className="text-[15px] font-bold mt-1 opacity-80">Total Expenses</p>
+            <p className={`text-[36px] font-black leading-none transition-colors duration-300 ${selectedStat === 'Total Expenses' ? 'text-white' : 'group-hover:text-white'}`}>₹ 0</p>
+            <p className={`text-[15px] font-bold mt-1 opacity-80 transition-colors duration-300 ${selectedStat === 'Total Expenses' ? 'text-white' : 'group-hover:text-white'}`}>Total Expenses</p>
           </div>
         </div>
       </div>

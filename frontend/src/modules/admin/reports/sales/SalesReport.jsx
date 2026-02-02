@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ChevronDown,
   Calendar,
@@ -6,167 +6,234 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  Wallet
+  Wallet,
+  CreditCard,
+  Banknote,
+  DollarSign
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import SingleDatePicker from '../../components/SingleDatePicker';
+import GenerateReportModal from '../../components/GenerateReportModal';
+
+const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, onSelect, activeVal }) => {
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        if (isOpen) onToggle();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onToggle]);
+
+  return (
+    <div className="relative min-w-[180px]" ref={dropdownRef}>
+      <div
+        onClick={onToggle}
+        className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-bold outline-none cursor-pointer flex items-center justify-between transition-none ${isDarkMode
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-[#f97316]'}`
+          }`}
+      >
+        <span className="truncate">{activeVal || label}</span>
+        <ChevronDown size={16} className={isOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+      </div>
+
+      {isOpen && (
+        <div className={`absolute top-full left-0 mt-1 w-full min-w-[200px] rounded-lg shadow-xl border z-30 transition-none ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'
+          }`}>
+          {options.map((opt, i) => (
+            <div
+              key={i}
+              onClick={() => onSelect(opt)}
+              className={`px-4 py-3 text-[14px] font-bold cursor-pointer transition-none ${isDarkMode
+                ? 'text-gray-300 hover:bg-white/5'
+                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600 border-b border-gray-50 last:border-0'
+                }`}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SalesReport = () => {
   const { isDarkMode } = useOutletContext();
-  const tableContainerRef = useRef(null);
-  const statsContainerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [fromDate, setFromDate] = useState('01-02-2026');
+  const [toDate, setToDate] = useState('01-02-2026');
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  const statsRow1 = [
-    { label: 'Invoice Generated', value: '65', icon: Wallet },
-    { label: 'Total Amount', value: '327600.00', icon: Wallet },
-    { label: 'Paid Amount', value: '324600.00', icon: Wallet },
-    { label: 'Paid Balance Amount', value: '3000.00', icon: Wallet },
-    { label: 'Tax Amount', value: '0.00', icon: Wallet },
-  ];
+  const [activeFilter, setActiveFilter] = useState(null);
+  const [filterValues, setFilterValues] = useState({});
+  const [isRowsPerPageOpen, setIsRowsPerPageOpen] = useState(false);
+  const rowsPerPageRef = useRef(null);
 
-  const statsRow2 = [
-    { label: 'Online', value: '297100.00', icon: Wallet },
-    { label: 'Wallet', value: '0.00', icon: Wallet },
-    { label: 'Cash', value: '30500.00', icon: Wallet, active: true },
-    { label: 'Cheque', value: '0.00', icon: Wallet },
-    { label: 'Other', value: '0.00', icon: Wallet },
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (rowsPerPageRef.current && !rowsPerPageRef.current.contains(event.target)) {
+        setIsRowsPerPageOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filterOptions = {
+    'Select Tax Type': ['Without GST', 'With GST'],
+    'Select Membership Type': ['General Training', 'Personal Training', 'Group Ex'],
+    'Select Sale Type': ['New Sale', 'Renewal', 'Upgrade'],
+    'Select Trainer': ['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'],
+    'Select Closed By': ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'],
+    'Select Handled By': ['Abdulla Pathan', 'Admin'],
+    'Payment Mode': ['Cash', 'UPI', 'Google Pay', 'Card', 'Cheque'],
+  };
+
+  const stats = [
+    { label: 'Invoice Generated', value: '1' },
+    { label: 'Total Amount', value: '5000.00' },
+    { label: 'Paid Amount', value: '5000.00' },
+    { label: 'Paid Balance Amount', value: '0.00' },
+    { label: 'Tax Amount', value: '0.00' },
+    { label: 'Online', value: '5000.00' },
+    { label: 'Wallet', value: '0.00' },
+    { label: 'Cash', value: '0.00' },
+    { label: 'Cheque', value: '0.00' },
+    { label: 'Other', value: '0.00' },
   ];
 
   const salesData = [
-    { id: '1232', name: 'NIRAJ GUPTA', number: '7778877207', type: 'General Training', plan: 'GYM WORKOUT', start: '29-01-2026', duration: '12 Months', invoice: 'V10FL/2025-26/558', paid: '₹5500.00', sgst: '₹0.00', cgst: '₹0.00', mode: 'Google Pay', amount: '₹5500.00', discount: '₹3500.00', balance: '₹0.00', closedBy: 'Abdulla Pathan', handleBy: 'Abdulla Pathan', closeDate: '29-01-2026', payDate: '29-01-2026', trainer: 'Abdulla Pathan', saleType: 'Fresh Payment' },
-    { id: '5/1229', name: 'KHETRAM KUMAWAT', number: '6376566316', type: 'General Training', plan: 'GYM WORKOUT', start: '28-01-2026', duration: '12 Months', invoice: 'V10FL/2025-26/555', paid: '₹5000.00', sgst: '₹0.00', cgst: '₹0.00', mode: 'Google Pay', amount: '₹5000.00', discount: '₹4000.00', balance: '₹0.00', closedBy: 'Abdulla Pathan', handleBy: 'Abdulla Pathan', closeDate: '28-01-2026', payDate: '28-01-2026', trainer: 'Abdulla Pathan', saleType: 'Renew Payment' },
-    { id: '1230', name: 'DEV LODHA', number: '7698523069', type: 'General Training', plan: 'GYM WORKOUT', start: '28-01-2026', duration: '12 Months', invoice: 'V10FL/2025-26/556', paid: '₹6000.00', sgst: '₹0.00', cgst: '₹0.00', mode: 'Google Pay', amount: '₹6000.00', discount: '₹3000.00', balance: '₹0.00', closedBy: 'Abdulla Pathan', handleBy: 'Abdulla Pathan', closeDate: '28-01-2026', payDate: '28-01-2026', trainer: 'Abdulla Pathan', saleType: 'Resale Payment' },
-    { id: '1231', name: 'CHANDAN SINGH', number: '9998596909', type: 'General Training', plan: 'GYM WORKOUT', start: '28-01-2026', duration: '12 Months', invoice: 'V10FL/2025-26/557', paid: '₹5500.00', sgst: '₹0.00', cgst: '₹0.00', mode: 'Google Pay', amount: '₹5500.00', discount: '₹3500.00', balance: '₹0.00', closedBy: 'Abdulla Pathan', handleBy: 'Abdulla Pathan', closeDate: '28-01-2026', payDate: '28-01-2026', trainer: 'Abdulla Pathan', saleType: 'Fresh Payment' },
-    { id: '1225', name: 'NAYAN SIKLIGHAR', number: '7069487076', type: 'General Training', plan: 'GYM WORKOUT', start: '28-01-2026', duration: '1 Months', invoice: 'V10FL/2025-26/551', paid: '₹2000.00', sgst: '₹0.00', cgst: '₹0.00', mode: 'Cash', amount: '₹2000.00', discount: '₹500.00', balance: '₹0.00', closedBy: 'Abdulla Pathan', handleBy: 'Abdulla Pathan', closeDate: '27-01-2026', payDate: '27-01-2026', trainer: 'Abdulla Pathan', saleType: 'Fresh Payment' },
+    {
+      cId: '550',
+      name: 'Adititya singh',
+      number: '9558110436',
+      mType: 'General Training',
+      pName: 'GYM WORKOUT',
+      sDate: '18-05-2002',
+      duration: '12 Months',
+      invNo: 'V10FL/2025-26/512',
+      paid: '5000.00',
+      sgst: '0.00',
+      cgst: '0.00',
+      pMode: 'Google Pay',
+      invAmt: '5000.00',
+      discount: '4000.00',
+      bal: '0.00',
+      closedBy: 'Abdulla Pathan',
+      handledBy: 'Abdulla Pathan',
+      closeDate: '01-02-2026',
+      pDate: '01-02-2026',
+      trainer: 'Abdulla Pathan',
+      saleType: 'Resale Payment'
+    }
   ];
 
-  const scrollTable = (direction) => {
-    if (tableContainerRef.current) {
-      const scrollAmount = direction === 'left' ? -300 : 300;
-      tableContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
+  const toggleFilter = (label) => {
+    setActiveFilter(activeFilter === label ? null : label);
   };
 
-  const scrollStats = (direction) => {
-    if (statsContainerRef.current) {
-      const scrollAmount = direction === 'left' ? -300 : 300;
-      statsContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
+  const handleFilterSelect = (label, val) => {
+    setFilterValues({ ...filterValues, [label]: val });
+    setActiveFilter(null);
   };
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'} max-w-full overflow-x-hidden`}>
       {/* Header */}
-      <div className="flex justify-between items-center transition-none">
-        <h1 className="text-[28px] font-black tracking-tight">Sales Report</h1>
-        <div className="flex items-center gap-2">
-          <button onClick={() => scrollStats('left')} className="p-2 rounded-full border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 transition-none">
-            <ChevronLeft size={20} />
-          </button>
-          <button onClick={() => scrollStats('right')} className="p-2 rounded-full border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 transition-none">
-            <ChevronRight size={20} />
-          </button>
-        </div>
-      </div>
+      <h1 className="text-[28px] font-black tracking-tight">Sales Report</h1>
 
-      {/* Stats Cards Slider */}
-      <div ref={statsContainerRef} className="overflow-x-auto scroll-smooth transition-none">
-        <div className="flex flex-col gap-4 min-w-max transition-none pb-2">
-          <div className="flex gap-4 transition-none">
-            {statsRow1.map((stat, idx) => (
-              <div key={idx} className={`p-4 rounded-lg flex items-center gap-4 transition-none border w-[280px] shrink-0 ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-100/30 border-gray-100/50'}`}>
-                <div className={`p-3 rounded-lg bg-white shadow-sm dark:bg-white/5`}><stat.icon size={24} className="text-gray-400" /></div>
-                <div>
-                  <p className="text-[18px] font-black leading-none uppercase">{stat.value}</p>
-                  <p className="text-[11px] font-bold text-gray-500 mt-1 uppercase leading-tight">{stat.label}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-4 transition-none">
-            {statsRow2.map((stat, idx) => (
-              <div key={idx} className={`p-4 rounded-lg flex items-center gap-4 transition-none border w-[280px] shrink-0 ${stat.active ? 'bg-[#e76f51] text-white' : (isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-100/30 border-gray-100/50')}`}>
-                <div className={`p-3 rounded-lg bg-white shadow-sm dark:bg-white/5`}><stat.icon size={24} className={stat.active ? 'text-[#e76f51]' : 'text-gray-400'} /></div>
-                <div>
-                  <p className="text-[18px] font-black leading-none uppercase">{stat.value}</p>
-                  <p className={`text-[11px] font-bold mt-1 uppercase leading-tight ${stat.active ? 'text-white/80' : 'text-gray-500'}`}>{stat.label}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Filters Matrix */}
-      <div className="space-y-4 transition-none pt-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className={`flex items-center gap-3 px-4 py-2 border rounded-lg min-w-[180px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>
-            <Calendar size={18} className="text-gray-400" />
-            <span className="text-[14px] font-bold text-gray-400">01-01-2026</span>
-            <ChevronDown size={14} className="text-gray-400 ml-auto" />
-          </div>
-          <div className={`flex items-center gap-3 px-4 py-2 border rounded-lg min-w-[180px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>
-            <Calendar size={18} className="text-gray-400" />
-            <span className="text-[14px] font-bold text-gray-400">30-01-2026</span>
-            <ChevronDown size={14} className="text-gray-400 ml-auto" />
-          </div>
-          <div className="relative min-w-[180px]">
-            <select className={`appearance-none w-full pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-gray-500'}`}>
-              <option>Select Tax Type</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4">
-          {['Select Membership Type', 'Select Sale Type', 'Select Trainer', 'Select Closed By', 'Select Handled By', 'Payment Mode'].map((label, idx) => (
-            <div key={idx} className="relative min-w-[160px]">
-              <select className={`appearance-none w-full pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-gray-500'}`}>
-                <option>{label}</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+      {/* Stats Cards Grid - Matching Image 1 */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 transition-none">
+        {stats.map((stat, idx) => (
+          <div key={idx} className={`p-4 rounded-lg flex items-center gap-4 border transition-none min-h-[90px] ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-[#fcfcfc] border-gray-100 shadow-sm'}`}>
+            <div className={`p-3 rounded-lg bg-gray-100/50 dark:bg-white/5`}>
+              <Wallet size={24} className="text-gray-300" />
             </div>
-          ))}
-          <button className="bg-[#f97316] text-white px-8 py-2 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Apply</button>
-          <button className="bg-[#f97316] text-white px-8 py-2 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Clear</button>
-        </div>
+            <div>
+              <p className="text-[20px] font-black leading-none mb-1">{stat.value}</p>
+              <p className="text-[12px] font-bold text-gray-500 uppercase tracking-tight">{stat.label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Search Row */}
-      <div className="flex justify-between items-center transition-none pt-2">
-        <div className="relative flex-1 max-w-xs">
-          <Search size={18} className="absolute left-4 top-3 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search"
-            className={`w-full pl-11 pr-4 py-2 border rounded-lg text-[14px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-200 text-black placeholder:text-gray-400'}`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+      {/* Filters Row */}
+      <div className="space-y-4 pt-4 transition-none">
+        <div className="flex flex-wrap items-center gap-4">
+          <SingleDatePicker value={fromDate} onSelect={setFromDate} isDarkMode={isDarkMode} />
+          <SingleDatePicker value={toDate} onSelect={setToDate} isDarkMode={isDarkMode} />
+
+          <CustomFilterDropdown
+            label="Select Tax Type"
+            options={filterOptions['Select Tax Type']}
+            isDarkMode={isDarkMode}
+            isOpen={activeFilter === 'Select Tax Type'}
+            onToggle={() => toggleFilter('Select Tax Type')}
+            onSelect={(val) => handleFilterSelect('Select Tax Type', val)}
+            activeVal={filterValues['Select Tax Type']}
           />
         </div>
-        <button className={`flex items-center gap-2 px-6 py-2 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f8f9fa] border-gray-200 shadow-sm text-gray-700'}`}>
-          <Download size={18} />
-          Generate XLS Report
-        </button>
+
+        <div className="flex flex-wrap items-center gap-4">
+          {['Select Membership Type', 'Select Sale Type', 'Select Trainer', 'Select Closed By', 'Select Handled By', 'Payment Mode'].map((label) => (
+            <CustomFilterDropdown
+              key={label}
+              label={label}
+              options={filterOptions[label]}
+              isDarkMode={isDarkMode}
+              isOpen={activeFilter === label}
+              onToggle={() => toggleFilter(label)}
+              onSelect={(val) => handleFilterSelect(label, val)}
+              activeVal={filterValues[label]}
+            />
+          ))}
+
+          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Apply</button>
+          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Clear</button>
+        </div>
+
+        <div className="flex justify-between items-center pt-2 transition-none">
+          <div className="relative flex-1 max-w-[400px]">
+            <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search"
+              className={`w-full pl-12 pr-4 py-3 border rounded-lg text-[15px] font-bold shadow-sm outline-none transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#fcfcfc] border-gray-200 text-black placeholder:text-gray-400'}`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className={`flex items-center gap-2 px-8 py-3.5 border rounded-lg text-[14px] font-black transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-100 shadow-md text-gray-700'}`}
+          >
+            <Download size={20} className="text-gray-600" />
+            Generate XLS Report
+          </button>
+        </div>
       </div>
 
-      {/* Table Section with Slider Behavior */}
+      {/* Table Section with Horizontal Scaling - Matching Image 2, 3 */}
       <div className={`mt-4 border rounded-lg overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
-        <div className="px-5 py-4 border-b flex justify-between items-center bg-white dark:bg-white/5">
-          <div className="flex items-center gap-4">
-            <span className="text-[13px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Sales Report</span>
-            <div className="flex items-center gap-2 ml-4">
-              <button onClick={() => scrollTable('left')} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-none text-gray-400">
-                <ChevronLeft size={20} />
-              </button>
-              <button onClick={() => scrollTable('right')} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-none text-gray-400">
-                <ChevronRight size={20} />
-              </button>
-            </div>
+        <div className="px-5 py-5 border-b bg-white dark:bg-white/5 flex items-center gap-4 transition-none">
+          <span className="text-[14px] font-black text-gray-800 dark:text-gray-200 tracking-tight">
+            Sales Report
+          </span>
+          <div className="flex items-center gap-3">
+            <ChevronLeft size={20} className="text-gray-400 cursor-pointer hover:text-gray-800" />
+            <ChevronRight size={20} className="text-gray-400 cursor-pointer hover:text-gray-800" />
           </div>
         </div>
-        <div ref={tableContainerRef} className="overflow-x-auto scroll-smooth">
-          <table className="min-w-full text-left whitespace-nowrap">
+
+        {/* Horizontal scroll container */}
+        <div className="overflow-x-auto scroll-smooth custom-scrollbar transition-none">
+          <table className="min-w-full text-left whitespace-nowrap transition-none">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-white border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
                 <th className="px-6 py-5">Client Id</th>
@@ -174,17 +241,17 @@ const SalesReport = () => {
                 <th className="px-6 py-5">Membership Type</th>
                 <th className="px-6 py-5">Plan Name</th>
                 <th className="px-6 py-5">Package Start Date</th>
-                <th className="px-6 py-5">Duration</th>
-                <th className="px-6 py-5">Invoice Number</th>
+                <th className="px-6 py-5 text-center">Duration</th>
+                <th className="px-6 py-5">Invoice Number <span className="text-[10px] ml-1 opacity-50">▲</span></th>
                 <th className="px-6 py-5">Paid Amount</th>
                 <th className="px-6 py-5">SGST</th>
                 <th className="px-6 py-5">CGST</th>
-                <th className="px-6 py-5">Payment Mode</th>
+                <th className="px-6 py-5 text-center">Payment Mode</th>
                 <th className="px-6 py-5">Invoice Amount</th>
                 <th className="px-6 py-5">Discount</th>
                 <th className="px-6 py-5">Balance Amount</th>
                 <th className="px-6 py-5">Closed By</th>
-                <th className="px-6 py-5">Handle By</th>
+                <th className="px-6 py-5 text-center">Handle By</th>
                 <th className="px-6 py-5">Close Date/Invoice Date</th>
                 <th className="px-6 py-5">Payment Date</th>
                 <th className="px-6 py-5">Assign Trainer</th>
@@ -192,71 +259,92 @@ const SalesReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {salesData.map((row, idx) => (
+              {salesData.slice(0, rowsPerPage).map((row, idx) => (
                 <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-8">{row.id}</td>
+                  <td className="px-6 py-8">{row.cId}</td>
                   <td className="px-6 py-8">
                     <div className="flex flex-col">
-                      <span className="text-[#3b82f6] uppercase">{row.name}</span>
-                      <span className="text-[#3b82f6] text-[12px]">{row.number}</span>
+                      <span className="text-[#3b82f6] uppercase font-black cursor-pointer hover:underline">{row.name}</span>
+                      <span className="text-[#3b82f6] text-[12px] mt-0.5">{row.number}</span>
                     </div>
                   </td>
                   <td className="px-6 py-8">
-                    <div className="px-3 py-2 rounded-lg border border-[#f97316]/30 bg-[#fff7ed] dark:bg-[#f97316]/10 text-[#f97316] uppercase text-[12px]">
-                      {row.type}
+                    <div className="px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-orange-600 text-[13px] font-black inline-block">
+                      {row.mType}
                     </div>
                   </td>
-                  <td className="px-6 py-8 uppercase">
-                    <div className="px-3 py-2 rounded-lg border border-[#f97316]/30 bg-[#fff7ed] dark:bg-[#f97316]/10 text-[#f97316] uppercase text-[12px]">
-                      {row.plan}
+                  <td className="px-6 py-8">
+                    <div className="px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-orange-600 text-[13px] font-black inline-block">
+                      {row.pName}
                     </div>
                   </td>
-                  <td className="px-6 py-8">{row.start}</td>
-                  <td className="px-6 py-8">{row.duration}</td>
-                  <td className="px-6 py-8 text-[#3b82f6] transition-none">{row.invoice}</td>
-                  <td className="px-6 py-8 font-black">{row.paid}</td>
-                  <td className="px-6 py-8">{row.sgst}</td>
-                  <td className="px-6 py-8">{row.cgst}</td>
-                  <td className="px-6 py-8">{row.mode}</td>
-                  <td className="px-6 py-8 font-black">{row.amount}</td>
-                  <td className="px-6 py-8">{row.discount}</td>
-                  <td className="px-6 py-8">{row.balance}</td>
-                  <td className="px-6 py-8 whitespace-nowrap">{row.closedBy}</td>
-                  <td className="px-6 py-8 whitespace-nowrap">{row.handleBy}</td>
+                  <td className="px-6 py-8">{row.sDate}</td>
+                  <td className="px-6 py-8 text-center">{row.duration}</td>
+                  <td className="px-6 py-8 text-blue-500 font-black cursor-pointer hover:underline">{row.invNo}</td>
+                  <td className="px-6 py-8 font-black">₹{row.paid}</td>
+                  <td className="px-6 py-8 font-black">₹{row.sgst}</td>
+                  <td className="px-6 py-8 font-black">₹{row.cgst}</td>
+                  <td className="px-6 py-8 text-center">{row.pMode}</td>
+                  <td className="px-6 py-8 font-black">₹{row.invAmt}</td>
+                  <td className="px-6 py-8 font-black">₹{row.discount}</td>
+                  <td className="px-6 py-8 font-black text-red-500">₹{row.bal}</td>
+                  <td className="px-6 py-8">
+                    <div className="flex flex-col">
+                      <span>{row.closedBy}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-8 text-center">{row.handledBy}</td>
                   <td className="px-6 py-8">{row.closeDate}</td>
-                  <td className="px-6 py-8">{row.payDate}</td>
-                  <td className="px-6 py-8 whitespace-nowrap">{row.trainer}</td>
-                  <td className="px-6 py-8 whitespace-nowrap">{row.saleType}</td>
+                  <td className="px-6 py-8">{row.pDate}</td>
+                  <td className="px-6 py-8">{row.trainer}</td>
+                  <td className="px-6 py-8 text-gray-500">{row.saleType}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination Section - Matching Image 2 */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-          <div className="flex flex-wrap items-center gap-2">
-            <button className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>« Previous</button>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(num => (
-              <button key={num} className={`w-10 h-10 border rounded-lg text-[12px] font-bold transition-none ${num === 1 ? 'bg-[#f4a261] text-white shadow-md' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600')}`}>
-                {num}
-              </button>
-            ))}
-            <button className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>Next »</button>
+          <div className="flex flex-wrap items-center gap-2 transition-none">
+            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>« Previous</button>
+            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
+            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>Next »</button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">
-            <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
-            <div className="relative">
-              <select className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}>
-                <option>5</option>
-                <option>10</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+            <span className="text-[14px] font-black text-gray-500 uppercase tracking-tight">Rows per page</span>
+            <div className="relative" ref={rowsPerPageRef}>
+              <div
+                onClick={() => setIsRowsPerPageOpen(!isRowsPerPageOpen)}
+                className={`flex items-center justify-between w-[80px] px-3 py-2 border rounded-lg cursor-pointer ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-600 shadow-sm'}`}
+              >
+                <span className="text-[14px] font-bold">{rowsPerPage}</span>
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${isRowsPerPageOpen ? 'rotate-180' : ''}`} />
+              </div>
+              {isRowsPerPageOpen && (
+                <div className={`absolute bottom-full left-0 mb-1 w-full rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+                  {[5, 10, 20, 50].map(n => (
+                    <div
+                      key={n}
+                      onClick={() => { setRowsPerPage(n); setIsRowsPerPageOpen(false); }}
+                      className={`px-3 py-2 text-[14px] font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-orange-50 hover:text-orange-600 text-gray-700'}`}
+                    >
+                      {n}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      <GenerateReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

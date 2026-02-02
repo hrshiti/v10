@@ -250,8 +250,8 @@ const DietPlanItem = ({ plan, isDarkMode }) => {
           <div
             ref={inputRef}
             className={`relative min-w-[240px] transition-all flex items-center rounded-lg border px-3 py-2 ${isSearchActive
-                ? 'border-[#f97316] ring-1 ring-[#f97316]'
-                : isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f8f9fa]'
+              ? 'border-[#f97316] ring-1 ring-[#f97316]'
+              : isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f8f9fa]'
               }`}
             onClick={() => setIsSearchActive(true)}
           >
@@ -280,8 +280,8 @@ const DietPlanItem = ({ plan, isDarkMode }) => {
                     key={i}
                     onClick={() => setActiveActionRow(false)}
                     className={`px-5 py-3.5 text-[14px] font-medium border-b last:border-0 cursor-pointer hover:pl-6 transition-all ${isDarkMode
-                        ? 'text-gray-300 border-white/5 hover:bg-white/5'
-                        : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
+                      ? 'text-gray-300 border-white/5 hover:bg-white/5'
+                      : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
                       }`}
                   >
                     {action}
@@ -321,6 +321,7 @@ const DietPlanManagement = () => {
   const { isDarkMode } = useOutletContext();
   const [activeTab, setActiveTab] = useState('Public');
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Action Menu State
@@ -341,13 +342,24 @@ const DietPlanManagement = () => {
   }, [activeActionRow]);
 
 
-  const dietPlans = [
+  const [publicPlans] = useState([
     { name: 'INSTANT WEIGHT LOSS DIET' },
     { name: 'WEIGHT LOSS DIET SCHEDULE' },
     { name: 'BODY BUILDING DIET' },
     { name: 'WEIGHT GAIN' },
     { name: 'HEART HEALTHY & HIGH CHOLESTROL & HIGH BLOOD PRESSURE' }
-  ];
+  ]);
+
+  const [privatePlans] = useState([]);
+
+  const allCurrentPlans = activeTab === 'Public' ? publicPlans : privatePlans;
+  const totalPages = Math.ceil(allCurrentPlans.length / rowsPerPage) || 1;
+  const currentPlans = allCurrentPlans.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  // Reset page when tab or rowsPerPage changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, rowsPerPage]);
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>
@@ -380,25 +392,46 @@ const DietPlanManagement = () => {
         </button>
       </div>
 
-      <p className="text-[13px] font-bold text-gray-600 dark:text-gray-400 pt-2">All Diet Plan(s) ({dietPlans.length})</p>
+      <p className="text-[13px] font-bold text-gray-600 dark:text-gray-400 pt-2">All Diet Plan(s) ({allCurrentPlans.length})</p>
 
       {/* Diet Plan List */}
-      <div className="space-y-4 transition-none min-h-[300px]">
-        {dietPlans.map((plan, idx) => (
-          <DietPlanItem key={idx} plan={plan} isDarkMode={isDarkMode} />
-        ))}
+      <div className="space-y-4 transition-none min-h-[400px]">
+        {currentPlans.length > 0 ? (
+          currentPlans.map((plan, idx) => (
+            <DietPlanItem key={idx} plan={plan} isDarkMode={isDarkMode} />
+          ))
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20">
+          </div>
+        )}
       </div>
 
       {/* Pagination */}
       <div className={`pt-6 flex flex-col md:flex-row justify-between items-center gap-6 transition-none`}>
         <div className="flex flex-wrap items-center gap-2">
-          <button className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>« Previous</button>
-          {[1, 2].map(num => (
-            <button key={num} className={`w-10 h-10 border rounded-lg text-[13px] font-bold transition-none ${num === 1 ? 'bg-[#f4a261] text-white' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600')}`}>
-              {num}
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
+          >
+            « Previous
+          </button>
+          {[...Array(totalPages)].map((_, i) => (
+            <button
+              key={i + 1}
+              onClick={() => setCurrentPage(i + 1)}
+              className={`w-10 h-10 border rounded-lg text-[13px] font-bold transition-none ${currentPage === i + 1 ? 'bg-[#f4a261] text-white' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600')}`}
+            >
+              {i + 1}
             </button>
           ))}
-          <button className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>Next »</button>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
+          >
+            Next »
+          </button>
         </div>
 
         <div className="flex items-center gap-4 transition-none">

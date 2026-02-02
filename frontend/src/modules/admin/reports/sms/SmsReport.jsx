@@ -5,13 +5,29 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  MessageSquare
+  MessageSquare,
+  Download
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import SingleDatePicker from '../../components/SingleDatePicker';
+import GenerateReportModal from '../../components/GenerateReportModal';
 
 const SmsReport = () => {
   const { isDarkMode } = useOutletContext();
   const [searchQuery, setSearchQuery] = useState('');
+  const [fromDate, setFromDate] = useState('31-01-2026');
+  const [toDate, setToDate] = useState('31-01-2026');
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  const smsData = Array.from({ length: 12 }, (_, i) => ({
+    srNo: i + 1,
+    mobile: `9876543${i}21`,
+    message: 'Welcome to V10 Fitness Lab!',
+    status: 'Delivered',
+    send: '2026-01-31 10:00',
+    delivered: '2026-01-31 10:01'
+  }));
 
   const stats = [
     { label: 'Total SMS', value: '0', icon: MessageSquare },
@@ -42,25 +58,24 @@ const SmsReport = () => {
 
       {/* Filters Row */}
       <div className="flex flex-wrap items-center gap-4 pt-4 transition-none">
-        <div className={`flex items-center gap-3 px-4 py-2.5 border rounded-lg min-w-[200px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>
-          <Calendar size={18} className="text-gray-400" />
-          <span className="text-[14px] font-bold">30-01-2026</span>
-          <ChevronDown size={14} className="text-gray-400 ml-auto" />
-        </div>
+        <SingleDatePicker
+          value={fromDate}
+          onSelect={setFromDate}
+          isDarkMode={isDarkMode}
+        />
+        <SingleDatePicker
+          value={toDate}
+          onSelect={setToDate}
+          isDarkMode={isDarkMode}
+        />
 
-        <div className={`flex items-center gap-3 px-4 py-2.5 border rounded-lg min-w-[200px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>
-          <Calendar size={18} className="text-gray-400" />
-          <span className="text-[14px] font-bold">30-01-2026</span>
-          <ChevronDown size={14} className="text-gray-400 ml-auto" />
-        </div>
-
-        <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Apply</button>
-        <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Clear</button>
+        <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600">Apply</button>
+        <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600">Clear</button>
       </div>
 
       {/* Search Row */}
-      <div className="max-w-md pt-2 transition-none">
-        <div className="relative">
+      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 transition-none pt-4">
+        <div className="relative flex-1 max-w-md">
           <Search size={20} className="absolute left-4 top-3 text-gray-400" />
           <input
             type="text"
@@ -70,6 +85,13 @@ const SmsReport = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        <button
+          onClick={() => setIsReportModalOpen(true)}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[14px] font-black border transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 shadow-sm text-gray-700'}`}
+        >
+          <Download size={18} className="text-gray-400" />
+          Generate XLS Report
+        </button>
       </div>
 
       {/* Table Section */}
@@ -100,7 +122,20 @@ const SmsReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {/* Empty state matches the screenshot */}
+              {smsData.slice(0, rowsPerPage).map((row, idx) => (
+                <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                  <td className="px-6 py-8">{row.srNo}</td>
+                  <td className="px-6 py-8">{row.mobile}</td>
+                  <td className="px-6 py-8">{row.message}</td>
+                  <td className="px-6 py-8">
+                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[11px] font-bold">
+                      {row.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-8">{row.send}</td>
+                  <td className="px-6 py-8">{row.delivered}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -116,15 +151,24 @@ const SmsReport = () => {
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
             <div className="relative">
-              <select className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}>
-                <option>5</option>
-                <option>10</option>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(parseInt(e.target.value))}
+                className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}
+              >
+                {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
               <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
             </div>
           </div>
         </div>
       </div>
+
+      <GenerateReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

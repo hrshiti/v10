@@ -37,8 +37,8 @@ const CustomDropdown = ({ options, value, onChange, isDarkMode, placeholder = "S
       <div
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-3 border rounded-xl text-[14px] font-bold flex justify-between items-center cursor-pointer transition-none ${isDarkMode
-            ? 'bg-[#1a1a1a] border-white/10 text-white'
-            : isOpen ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 text-gray-500 shadow-sm text-gray-400'
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : isOpen ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 text-gray-500 shadow-sm text-gray-400'
           }`}
       >
         <span className={`truncate ${value ? (isDarkMode ? 'text-white' : (options.includes(value) ? 'text-black' : 'text-[#f97316]')) : ''}`}>
@@ -55,8 +55,8 @@ const CustomDropdown = ({ options, value, onChange, isDarkMode, placeholder = "S
               key={option}
               onClick={() => handleSelect(option)}
               className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-colors ${isDarkMode
-                  ? 'text-gray-300 hover:bg-white/5'
-                  : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                ? 'text-gray-300 hover:bg-white/5'
+                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                 }`}
             >
               {option}
@@ -336,6 +336,9 @@ const EmployeeAttendance = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isMultipleLogModalOpen, setIsMultipleLogModalOpen] = useState(false);
 
+  // State for active stat card
+  const [selectedStat, setSelectedStat] = useState('');
+
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'} max-w-full overflow-x-hidden`}>
       <h1 className="text-[28px] font-black tracking-tight">Employee Attendance Management</h1>
@@ -343,29 +346,59 @@ const EmployeeAttendance = () => {
       {/* Stats Cards Row */}
       <div className="flex gap-6 transition-none">
         {/* Attendance Log Card */}
-        <div className={`p-6 rounded-xl flex items-center gap-6 transition-none min-w-[300px] shadow-sm bg-[#3b82f6] text-white`}>
-          <div className="p-4 rounded-xl bg-white/20">
+        <div
+          onClick={() => setSelectedStat('Attendance Log')}
+          className={`group p-6 rounded-xl flex items-center gap-6 transition-all duration-300 cursor-pointer min-w-[300px] shadow-sm 
+            ${selectedStat === 'Attendance Log'
+              ? 'bg-blue-600 text-white shadow-lg ring-1 ring-blue-400 hover:bg-blue-700'
+              : (isDarkMode
+                ? 'bg-[#1a1a1a] text-white hover:bg-blue-600 hover:shadow-lg'
+                : 'bg-white border border-gray-100 text-black hover:bg-blue-600 hover:text-white hover:shadow-lg'
+              )}`}
+        >
+          <div className={`p-4 rounded-xl transition-all duration-300 
+            ${selectedStat === 'Attendance Log'
+              ? 'bg-white/20 text-white'
+              : (isDarkMode
+                ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                : 'bg-[#f8f9fa] shadow-inner text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+              )}`}>
             <div className="relative">
               <Users size={32} />
-              <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5">
-                <Plus size={10} className="text-blue-600 font-bold" />
+              <div className={`absolute -top-1 -right-1 rounded-full p-0.5 transition-colors duration-300 ${selectedStat === 'Attendance Log' ? 'bg-white' : 'bg-blue-600 group-hover:bg-white'}`}>
+                <Plus size={10} className={`font-bold transition-colors duration-300 ${selectedStat === 'Attendance Log' ? 'text-blue-600' : 'text-white group-hover:text-blue-600'}`} />
               </div>
             </div>
           </div>
           <div>
-            <p className="text-[32px] font-black leading-none">0</p>
-            <p className="text-[14px] font-bold mt-1 opacity-80">Attendance Log</p>
+            <p className={`text-[32px] font-black leading-none transition-colors duration-300 ${selectedStat === 'Attendance Log' ? 'text-white' : 'group-hover:text-white'}`}>0</p>
+            <p className={`text-[14px] font-bold mt-1 opacity-80 transition-colors duration-300 ${selectedStat === 'Attendance Log' ? 'text-white' : 'group-hover:text-white'}`}>Attendance Log</p>
           </div>
         </div>
 
         {/* Manual Attendance Card */}
-        <div className={`p-6 rounded-xl flex items-center gap-6 transition-none min-w-[300px] shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-[#f3f4f6]'} text-gray-800 dark:text-white`}>
-          <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white shadow-inner'}`}>
-            <Users size={32} className="text-gray-300" />
+        <div
+          onClick={() => setSelectedStat('Manual Attendance')}
+          className={`group p-6 rounded-xl flex items-center gap-6 transition-all duration-300 cursor-pointer min-w-[300px] shadow-sm 
+            ${selectedStat === 'Manual Attendance'
+              ? 'bg-emerald-600 text-white shadow-lg ring-1 ring-emerald-400 hover:bg-emerald-700'
+              : (isDarkMode
+                ? 'bg-[#1a1a1a] text-white hover:bg-emerald-600 hover:shadow-lg'
+                : 'bg-white border border-gray-100 text-black hover:bg-emerald-600 hover:text-white hover:shadow-lg'
+              )}`}
+        >
+          <div className={`p-4 rounded-xl transition-all duration-300 
+            ${selectedStat === 'Manual Attendance'
+              ? 'bg-white/20 text-white'
+              : (isDarkMode
+                ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                : 'bg-[#f8f9fa] shadow-inner text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+              )}`}>
+            <Users size={32} />
           </div>
           <div>
-            <p className="text-[32px] font-black leading-none">0</p>
-            <p className="text-[14px] font-bold mt-1 opacity-80">Manual Attendance</p>
+            <p className={`text-[32px] font-black leading-none transition-colors duration-300 ${selectedStat === 'Manual Attendance' ? 'text-white' : 'group-hover:text-white'}`}>0</p>
+            <p className={`text-[14px] font-bold mt-1 opacity-80 transition-colors duration-300 ${selectedStat === 'Manual Attendance' ? 'text-white' : 'group-hover:text-white'}`}>Manual Attendance</p>
           </div>
         </div>
       </div>

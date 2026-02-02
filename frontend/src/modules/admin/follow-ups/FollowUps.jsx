@@ -11,6 +11,7 @@ import {
   Edit2
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import DateRangeFilter from '../components/DateRangeFilter';
 
 const ReportModal = ({ isOpen, onClose, isDarkMode }) => {
   if (!isOpen) return null;
@@ -76,8 +77,8 @@ const FollowTypeDropdown = ({ isDarkMode }) => {
       <div
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-medium cursor-pointer flex items-center justify-between transition-none ${isDarkMode
-            ? 'bg-[#1a1a1a] border-white/10 text-white'
-            : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
           }`}
       >
         <span>{selected}</span>
@@ -126,8 +127,8 @@ const ConvertibleTypeDropdown = ({ isDarkMode }) => {
       <div
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-medium cursor-pointer flex items-center justify-between transition-none ${isDarkMode
-            ? 'bg-[#1a1a1a] border-white/10 text-white'
-            : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
+          ? 'bg-[#1a1a1a] border-white/10 text-white'
+          : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
           }`}
       >
         <span>{selected}</span>
@@ -404,14 +405,10 @@ const FollowUps = () => {
         <SelectAllocateDropdown isDarkMode={isDarkMode} />
         <AllocateToMeDropdown isDarkMode={isDarkMode} />
 
-        <div className={`flex items-center gap-3 px-4 py-2 border rounded-lg min-w-[210px] transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
-          <Calendar size={18} className="text-gray-400 outline-none" />
-          <span className="text-[14px] font-medium text-gray-400">dd/mm/yyyy</span>
-          <ChevronDown size={14} className="text-gray-400 ml-auto" />
-        </div>
-
-        <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-sm">Apply</button>
-        <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-sm">Clear</button>
+        <DateRangeFilter
+          isDarkMode={isDarkMode}
+          onApply={(range) => console.log('Range Applied:', range)}
+        />
       </div>
 
       {/* Search & Export Row */}
