@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Home as HomeIcon, Calendar as CalendarIcon, Dumbbell, Crown } from 'lucide-react';
+import { Home as HomeIcon, Calendar as CalendarIcon, Dumbbell, Crown, QrCode } from 'lucide-react';
 
 const Dashboard = () => {
     // Helper function for nav link classes
@@ -41,6 +41,12 @@ const Dashboard = () => {
                             {isActive && <span className="text-[10px] font-bold uppercase tracking-wider animate-in fade-in slide-in-from-bottom-2">Calendar</span>}
                         </>
                     )}
+                </NavLink>
+
+                <NavLink to="/scan" className="flex flex-col items-center gap-1 group -mt-6">
+                    <div className="p-4 rounded-full bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-transform duration-300 hover:scale-105 active:scale-95 border-4 border-white dark:border-black">
+                        <QrCode size={28} />
+                    </div>
                 </NavLink>
 
                 <NavLink to="/workouts" className={({ isActive }) => getLinkClasses(isActive)}>
