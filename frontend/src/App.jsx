@@ -17,6 +17,9 @@ import AdminRoutes from './modules/admin/routes/AdminRoutes';
 import Login from './modules/user/pages/Login';
 import Register from './modules/user/pages/Register';
 import VerifyOtp from './modules/user/pages/VerifyOtp';
+import ScanQR from './modules/user/pages/ScanQR';
+import AttendanceSuccess from './modules/user/pages/AttendanceSuccess';
+import Feedback from './modules/user/pages/Feedback';
 
 function App() {
   return (
@@ -31,6 +34,10 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
+
+          {/* Attendance Flow */}
+          <Route path="/scan" element={<ScanQR />} />
+          <Route path="/success" element={<AttendanceSuccess />} />
 
           {/* User Routes */}
           <Route path="/" element={<Dashboard />}>
@@ -48,6 +55,7 @@ function App() {
           <Route path="/about" element={<AboutUs />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/achievements" element={<Achievements />} />
+          <Route path="/feedback" element={<Feedback />} />
         </Routes>
       </ThemeProvider>
     </div>

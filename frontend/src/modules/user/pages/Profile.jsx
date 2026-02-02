@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Award, Shield, ChevronRight, Weight, Ruler, Lock, Flame, Pencil, Calendar as CalendarIcon, HelpCircle, FileText, Info } from 'lucide-react';
+import { Settings, Award, Shield, ChevronRight, Weight, Ruler, Lock, Flame, Pencil, Calendar as CalendarIcon, HelpCircle, FileText, Info, MessageSquare } from 'lucide-react';
 import EditProfileModal from '../components/EditProfileModal';
 
 const Profile = () => {
@@ -38,7 +38,8 @@ const Profile = () => {
             'About': '/about',
             'Privacy': '/privacy',
             'Achievements': '/achievements',
-            'Admin': '/admin'
+            'Feedback': '/feedback'
+            // 'Admin': '/admin'
         };
 
         if (routes[item]) {
@@ -133,6 +134,14 @@ const Profile = () => {
                         <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
                     </button>
 
+                    <button onClick={() => handleMenuClick('Feedback')} className="w-full p-4 flex items-center justify-between group border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
+                        <div className="flex items-center gap-4">
+                            <MessageSquare size={20} className="text-gray-400" />
+                            <span className="font-bold text-gray-700 dark:text-gray-200 text-sm">Feedback & Support</span>
+                        </div>
+                        <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
+                    </button>
+
                     <button onClick={() => handleMenuClick('FAQ')} className="w-full p-4 flex items-center justify-between group border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
                         <div className="flex items-center gap-4">
                             <HelpCircle size={20} className="text-gray-400" />
@@ -159,7 +168,7 @@ const Profile = () => {
 
                     <button onClick={() => handleMenuClick('Privacy')} className="w-full p-4 flex items-center justify-between group border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
                         <div className="flex items-center gap-4">
-                            <CalendarIcon size={20} className="text-gray-400" />
+                            <Shield size={20} className="text-gray-400" />
                             <span className="font-bold text-gray-700 dark:text-gray-200 text-sm">Privacy</span>
                         </div>
                         <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
@@ -173,13 +182,13 @@ const Profile = () => {
                         <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
                     </button>
 
-                    <button onClick={() => handleMenuClick('Admin')} className="w-full p-4 flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
+                    {/* <button onClick={() => handleMenuClick('Admin')} className="w-full p-4 flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
                         <div className="flex items-center gap-4">
                             <Shield size={20} className="text-[#f97316]" />
                             <span className="font-bold text-[#f97316] text-sm">Admin Panel</span>
                         </div>
                         <ChevronRight className="text-gray-300 group-hover:text-[#f97316]" size={18} />
-                    </button>
+                    </button> */}
                 </div>
             </div>
 
