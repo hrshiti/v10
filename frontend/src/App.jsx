@@ -6,6 +6,7 @@ import Home from './modules/user/pages/Home';
 import Calendar from './modules/user/pages/Calendar';
 import Workouts from './modules/user/pages/Workouts';
 import WorkoutDetails from './modules/user/pages/WorkoutDetails';
+import AssignedWorkoutDetails from './modules/user/pages/AssignedWorkoutDetails';
 import Profile from './modules/user/pages/Profile';
 import Settings from './modules/user/pages/Settings';
 import FAQ from './modules/user/pages/FAQ';
@@ -21,6 +22,8 @@ import ScanQR from './modules/user/pages/ScanQR';
 import AttendanceSuccess from './modules/user/pages/AttendanceSuccess';
 import Feedback from './modules/user/pages/Feedback';
 
+import ProtectedRoute from './modules/user/components/ProtectedRoute';
+
 function App() {
   return (
     <div className="App">
@@ -35,31 +38,36 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
 
-          {/* Attendance Flow */}
-          <Route path="/scan" element={<ScanQR />} />
-          <Route path="/success" element={<AttendanceSuccess />} />
+          {/* Protected User Routes */}
+          <Route element={<ProtectedRoute />}>
+            {/* Attendance Flow */}
+            <Route path="/scan" element={<ScanQR />} />
+            <Route path="/success" element={<AttendanceSuccess />} />
 
-          {/* User Routes */}
-          <Route path="/" element={<Dashboard />}>
-            <Route index element={<Home />} />
-            <Route path="calendar" element={<Calendar />} />
-            <Route path="workouts" element={<Workouts />} />
-            <Route path="workout/:id" element={<WorkoutDetails />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="settings" element={<Settings />} />
+            {/* User Routes */}
+            <Route path="/" element={<Dashboard />}>
+              <Route index element={<Home />} />
+              <Route path="calendar" element={<Calendar />} />
+              <Route path="workouts" element={<Workouts />} />
+              <Route path="workout/:id" element={<WorkoutDetails />} />
+              <Route path="workout-details/:id" element={<AssignedWorkoutDetails />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="feedback" element={<Feedback />} />
+            </Route>
+
+            {/* Settings Navigation Routes (Standalone) */}
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/achievements" element={<Achievements />} />
           </Route>
-
-          {/* Settings Navigation Routes */}
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/terms" element={<TermsAndConditions />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/achievements" element={<Achievements />} />
-          <Route path="/feedback" element={<Feedback />} />
         </Routes>
       </ThemeProvider>
     </div>
   );
 }
+
 
 export default App;

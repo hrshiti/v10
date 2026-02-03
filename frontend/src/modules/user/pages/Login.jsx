@@ -1,16 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Smartphone, ArrowRight } from 'lucide-react';
 
 const Login = () => {
     const navigate = useNavigate();
     const [mobile, setMobile] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleLogin = (e) => {
+    // Clear any existing tokens when login page loads
+    useEffect(() => {
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('userData');
+    }, []);
+
+    const handleLogin = async (e) => {
         e.preventDefault();
-        // Mock login logic
-        if (mobile) {
-            navigate('/verify-otp', { state: { mobile, type: 'login' } });
+        setLoading(true);
+        setError('');
+
+        try {
+            const backendUrl = window.location.hostname === 'localhost'
+                ? 'http://localhost:5000'
+                : `http://${window.location.hostname}:5000`;
+
+            const response = await fetch(`${backendUrl}/api/user/auth/send-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mobile })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                navigate('/verify-otp', { state: { mobile, type: 'login' } });
+            } else {
+                setError(data.message || 'Login failed');
+            }
+        } catch (err) {
+            setError('Connection error. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -27,6 +56,11 @@ const Login = () => {
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-5">
+                    {error && (
+                        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-bold text-center">
+                            {error}
+                        </div>
+                    )}
                     {/* Mobile Input */}
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -46,10 +80,11 @@ const Login = () => {
                     {/* Submit Button */}
                     <button
                         type="submit"
-                        className="w-full bg-gray-900 dark:bg-white text-white dark:text-black font-bold py-4 rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                        disabled={loading}
+                        className={`w-full font-bold py-4 rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-gray-900 dark:bg-white text-white dark:text-black'}`}
                     >
-                        <span>Get OTP</span>
-                        <ArrowRight className="w-5 h-5" />
+                        <span>{loading ? 'Sending...' : 'Get OTP'}</span>
+                        {!loading && <ArrowRight className="w-5 h-5" />}
                     </button>
                 </form>
 

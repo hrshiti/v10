@@ -4,13 +4,15 @@ const {
     createFeedback,
     getFeedbacks,
     replyToFeedback,
-    getFeedbackStats
+    getFeedbackStats,
+    getMyFeedbacks
 } = require('../../controllers/admin/feedbackController');
 
 // Admin Routes
 router.get('/', getFeedbacks);
 router.get('/stats', getFeedbackStats);
 router.put('/:id/reply', replyToFeedback);
+router.get('/user/:userId', getMyFeedbacks);
 
 // Public/User Route (To submit)
 router.post('/submit', createFeedback);

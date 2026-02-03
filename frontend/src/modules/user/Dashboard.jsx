@@ -14,9 +14,10 @@ const Dashboard = () => {
         <div className="min-h-screen bg-gray-50 dark:bg-[#121212] font-sans w-full max-w-md mx-auto relative shadow-2xl overflow-hidden ring-1 ring-gray-200 dark:ring-gray-800 transition-colors duration-300">
 
             {/* Main Content Area */}
-            <div className="h-full overflow-y-auto scrollbar-hide pb-24">
+            <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide pb-24">
                 <Outlet />
             </div>
+
 
             {/* Bottom Sticky Navigation */}
             <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-6 pb-6 pt-4 bg-white/90 dark:bg-black/80 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800/50 flex justify-between items-center z-50 transition-colors duration-300">

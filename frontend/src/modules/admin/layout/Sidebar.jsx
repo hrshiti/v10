@@ -40,6 +40,7 @@ const Sidebar = ({ isOpen, isDarkMode }) => {
                 { title: 'Subscriptions', path: '/admin/members/memberships' },
                 { title: 'Workout Cards', path: '/admin/members/workout-cards' },
                 { title: 'Analytics', path: '/admin/members/analytics' },
+                { title: 'Mark Attendance', path: '/admin/members/attendance' },
             ]
         },
         { title: 'Feedback Management', path: '/admin/feedback', icon: <MessageSquare size={20} /> },

@@ -4,19 +4,34 @@ const Feedback = require('../../models/Feedback');
 // @desc    Create Feedback (User Side)
 // @route   POST /api/user/feedback
 // @access  Public (or Private if User Auth exists)
-const createFeedback = asyncHandler(async (req, res) => {
-    const { userId, userName, type, message, rating } = req.body;
+const createFeedback = async (req, res) => {
+    try {
+        console.log('Incoming Feedback:', req.body);
+        const { userId, userName, type, message, rating } = req.body;
 
-    const feedback = await Feedback.create({
-        userId,
-        userName,
-        type,
-        message,
-        rating
-    });
+        if (!userId || !message) {
+            return res.status(400).json({ message: 'Missing required fields (UserId or Message)' });
+        }
 
-    res.status(201).json(feedback);
-});
+        const feedback = await Feedback.create({
+            userId,
+            userName,
+            type,
+            message,
+            rating
+        });
+
+        console.log('Feedback Created Successfully:', feedback.feedbackId);
+        return res.status(201).json(feedback);
+
+    } catch (error) {
+        console.error('Feedback Creation Error:', error);
+        return res.status(500).json({
+            message: error.message || 'Internal Server Error during feedback creation',
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};
 
 // @desc    Get All Feedbacks (Admin Side)
 // @route   GET /api/admin/feedback
@@ -69,9 +84,18 @@ const getFeedbackStats = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Get user's own feedback history
+// @route   GET /api/admin/feedback/user/:userId
+const getMyFeedbacks = asyncHandler(async (req, res) => {
+    const feedbacks = await Feedback.find({ userId: req.params.userId })
+        .sort({ createdAt: -1 });
+    res.json(feedbacks);
+});
+
 module.exports = {
     createFeedback,
     getFeedbacks,
     replyToFeedback,
-    getFeedbackStats
+    getFeedbackStats,
+    getMyFeedbacks
 };

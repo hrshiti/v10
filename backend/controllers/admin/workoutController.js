@@ -43,4 +43,15 @@ const getMemberWorkout = asyncHandler(async (req, res) => {
     res.json(workouts);
 });
 
-module.exports = { createWorkout, getMemberWorkout };
+// @desc    Get all active workouts
+// @route   GET /api/admin/workouts
+// @access  Private/Admin
+const getWorkouts = asyncHandler(async (req, res) => {
+    const workouts = await Workout.find({})
+        .populate('memberId', 'firstName lastName memberId')
+        .populate('trainerId', 'firstName lastName')
+        .sort({ createdAt: -1 });
+    res.json(workouts);
+});
+
+module.exports = { createWorkout, getMemberWorkout, getWorkouts };

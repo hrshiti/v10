@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { createWorkout, getMemberWorkout } = require('../../controllers/admin/workoutController');
+const { createWorkout, getMemberWorkout, getWorkouts } = require('../../controllers/admin/workoutController');
 
 router.route('/')
-    .post(createWorkout);
+    .post(createWorkout)
+    .get(getWorkouts);
 
 router.route('/member/:memberId')
     .get(getMemberWorkout);

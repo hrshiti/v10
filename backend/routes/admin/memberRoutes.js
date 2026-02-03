@@ -11,6 +11,18 @@ const {
     extendMembership,
     changeStartDate
 } = require('../../controllers/admin/memberController');
+const { protect } = require('../../middlewares/authMiddleware');
+const {
+    scanQRCode,
+    getMemberAttendanceLogs
+} = require('../../controllers/admin/memberAttendanceController');
+
+// Apply protection to all member routes
+router.use(protect);
+
+// Attendance
+router.post('/attendance/scan', scanQRCode);
+router.get('/attendance', getMemberAttendanceLogs);
 
 router.post('/renew', renewMembership);
 router.put('/:id/extend', extendMembership);

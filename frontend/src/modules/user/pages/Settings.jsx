@@ -69,7 +69,14 @@ const Settings = () => {
                 <div>
                     <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-2">Account</h2>
                     <div className="bg-white dark:bg-[#1A1F2B] rounded-[1.5rem] shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-colors duration-300">
-                        <button className="w-full flex items-center justify-between p-4 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group">
+                        <button
+                            onClick={() => {
+                                localStorage.removeItem('userToken');
+                                localStorage.removeItem('userData');
+                                navigate('/login');
+                            }}
+                            className="w-full flex items-center justify-between p-4 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"
+                        >
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600">
                                     <LogOut size={16} />
@@ -79,6 +86,7 @@ const Settings = () => {
                         </button>
                     </div>
                 </div>
+
 
                 <div className="text-center pt-4">
                     <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">V-10 Gym App v1.0.2</p>

@@ -12,6 +12,9 @@ const memberSchema = new mongoose.Schema({
     dob: { type: Date },
     address: { type: String },
     photo: { type: String }, // URL to image
+    weight: { type: Number },
+    height: { type: Number },
+    age: { type: Number },
 
     emergencyContact: {
         name: { type: String },
@@ -53,7 +56,7 @@ memberSchema.virtual('name').get(function () {
 });
 
 // Auto-generate Member ID
-memberSchema.pre('save', async function (next) {
+memberSchema.pre('save', async function () {
     if (!this.memberId) {
         // Simple random ID, in production maybe incrementing
         this.memberId = 'M' + Math.floor(10000 + Math.random() * 90000).toString();

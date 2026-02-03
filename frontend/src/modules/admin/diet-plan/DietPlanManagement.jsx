@@ -150,28 +150,8 @@ const CreateDietPlanModal = ({ isOpen, onClose, isDarkMode }) => {
   )
 }
 
-const MealAccordion = ({ meal, isDarkMode }) => {
+const MealAccordion = ({ mealType, foods, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
-
-  // Dummy data for visual matching
-  const foodItems = [
-    { type: 'Veg', time: '07:00 AM', items: 'black coffee/a small fruit/4 dates', desc: 'Description' },
-    { type: 'Veg', time: '08:00 AM', items: 'green tea/skimmed milk+ 1 plate veg poha/dhokla', desc: 'Description' },
-    { type: 'Veg', time: '10:00 AM', items: '1 plate fresh fruit salad + buttermilk +water +1 coconut water', desc: 'Description' }
-  ];
-
-  if (meal === 'Lunch') {
-    foodItems.length = 1;
-    foodItems[0] = { type: 'Veg', time: '02:00 PM', items: '1 plate salad +brown rice+dal+curd', desc: 'Description' };
-  } else if (meal === 'Evening Snacks') {
-    foodItems.length = 1;
-    foodItems[0] = { type: 'Veg', time: '05:00 PM', items: 'lemon tea/green tea/1 bowl boiled mung/chana', desc: 'Description' };
-  } else if (meal === 'Dinner') {
-    foodItems.length = 2;
-    foodItems[0] = { type: 'Veg', time: '08:00 PM', items: 'veg. soup + veg salad+veg khichdi/rice/curd', desc: 'Description' };
-    foodItems[1] = { type: 'Veg', time: '10:00 PM', items: 'fruit any 1 before going to bed', desc: 'Description' };
-  }
-
 
   return (
     <div className={`rounded-lg border overflow-hidden transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
@@ -179,35 +159,28 @@ const MealAccordion = ({ meal, isDarkMode }) => {
         onClick={() => setIsOpen(!isOpen)}
         className="p-4 flex justify-between items-center cursor-pointer transition-none"
       >
-        <span className={`text-[15px] font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{meal}</span>
+        <span className={`text-[15px] font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{mealType}</span>
         <ChevronDown size={18} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-gray-400' : 'text-black'}`} />
       </div>
 
       {isOpen && (
         <div className={`border-t ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-          {foodItems.map((item, idx) => (
+          {foods.map((item, idx) => (
             <div key={idx} className={`flex flex-col md:flex-row border-b last:border-b-0 ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-              {/* Food Type */}
               <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.type}</span>
+                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.foodType}</span>
                 <span className="text-[11px] text-gray-500 font-medium">Food Type</span>
               </div>
-
-              {/* Timing */}
               <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.time}</span>
+                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.timing}</span>
                 <span className="text-[11px] text-gray-500 font-medium">Timing</span>
               </div>
-
-              {/* Diet */}
               <div className={`p-4 flex-1 flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.items}</span>
+                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.itemName}</span>
                 <span className="text-[11px] text-gray-500 font-medium">Diet</span>
               </div>
-
-              {/* Description */}
               <div className="p-4 w-full md:w-[200px] flex items-center">
-                <span className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{item.desc}</span>
+                <span className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{item.quantity} {item.unit}</span>
               </div>
             </div>
           ))}
@@ -296,17 +269,17 @@ const DietPlanItem = ({ plan, isDarkMode }) => {
       {/* Expanded Content (Weekly Schedule) */}
       {isExpanded && (
         <div className="px-4 pb-4 space-y-4">
-          {days.map((day) => (
-            <div key={day}>
+          {plan.weeklyPlan.map((dayData, dIdx) => (
+            <div key={dIdx}>
               {/* Day Header */}
-              <div className="w-full bg-[#fff7ed] border border-[#ffedd5] text-[#f97316] py-2 rounded-lg text-center text-[13px] font-bold mb-2">
-                {day}
+              <div className="w-full bg-[#fff7ed] border border-[#ffedd5] text-[#f97316] py-2 rounded-lg text-center text-[13px] font-bold mb-2 uppercase">
+                {dayData.day}
               </div>
 
               {/* Meals */}
               <div className="space-y-4">
-                {['Breakfast', 'Lunch', 'Evening Snacks', 'Dinner'].map((meal) => (
-                  <MealAccordion key={meal} meal={meal} isDarkMode={isDarkMode} />
+                {dayData.meals.map((meal, mIdx) => (
+                  <MealAccordion key={mIdx} mealType={meal.mealType} foods={[meal]} isDarkMode={isDarkMode} />
                 ))}
               </div>
             </div>
@@ -323,10 +296,36 @@ const DietPlanManagement = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Action Menu State
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionContainerRefs = useRef({});
+
+  const fetchPlans = async () => {
+    try {
+      setLoading(true);
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const response = await fetch('http://localhost:5000/api/admin/diet-plans', {
+        headers: {
+          'Authorization': `Bearer ${adminInfo?.token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setPlans(data);
+      }
+    } catch (err) {
+      console.error('Error fetching plans:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -342,15 +341,8 @@ const DietPlanManagement = () => {
   }, [activeActionRow]);
 
 
-  const [publicPlans] = useState([
-    { name: 'INSTANT WEIGHT LOSS DIET' },
-    { name: 'WEIGHT LOSS DIET SCHEDULE' },
-    { name: 'BODY BUILDING DIET' },
-    { name: 'WEIGHT GAIN' },
-    { name: 'HEART HEALTHY & HIGH CHOLESTROL & HIGH BLOOD PRESSURE' }
-  ]);
-
-  const [privatePlans] = useState([]);
+  const publicPlans = plans.filter(p => p.privacyMode === 'Public');
+  const privatePlans = plans.filter(p => p.privacyMode === 'Private' || !p.privacyMode);
 
   const allCurrentPlans = activeTab === 'Public' ? publicPlans : privatePlans;
   const totalPages = Math.ceil(allCurrentPlans.length / rowsPerPage) || 1;

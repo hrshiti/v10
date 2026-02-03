@@ -6,6 +6,29 @@ const Workouts = () => {
     const navigate = useNavigate();
     const [activeCategory, setActiveCategory] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
+    const [myWorkouts, setMyWorkouts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    React.useEffect(() => {
+        const fetchMyWorkouts = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/user/workouts', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    setMyWorkouts(data);
+                }
+            } catch (err) {
+                console.error('Error fetching workouts:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchMyWorkouts();
+    }, []);
 
     const categories = ['All', 'Cardio', 'Strength', 'Yoga', 'HIIT'];
 
@@ -60,6 +83,35 @@ const Workouts = () => {
                         </button>
                     ))}
                 </div>
+
+                {/* My Assigned Plans */}
+                {myWorkouts.length > 0 && (
+                    <div className="mb-8">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">My Assigned Plans</h2>
+                        <div className="flex flex-col gap-3">
+                            {myWorkouts.map((plan) => (
+                                <div
+                                    key={plan._id}
+                                    onClick={() => navigate(`/workout-details/${plan._id}`)}
+                                    className="bg-emerald-500 text-white p-5 rounded-3xl shadow-lg relative overflow-hidden group cursor-pointer"
+                                >
+                                    <div className="relative z-10">
+                                        <h3 className="text-lg font-black leading-tight mb-1">{plan.name}</h3>
+                                        <div className="flex items-center gap-3 text-white/80 text-[10px] font-bold uppercase tracking-wider">
+                                            <span>Starts: {new Date(plan.startDate).toLocaleDateString()}</span>
+                                            {plan.endDate && <span>• Ends: {new Date(plan.endDate).toLocaleDateString()}</span>}
+                                        </div>
+                                    </div>
+                                    <div className="absolute top-1/2 right-6 -translate-y-1/2 p-3 bg-white/20 rounded-2xl group-hover:translate-x-2 transition-transform">
+                                        <PlayCircle size={24} fill="currentColor" />
+                                    </div>
+                                    {/* Abstract Design */}
+                                    <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Popular Workouts */}
                 <div className="flex items-center justify-between mb-4">

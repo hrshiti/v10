@@ -223,337 +223,17 @@ const WorkoutPlanItem = ({ plan, isDarkMode }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getWorkoutData = () => {
-    const name = plan.name.toUpperCase();
-    if (name === 'WEIGHT GAIN LEVEL 1 (NEW)') {
-      return [
-        {
-          name: 'Monday',
-          exercises: [
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '10 MIN' } },
-            { category: 'CARDIO', details: { name: 'CROSS BODY PUSH-UP', sets: '3', reps: '3', weight: '10 MIN' } },
-            { category: 'CHEST', details: { name: 'BARBELL BENCH PRESS', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'CHEST', details: { name: 'INCLINE BARBELL BENCH PRESS', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'CHEST', details: { name: 'DUMBBELL PRESS 1', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'CHEST', details: { name: 'PEC DECK FLY', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-        {
-          name: 'Tuesday',
-          exercises: [
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '10 MIN', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'DUMBBELL SHOULDER PRESS', sets: '15,12,10', reps: 'Reps', weight: '3' } },
-            { category: 'SHOULDER', details: { name: 'BARBELL FRONT RAISE', sets: '15,12,10', reps: 'Reps', weight: '3' } },
-            { category: 'SHOULDER', details: { name: 'SMITH MACHINE SHOULDER PRESS', sets: '15,12,10', reps: 'Reps', weight: '3' } },
-            { category: 'SHOULDER', details: { name: 'DUMBBELL SHRUG', sets: '15,12,10', reps: 'Reps', weight: '3' } },
-          ]
-        },
-        {
-          name: 'Wednesday',
-          exercises: [
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '10 MIN' } },
-            { category: 'BACK', details: { name: 'LAT PULLDOWN', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BACK', details: { name: 'ROWING MACHINE', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BACK', details: { name: 'V BAR LAT PULLDOWN', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'BARBELL SHRUG MUSCLES', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-        {
-          name: 'Thursday',
-          exercises: [
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '10 MIN' } },
-            { category: 'BICEP', details: { name: 'DUMBBELL CURL', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BICEP', details: { name: 'BARBELL CURL', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BICEP', details: { name: 'DUMBBELL PREACHER CURL', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BICEP', details: { name: 'HAMMER CURL', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-        {
-          name: 'Friday',
-          exercises: [
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '10 MIN' } },
-            { category: 'TRICEPS', details: { name: 'BARBELL TRICEPS EXTENSION', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'SEATED ONE-ARM DUMBBELL TRICEPS EXTENSION', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'EZ BAR LYING CLOSE GRIP TRICEPS EXTENSION BEHIND HEAD', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'PUSHDOWN', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-        {
-          name: 'Saturday',
-          exercises: [
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '10 MIN' } },
-            { category: 'LEG', details: { name: 'SQUAT', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG PRESS', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG EXTENSION', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG CURL', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-      ];
-    }
-    if (name === 'WEIGHT GAIN LEVEL 1' && !plan.name.includes('(NEW)')) {
-      return [
-        {
-          name: 'Monday',
-          exercises: [
-            { category: 'SHOULDER', details: { name: 'LEVER SHOULDER PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'DUMBBELL LATERAL RAISE', sets: '', reps: '', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'DUMBBELL FRONT RAISE', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'SQUAT', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG EXTENSION', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG CURL', sets: '', reps: '', weight: '' } },
-            { category: 'CALVES', details: { name: 'STANDING CALF RAISE', sets: '', reps: '', weight: '' } },
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '5 min' } },
-            { category: 'ABS', details: { name: 'OBLIQUE FLOOR CRUNCHES', sets: '3', reps: '20', weight: '' } },
-            { category: 'ABS', details: { name: 'PLANK', sets: '3', reps: '20', weight: '' } },
-          ]
-        },
-        {
-          name: 'Tuesday',
-          exercises: [
-            { category: 'BACK', details: { name: 'LAT PULLDOWN', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'SEATED ROW MACHINE', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'REVERSE LAT PULLDOWN', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'Back Extension', sets: '', reps: '', weight: '' } },
-            { category: 'BICEP', details: { name: 'BARBELL CURL', sets: '', reps: '', weight: '' } },
-            { category: 'BICEP', details: { name: 'PREACHER CURL', sets: '', reps: '', weight: '' } },
-            { category: 'BICEP', details: { name: 'HAMMER CURL', sets: '', reps: '', weight: '' } },
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '5 min' } },
-            { category: 'ABS', details: { name: 'OBLIQUE FLOOR CRUNCHES', sets: '3', reps: '20', weight: '' } },
-            { category: 'ABS', details: { name: 'PLANK', sets: '3', reps: '20', weight: '' } },
-          ]
-        },
-        {
-          name: 'Wednesday',
-          exercises: [
-            { category: 'CHEST', details: { name: 'PUSH UP', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'BARBELL BENCH PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'INCLINE DUMBBELL PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'PEC DECK FLY', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'SEATED DUMBBELL TRICEPS EXTENSION', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'ROPE PUSHDOWN', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'BENCH DIPS', sets: '', reps: '', weight: '' } },
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '5 min' } },
-            { category: 'ABS', details: { name: 'OBLIQUE FLOOR CRUNCHES', sets: '3', reps: '20', weight: '' } },
-            { category: 'ABS', details: { name: 'PLANK', sets: '3', reps: '20', weight: '' } },
-          ]
-        },
-        {
-          name: 'Thursday',
-          exercises: [
-            { category: 'SHOULDER', details: { name: 'LEVER SHOULDER PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'DUMBBELL LATERAL RAISE', sets: '', reps: '', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'DUMBBELL FRONT RAISE', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'SQUAT', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG EXTENSION', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG CURL', sets: '', reps: '', weight: '' } },
-            { category: 'CALVES', details: { name: 'STANDING CALF RAISE', sets: '', reps: '', weight: '' } },
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '5 min' } },
-            { category: 'ABS', details: { name: 'OBLIQUE FLOOR CRUNCHES', sets: '3', reps: '20', weight: '' } },
-            { category: 'ABS', details: { name: 'PLANK', sets: '3', reps: '20', weight: '' } },
-          ]
-        },
-        {
-          name: 'Friday',
-          exercises: [
-            { category: 'BACK', details: { name: 'LAT PULLDOWN', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'SEATED ROW MACHINE', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'REVERSE LAT PULLDOWN', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'Back Extension', sets: '', reps: '', weight: '' } },
-            { category: 'BICEP', details: { name: 'BARBELL CURL', sets: '', reps: '', weight: '' } },
-            { category: 'BICEP', details: { name: 'PREACHER CURL', sets: '', reps: '', weight: '' } },
-            { category: 'BICEP', details: { name: 'HAMMER CURL', sets: '', reps: '', weight: '' } },
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '5 min' } },
-            { category: 'ABS', details: { name: 'OBLIQUE FLOOR CRUNCHES', sets: '3', reps: '20', weight: '' } },
-            { category: 'ABS', details: { name: 'PLANK', sets: '3', reps: '20', weight: '' } },
-          ]
-        },
-        {
-          name: 'Saturday',
-          exercises: [
-            { category: 'CHEST', details: { name: 'PUSH UP', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'BARBELL BENCH PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'INCLINE DUMBBELL PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'PEC DECK FLY', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'SEATED DUMBBELL TRICEPS EXTENSION', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'ROPE PUSHDOWN', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'BENCH DIPS', sets: '', reps: '', weight: '' } },
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '5 min' } },
-            { category: 'ABS', details: { name: 'OBLIQUE FLOOR CRUNCHES', sets: '3', reps: '20', weight: '' } },
-            { category: 'ABS', details: { name: 'PLANK', sets: '3', reps: '20', weight: '' } },
-          ]
-        },
-      ];
-    }
-    if (name === 'WEIGHT GAIN LEVEL 2' && !plan.name.includes('(NEW)')) {
-      return [
-        {
-          name: 'Monday',
-          exercises: [
-            { category: 'BACK', details: { name: 'LAT PULLDOWN', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'REVERSE LAT PULLDOWN', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'SEATED ROW MACHINE', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'BARBELL BENT OVER ROW', sets: '', reps: '', weight: '' } },
-            { category: 'BACK', details: { name: 'CABLE PULLOVER', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'BARBELL DEADLIFT', sets: '', reps: '', weight: '' } },
-            { category: 'TRAPEZIUS', details: { name: 'BARBELL SHRUG', sets: '', reps: '', weight: '' } },
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '' } },
-          ]
-        },
-        {
-          name: 'Tuesday',
-          exercises: [
-            { category: 'BICEP', details: { name: 'BARBELL CURL', sets: '', reps: '', weight: '' } },
-            { category: 'BICEP', details: { name: 'SEATED INCLINE DUMBBELL CURL', sets: '', reps: '', weight: '' } },
-            { category: 'BICEP', details: { name: 'REVERSE GRIP EZ BAR CURL', sets: '', reps: '', weight: '' } },
-            { category: 'BICEP', details: { name: 'PREACHER CURL', sets: '', reps: '', weight: '' } },
-            { category: 'FOREARM', details: { name: 'DUMBBELL WRIST CURL', sets: '', reps: '', weight: '' } },
-            { category: 'FOREARM', details: { name: 'BARBELL REVERSE WRIST CURL', sets: '', reps: '', weight: '' } },
-          ]
-        },
-        {
-          name: 'Wednesday',
-          exercises: [
-            { category: 'CHEST', details: { name: 'PUSH UP', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'BARBELL BENCH PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'INCLINE BARBELL BENCH PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'DECLINE DUMBBELL PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'CABLE CROSSOVER', sets: '', reps: '', weight: '' } },
-            { category: 'CHEST', details: { name: 'CHEST PRESS MACHINE', sets: '', reps: '', weight: '' } },
-          ]
-        },
-        {
-          name: 'Thursday',
-          exercises: [
-            { category: 'TRICEPS', details: { name: 'PUSHDOWN', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'SEATED ONE-ARM DUMBBELL TRICEPS EXTENSION', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'DUMBBELL KICKBACK', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'BARBELL REVERSE GRIP SKULLCRUSHER', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'CLOSE GRIP BENCH PRESS', sets: '', reps: '', weight: '' } },
-          ]
-        },
-        {
-          name: 'Friday',
-          exercises: [
-            { category: 'SHOULDER', details: { name: 'LEVER SHOULDER PRESS HAMMER GRIP', sets: '', reps: '', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'DUMBBELL SHOULDER PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'DUMBBELL LATERAL RAISE', sets: '', reps: '', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'BARBELL UPRIGHT ROW', sets: '', reps: '', weight: '' } },
-            { category: 'SHOULDER', details: { name: 'REAR DELT MACHINE FLYS', sets: '', reps: '', weight: '' } },
-            { category: 'CARDIO', details: { name: 'TREADMILL', sets: '', reps: '', weight: '10 min' } },
-            { category: 'ABS', details: { name: 'OBLIQUE FLOOR CRUNCHES', sets: '', reps: '', weight: '' } },
-            { category: 'ABS', details: { name: 'REVERSE CRUNCH', sets: '', reps: '', weight: '' } },
-          ]
-        },
-        {
-          name: 'Saturday',
-          exercises: [
-            { category: 'CARDIO', details: { name: 'RIDING OUTDOOR BICYCLE', sets: '', reps: '', weight: '5 min' } },
-            { category: 'LEG', details: { name: 'BODYWEIGHT SQUAT', sets: '', reps: '20', weight: '' } },
-            { category: 'LEG', details: { name: 'BARBELL HACK SQUAT', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'WALKING LUNGES', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG CURL', sets: '', reps: '', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG EXTENSION', sets: '', reps: '', weight: '' } },
-            { category: 'CALVES', details: { name: 'LEVER SEATED CALF RAISE', sets: '', reps: '', weight: '' } },
-            { category: 'CALVES', details: { name: 'STANDING CALF RAISE', sets: '', reps: '', weight: '' } },
-          ]
-        },
-      ];
-    }
-    if (name === 'WEIGHT GAIN LEVEL 2 (NEW)' || name === 'WEIGHT GAIN LEVEL 3 (NEW)') {
-      return [
-        {
-          name: 'Monday',
-          exercises: [
-            { category: 'CHEST', details: { name: 'BARBELL BENCH PRESS', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'CHEST', details: { name: 'INCLINE BARBELL BENCH PRESS', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'CHEST', details: { name: 'DUMBBELL PRESS 1', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'CHEST', details: { name: 'PEC DECK FLY', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'CHEST', details: { name: 'CHEST PRESS MACHINE', sets: '', reps: '15,12,10', weight: '' } },
-            { category: 'CHEST', details: { name: 'PUSH UP', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-        {
-          name: 'Tuesday',
-          exercises: [
-            { category: 'SHOULDER', details: { name: 'DUMBBELL SHOULDER PRESS', sets: '15,12,10', reps: 'Reps', weight: '3' } },
-            { category: 'SHOULDER', details: { name: 'BARBELL FRONT RAISE', sets: '15,12,10', reps: 'Reps', weight: '3' } },
-            { category: 'SHOULDER', details: { name: 'SMITH MACHINE SHOULDER PRESS', sets: '', reps: '15,12,10', weight: '3' } },
-            { category: 'SHOULDER', details: { name: 'DUMBBELL SHRUG', sets: '15,12,10', reps: 'Reps', weight: '3' } },
-            { category: 'SHOULDER', details: { name: 'BARBELL FRONT RAISE', sets: '', reps: '15,12,10', weight: '3' } },
-            { category: 'SHOULDER', details: { name: 'SIDE ARM RAISES', sets: '15,12,10', reps: 'Reps', weight: '3' } },
-          ]
-        },
-        {
-          name: 'Wednesday',
-          exercises: [
-            { category: 'BACK', details: { name: 'LAT PULLDOWN', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BACK', details: { name: 'ROWING MACHINE', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BACK', details: { name: 'LAT PULLDOWN', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BACK', details: { name: 'DUMBBELL ROW', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BACK', details: { name: 'BARBELL BENT OVER ROW', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BACK', details: { name: 'T BAR ROW', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BACK', details: { name: 'DEADLIFT', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-        {
-          name: 'Thursday',
-          exercises: [
-            { category: 'BICEP', details: { name: 'DUMBBELL CURL', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BICEP', details: { name: 'BARBELL CURL', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BICEP', details: { name: 'BARBELL CURL', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BICEP', details: { name: 'ZOTTMAN CURL', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BICEP', details: { name: 'HAMMER CURL', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'BICEP', details: { name: 'CABLE CURL', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-        {
-          name: 'Friday',
-          exercises: [
-            { category: 'TRICEPS', details: { name: 'BARBELL TRICEPS EXTENSION', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'ONE ARM LYING TRICEPS EXTENSION', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'CLOSE GRIP DUMBBELL PRESS', sets: '', reps: '', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'PUSHDOWN', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'TRICEPS', details: { name: 'DUMBBELL KICKBACK', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-        {
-          name: 'Saturday',
-          exercises: [
-            { category: 'LEG', details: { name: 'SQUAT', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG PRESS', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG EXTENSION', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'LEG', details: { name: 'LEG CURL', sets: '3', reps: '15,12,10', weight: '' } },
-            { category: 'LEG', details: { name: 'LUNGES', sets: '3', reps: '15,12,10', weight: '' } },
-          ]
-        },
-      ];
-    }
-    return [
-      { name: 'Monday', exercises: ['CHEST'] },
-      { name: 'Saturday', exercises: ['LEG', 'LEG'] },
-    ];
-  };
-
-  const days = getWorkoutData();
-
   return (
     <div className={`rounded-2xl border transition-none overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/5 shadow-inner' : 'bg-white border-gray-200/60 shadow-sm'}`}>
       <div className="p-5 flex items-center justify-between">
-        <span className={`text-[17px] font-black tracking-tighter uppercase ${isDarkMode ? 'text-white' : 'text-[#333]'}`}>{plan.name}</span>
+        <div className="flex flex-col">
+          <span className={`text-[17px] font-black tracking-tighter uppercase ${isDarkMode ? 'text-white' : 'text-[#333]'}`}>{plan.name}</span>
+          {plan.memberId && (
+            <span className="text-[11px] font-bold text-orange-500 uppercase">Member: {plan.memberId.firstName} {plan.memberId.lastName} ({plan.memberId.memberId})</span>
+          )}
+        </div>
 
         <div className="flex items-center gap-6 transition-none">
-          <div className="relative min-w-[280px]">
-            <Search size={18} className="absolute left-4 top-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search Members"
-              className={`w-full pl-12 pr-10 py-3 border rounded-xl text-[15px] font-black outline-none transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-600' : 'bg-[#fcfcfc] border-gray-200 text-black placeholder:text-gray-400 focus:border-orange-500'}`}
-            />
-            <ChevronDown size={18} className="absolute right-4 top-4 text-gray-400 pointer-events-none" />
-          </div>
-
           <button onClick={() => setIsExpanded(!isExpanded)}>
             <ChevronDown size={24} className={`text-gray-400 cursor-pointer hover:text-black transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           </button>
@@ -580,19 +260,19 @@ const WorkoutPlanItem = ({ plan, isDarkMode }) => {
 
       {isExpanded && (
         <div className="px-5 pb-5 space-y-4">
-          {days.map((day, dIdx) => (
+          {plan.schedule.map((dayPlan, dIdx) => (
             <div key={dIdx} className="space-y-4">
               {/* Day Header */}
-              <div className="w-full bg-[#fff7ed] border border-[#ffedd5] text-[#f97316] py-2.5 rounded-lg text-center text-[13px] font-black tracking-wide">
-                {day.name}
+              <div className="w-full bg-[#fff7ed] border border-[#ffedd5] text-[#f97316] py-2.5 rounded-lg text-center text-[13px] font-black tracking-wide uppercase">
+                {dayPlan.day} - {dayPlan.workoutType}
               </div>
               {/* Exercises */}
               <div className="space-y-3">
-                {day.exercises.map((ex, eIdx) => (
+                {dayPlan.exercises.map((ex, eIdx) => (
                   <ExerciseAccordion
                     key={eIdx}
-                    category={typeof ex === 'string' ? ex : ex.category}
-                    details={typeof ex === 'string' ? null : ex.details}
+                    category={ex.name}
+                    details={ex}
                     isDarkMode={isDarkMode}
                   />
                 ))}
@@ -611,14 +291,36 @@ const MembersWorkoutCard = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [workouts, setWorkouts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const workoutPlans = [
-    { name: 'WEIGHT GAIN LEVEL 2 (NEW)' },
-    { name: 'WEIGHT GAIN LEVEL 3 (NEW)' },
-    { name: 'WEIGHT GAIN LEVEL 1 (NEW)' },
-    { name: 'weight gain level 2' },
-    { name: 'weight gain level 1' }
-  ];
+  const fetchWorkouts = async () => {
+    try {
+      setLoading(true);
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const response = await fetch('http://localhost:5000/api/admin/workouts', {
+        headers: {
+          'Authorization': `Bearer ${adminInfo?.token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setWorkouts(data);
+      }
+    } catch (err) {
+      console.error('Error fetching workouts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkouts();
+  }, []);
+
+  const publicWorkouts = workouts; // For now all are treated as public or just active assignments
+  const totalPages = Math.ceil(publicWorkouts.length / rowsPerPage) || 1;
+  const currentWorkouts = publicWorkouts.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
 
   return (
@@ -653,13 +355,21 @@ const MembersWorkoutCard = () => {
 
       {activeTab === 'Public' ? (
         <>
-          <p className="text-[14px] font-black text-gray-500 pt-2 tracking-tight uppercase">All Workout Plan(s) (20)</p>
+          <p className="text-[14px] font-black text-gray-500 pt-2 tracking-tight uppercase">All Workout Plan(s) ({publicWorkouts.length})</p>
 
           {/* Workout List */}
-          <div className="space-y-4 transition-none">
-            {workoutPlans.map((plan, idx) => (
-              <WorkoutPlanItem key={idx} plan={plan} isDarkMode={isDarkMode} />
-            ))}
+          <div className="space-y-4 transition-none min-h-[400px]">
+            {loading ? (
+              <div className="flex justify-center py-20">
+                <div className="w-8 h-8 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : currentWorkouts.length > 0 ? (
+              currentWorkouts.map((plan, idx) => (
+                <WorkoutPlanItem key={idx} plan={plan} isDarkMode={isDarkMode} />
+              ))
+            ) : (
+              <div className="text-center py-20 text-gray-500">No workout plans found.</div>
+            )}
           </div>
 
           {/* Pagination */}

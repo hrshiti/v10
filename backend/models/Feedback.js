@@ -16,13 +16,12 @@ const feedbackSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// Auto-generate Feedback ID
-feedbackSchema.pre('save', async function (next) {
+// Auto-generate Unique Feedback ID
+feedbackSchema.pre('save', async function () {
     if (!this.feedbackId) {
-        // Generate a random 3-4 digit ID (Simple for now)
-        this.feedbackId = Math.floor(100 + Math.random() * 900).toString();
+        // Simple alphanumeric ID based on time and random
+        this.feedbackId = 'FB' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
     }
-    next();
 });
 
 module.exports = mongoose.model('Feedback', feedbackSchema);

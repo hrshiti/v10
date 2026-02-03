@@ -1,21 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Award, Shield, ChevronRight, Weight, Ruler, Lock, Flame, Pencil, Calendar as CalendarIcon, HelpCircle, FileText, Info, MessageSquare } from 'lucide-react';
+import { Settings, Award, Shield, ChevronRight, Weight, Ruler, Lock, Flame, Pencil, Calendar as CalendarIcon, HelpCircle, FileText, Info, MessageSquare, LogOut, User } from 'lucide-react';
 import EditProfileModal from '../components/EditProfileModal';
 
 const Profile = () => {
     // State
     const navigate = useNavigate();
     const [showEditModal, setShowEditModal] = useState(false);
+    const storedData = localStorage.getItem('userData');
+    const parsedData = storedData ? JSON.parse(storedData) : null;
+
     const [userData, setUserData] = useState({
-        name: 'Jordan Eagle',
-        username: '@jordaneagle',
-        weight: '75',
-        height: '178',
-        age: '30'
+        name: parsedData ? `${parsedData.firstName} ${parsedData.lastName}` : 'Guest',
+        username: parsedData ? `@${parsedData.memberId}` : '@guest',
+        weight: parsedData?.weight || '75',
+        height: parsedData?.height || '178',
+        age: parsedData?.age || '30',
+        mobile: parsedData?.mobile || '',
+        photo: parsedData?.photo || null
     });
 
-    // Calculate BMI dynamically
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
+    const fetchProfile = async () => {
+        try {
+            const token = localStorage.getItem('userToken');
+            if (!token) return;
+
+            const response = await fetch('http://localhost:5000/api/user/profile', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setUserData({
+                    ...data,
+                    name: `${data.firstName} ${data.lastName}`,
+                    username: `@${data.memberId}`,
+                    photo: data.photo
+                });
+                // Sync localStorage
+                localStorage.setItem('userData', JSON.stringify(data));
+            }
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+        }
+    };
+
+    const handleSave = async (formData, imageFile) => {
+        const token = localStorage.getItem('userToken');
+        if (!token) return;
+
+        const data = new FormData();
+        if (formData.name) data.append('name', formData.name);
+        if (formData.weight !== undefined && formData.weight !== null) data.append('weight', formData.weight);
+        if (formData.height !== undefined && formData.height !== null) data.append('height', formData.height);
+        if (formData.age !== undefined && formData.age !== null) data.append('age', formData.age);
+
+        if (imageFile) {
+            data.append('photo', imageFile);
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/api/user/profile', {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: data
+            });
+
+            if (response.ok) {
+                await fetchProfile(); // Refresh data
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Update failed');
+            }
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            throw error; // Re-throw for modal to handle
+        }
+    };
+
     const calculateBMI = () => {
         const h = parseFloat(userData.height) / 100;
         const w = parseFloat(userData.weight);
@@ -23,10 +88,6 @@ const Profile = () => {
             return (w / (h * h)).toFixed(1);
         }
         return '--';
-    };
-
-    const handleSave = (newData) => {
-        setUserData(newData);
     };
 
     // Placeholder handler for menu items
@@ -54,8 +115,14 @@ const Profile = () => {
             {/* White Header for clean look */}
             <div className="bg-white dark:bg-[#1A1F2B] pt-6 px-6 pb-4 shadow-sm text-center relative rounded-b-[2rem] transition-colors duration-300">
                 <div className="relative w-20 h-20 mx-auto mb-2">
-                    <div className="w-full h-full rounded-full p-1 border-2 border-green-100 overflow-hidden">
-                        <img src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200&h=200" alt="Profile" className="w-full h-full object-cover rounded-full" />
+                    <div className="w-full h-full rounded-full p-1 border-2 border-emerald-50 overlay-hidden bg-gray-50 flex items-center justify-center overflow-hidden">
+                        {userData.photo ? (
+                            <img src={userData.photo} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                            <div className="w-full h-full bg-emerald-50 flex items-center justify-center">
+                                <User className="text-emerald-400" size={32} />
+                            </div>
+                        )}
                     </div>
                     {/* Edit Button */}
                     <button
@@ -180,6 +247,21 @@ const Profile = () => {
                             <span className="font-bold text-gray-700 dark:text-gray-200 text-sm">Achievements</span>
                         </div>
                         <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            localStorage.removeItem('userToken');
+                            localStorage.removeItem('userData');
+                            navigate('/login');
+                        }}
+                        className="w-full p-4 flex items-center justify-between group last:border-0 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+                    >
+                        <div className="flex items-center gap-4">
+                            <LogOut size={20} className="text-red-500" />
+                            <span className="font-bold text-red-500 text-sm">Logout</span>
+                        </div>
+                        <ChevronRight className="text-red-300 group-hover:text-red-500" size={18} />
                     </button>
 
                     {/* <button onClick={() => handleMenuClick('Admin')} className="w-full p-4 flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">

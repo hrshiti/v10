@@ -34,12 +34,38 @@ const VerifyOtp = () => {
         }
     };
 
-    const handleVerify = (e) => {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleVerify = async (e) => {
         e.preventDefault();
         const otpString = otp.join('');
-        if (otpString.length === 6) {
-            // Mock verification logic
-            navigate('/');
+        if (otpString.length !== 6) return;
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await fetch('http://localhost:5000/api/user/auth/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mobile, otp: otpString })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Store token and user details
+                localStorage.setItem('userToken', data.token);
+                localStorage.setItem('userData', JSON.stringify(data));
+                navigate('/');
+            } else {
+                setError(data.message || 'Verification failed');
+            }
+        } catch (err) {
+            setError('Connection error. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -86,6 +112,12 @@ const VerifyOtp = () => {
                     ))}
                 </div>
 
+                {error && (
+                    <div className="mb-6 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-bold text-center">
+                        {error}
+                    </div>
+                )}
+
                 <div className="text-center mb-8">
                     <p className="text-gray-500 dark:text-gray-400 text-sm">
                         Didn't receive the code?{' '}
@@ -98,14 +130,14 @@ const VerifyOtp = () => {
                 <div className="mt-auto mb-4">
                     <button
                         onClick={handleVerify}
-                        disabled={!isOtpComplete}
-                        className={`w-full font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 ${isOtpComplete
-                                ? 'bg-gray-900 dark:bg-white text-white dark:text-black hover:scale-[1.02] shadow-lg shadow-emerald-500/20'
-                                : 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        disabled={!isOtpComplete || loading}
+                        className={`w-full font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 ${isOtpComplete && !loading
+                            ? 'bg-gray-900 dark:bg-white text-white dark:text-black hover:scale-[1.02] shadow-lg shadow-emerald-500/20'
+                            : 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
                             }`}
                     >
-                        <span>Verify & Proceed</span>
-                        <CheckCircle2 className="w-5 h-5" />
+                        <span>{loading ? 'Verifying...' : 'Verify & Proceed'}</span>
+                        {!loading && <CheckCircle2 className="w-5 h-5" />}
                     </button>
                 </div>
             </div>

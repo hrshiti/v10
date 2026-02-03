@@ -1,13 +1,41 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Info } from 'lucide-react';
-import { dietPlans } from '../data/mockDietPlans';
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Clock, Info, ChevronDown } from 'lucide-react';
 import DietItemModal from '../components/DietItemModal';
 
 const Calendar = () => {
     // State
+    const navigate = useNavigate();
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedItem, setSelectedItem] = useState(null);
-    const [eatenItems, setEatenItems] = useState({}); // { "Monday-Breakfast-0": true }
+    const [eatenItems, setEatenItems] = useState({});
+    const [workoutPlan, setWorkoutPlan] = useState(null);
+    const [dietPlan, setDietPlan] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    React.useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const token = localStorage.getItem('userToken');
+                const [wRes, dRes] = await Promise.all([
+                    fetch('http://localhost:5000/api/user/workouts', { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch('http://localhost:5000/api/user/diet-plan', { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+
+                const wData = await wRes.json();
+                const dData = await dRes.json();
+
+                if (wRes.ok) setWorkoutPlan(wData[0]); // Assuming one active plan
+                if (dRes.ok) setDietPlan(dData);
+            } catch (err) {
+                console.error('Error fetching calendar data:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     const handleToggleEaten = (itemKey) => {
         setEatenItems(prev => ({
@@ -41,32 +69,29 @@ const Calendar = () => {
     const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const fullDayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-    // --- WORKOUT SCHEDULE DATA ---
-    const schedules = {
-        12: [{ title: 'Full Body HIIT', time: '07:00 AM - 08:00 AM', icon: '🔥', color: 'bg-red-100' }, { title: 'Stretching', time: '08:00 PM - 08:30 PM', icon: '🧘', color: 'bg-indigo-100' }],
-        13: [{ title: 'Leg Day', time: '09:00 AM - 10:30 AM', icon: '🦵', color: 'bg-orange-100' }],
-        14: [{ title: 'Yoga Flow', time: '07:00 AM - 08:00 AM', icon: '🧘‍♀️', color: 'bg-blue-100' }, { title: 'Meditation', time: '09:00 PM - 09:30 PM', icon: '🕉️', color: 'bg-purple-100' }],
-        15: [{ title: 'Upper Body Power', time: '10:00 AM - 11:30 AM', icon: '💪', color: 'bg-orange-100' }, { title: 'Yoga Flow', time: '05:00 PM - 06:00 PM', icon: '🧘‍♀️', color: 'bg-blue-100' }],
-        16: [{ title: 'Cardio Blast', time: '06:00 AM - 07:00 AM', icon: '🏃', color: 'bg-green-100' }],
-        17: [], // Rest Day
-        18: [{ title: 'Zumba Dance', time: '04:00 PM - 05:00 PM', icon: '💃', color: 'bg-pink-100' }]
-    };
-
-    // Select specific plan (e.g., first one as active plan)
-    const activeDietPlan = dietPlans[0];
     const currentDayName = fullDayNames[selectedDate.getDay()];
-    // Get meals for the detailed Day (Monday) or fallback if not defined in mock
-    const currentDayMeals = activeDietPlan.days[currentDayName] || activeDietPlan.days['Monday'];
+
+    // Get Workout Day
+    const currentWorkoutDay = workoutPlan?.schedule.find(s => s.day === currentDayName);
+
+    // Get Diet Day
+    const currentDietDay = dietPlan?.weeklyPlan.find(d => d.day === currentDayName);
 
 
     // Get Data for Selected Date
     const currentDayDate = selectedDate.getDate();
-    const currentSchedule = schedules[currentDayDate] || [];
 
-    // Helper to check if a date has tasks
-    const hasTasks = (day) => {
-        return schedules[day] && schedules[day].length > 0;
+    // Helper to check if a date has tasks (simplified for now to show DOT if it's a weekday with a plan)
+    const hasTasks = (dateObj) => {
+        const dayStr = fullDayNames[dateObj.getDay()];
+        return workoutPlan?.schedule.some(s => s.day === dayStr) || dietPlan?.weeklyPlan.some(d => d.day === dayStr);
     };
+
+    if (loading) return (
+        <div className="min-h-screen bg-white dark:bg-[#121212] flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    );
 
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-[#121212] min-h-screen pb-24 transition-colors duration-300">
@@ -104,7 +129,7 @@ const Calendar = () => {
                             >
                                 <span className="text-xs font-medium">{dayName}</span>
                                 <span className={`text-lg font-bold ${isActive ? 'text-black' : 'text-white'}`}>{dayNum}</span>
-                                {hasTasks(dayNum) && !isActive && (
+                                {hasTasks(dateObj) && !isActive && (
                                     <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mt-1"></div>
                                 )}
                             </button>
@@ -124,23 +149,27 @@ const Calendar = () => {
                 {/* WORKOUTS SECTION */}
                 <div className="mb-8">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Workouts</h3>
-                    {currentSchedule.length > 0 ? (
+                    {currentWorkoutDay ? (
                         <div className="space-y-4">
-                            {currentSchedule.map((session, idx) => (
-                                <div key={idx} className="bg-white dark:bg-[#1A1F2B] p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4 hover:shadow-md transition-all duration-300">
-                                    <div className={`w-14 h-14 ${session.color} rounded-2xl flex items-center justify-center text-2xl`}>
-                                        {session.icon}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white text-base">{session.title}</h3>
-                                        <p className="text-sm text-gray-500 font-medium">{session.time}</p>
-                                    </div>
+                            <div className="bg-white dark:bg-[#1A1F2B] p-5 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4 hover:shadow-md transition-all">
+                                <div className="w-14 h-14 bg-orange-100 dark:bg-orange-500/10 rounded-2xl flex items-center justify-center text-2xl">
+                                    💪
                                 </div>
-                            ))}
+                                <div className="flex-1">
+                                    <h3 className="font-black text-gray-900 dark:text-white">{currentWorkoutDay.workoutType}</h3>
+                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{currentWorkoutDay.exercises.length} Exercises Scheduled</p>
+                                </div>
+                                <button
+                                    onClick={() => navigate(`/workout-details/${workoutPlan._id}`)}
+                                    className="p-3 bg-gray-900 dark:bg-white text-white dark:text-black rounded-2xl shadow-lg"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
                         </div>
                     ) : (
-                        <div className="p-4 rounded-3xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-center opacity-60 transition-colors duration-300">
-                            <p className="text-sm font-bold text-gray-400">Rest Day</p>
+                        <div className="p-8 rounded-[2rem] bg-gray-100 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 text-center opacity-60">
+                            <p className="text-sm font-black text-gray-400">Rest Day</p>
                         </div>
                     )}
                 </div>
@@ -149,48 +178,36 @@ const Calendar = () => {
                 <div>
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Meal Plan</h3>
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{activeDietPlan.planName}</span>
+                        {dietPlan && <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">{dietPlan.name}</span>}
                     </div>
 
                     <div className="space-y-4">
-                        {Object.entries(currentDayMeals).map(([mealName, items]) => (
-                            <div key={mealName} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
-                                <h5 className="text-xs font-bold text-orange-500 uppercase mb-2 tracking-wider flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 bg-orange-200 rounded-full"></span>
-                                    {mealName}
-                                </h5>
-
-                                <div className="space-y-2">
-                                    {items.map((item, idx) => (
-                                        <div
-                                            key={idx}
-                                            onClick={() => setSelectedItem({ ...item, key: getItemKey(currentDayName, mealName, idx) })}
-                                            className={`flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4 p-2 rounded-lg hover:bg-gray-50 transition-colors border-l-2 cursor-pointer active:scale-[0.98] duration-200 ${eatenItems[getItemKey(currentDayName, mealName, idx)] ? 'border-emerald-500 bg-emerald-50/10' : 'border-transparent hover:border-emerald-400'}`}
-                                        >
-                                            {/* Type & Time */}
-                                            <div className="flex items-center gap-2 min-w-[100px]">
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.foodType === 'Veg' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {item.foodType}
-                                                </span>
-                                                <div className="flex items-center gap-1 text-gray-500">
-                                                    <Clock size={10} />
-                                                    <span className="text-[10px] font-medium">{item.timing}</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Content */}
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-gray-800 leading-snug">{item.diet}</p>
-                                                <div className="flex items-center gap-1 mt-0.5 text-gray-400">
-                                                    <Info size={10} />
-                                                    <p className="text-[10px]">{item.description}</p>
-                                                </div>
-                                            </div>
+                        {currentDietDay ? currentDietDay.meals.map((meal, idx) => (
+                            <div key={idx} className="bg-white dark:bg-[#1A1F2B] border border-gray-100 dark:border-gray-800 rounded-[1.5rem] p-4 shadow-sm">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h5 className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{meal.mealType}</h5>
+                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${meal.foodType === 'Veg' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {meal.foodType}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-gray-800 dark:text-white text-sm">{meal.itemName}</h4>
+                                        <div className="flex items-center gap-1 text-gray-400 mt-1">
+                                            <Clock size={12} />
+                                            <span className="text-[10px] font-bold">{meal.timing}</span>
                                         </div>
-                                    ))}
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-bold text-gray-400">{meal.quantity}{meal.unit}</p>
+                                    </div>
                                 </div>
                             </div>
-                        ))}
+                        )) : (
+                            <div className="p-8 rounded-[1.5rem] bg-gray-50 dark:bg-gray-800/30 border border-dashed border-gray-200 dark:border-gray-700 text-center opacity-60">
+                                <p className="text-sm font-black text-gray-400">No Meals Logged</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

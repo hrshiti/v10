@@ -12,8 +12,17 @@
 
 body {
     background-color: #121212;
-    /* Default to dark background to prevent flashing */
+    overflow-x: hidden;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    -webkit-overflow-scrolling: touch;
 }
+
+html {
+    overflow-x: hidden;
+}
+
 
 @media (prefers-color-scheme: light) {
     body:not(.dark) {

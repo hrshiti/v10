@@ -33,6 +33,10 @@ app.use('/api/admin/reports', require('./routes/admin/reportRoutes'));
 app.use('/api/admin/employees', require('./routes/admin/employeeRoutes'));
 app.use('/api/admin/diet-plans', require('./routes/admin/dietRoutes'));
 
+// User Routes
+app.use('/api/user/auth', require('./routes/user/authRoutes'));
+app.use('/api/user', require('./routes/user/userRoutes'));
+
 // Basic route
 app.get('/', (req, res) => {
     res.send('API is running...');
@@ -53,3 +57,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
+ 

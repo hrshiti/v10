@@ -6,21 +6,32 @@ const ProgressCard = () => {
     const navigate = useNavigate();
     const [progress, setProgress] = useState(0);
 
-    useEffect(() => {
-        // Get stored progress or default to 0
-        const storedProgress = localStorage.getItem('dailyWorkoutProgress');
-        if (storedProgress) {
-            setProgress(parseInt(storedProgress, 10));
+    const [stats, setStats] = useState({ progress: 0, completions: 0, target: 5, todayType: 'Cardio', activeWorkoutId: null });
+
+    const fetchStats = async () => {
+        try {
+            const response = await fetch('http://localhost:5000/api/user/workouts/stats', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+                }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setStats(data);
+                setProgress(data.progress);
+            }
+        } catch (err) {
+            console.error('Error fetching progress:', err);
         }
+    };
 
-        // Listen for storage events to update real-time if changed elsewhere
-        const handleStorageChange = () => {
-            const updated = localStorage.getItem('dailyWorkoutProgress');
-            if (updated) setProgress(parseInt(updated, 10));
-        };
+    useEffect(() => {
+        fetchStats();
 
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        // Listen for internal completion events
+        const handleCompletion = () => fetchStats();
+        window.addEventListener('workoutCompleted', handleCompletion);
+        return () => window.removeEventListener('workoutCompleted', handleCompletion);
     }, []);
 
     return (
@@ -34,18 +45,18 @@ const ProgressCard = () => {
                         </div>
                     </div>
                     <span className="bg-[#10B981] text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide w-fit mb-1 shadow-sm">
-                        Cardio
+                        {stats.todayType}
                     </span>
-                    <h3 className="text-xl font-extrabold text-gray-900 dark:text-white mb-2 leading-tight">Lower<br />Body</h3>
+                    <h3 className="text-xl font-extrabold text-gray-900 dark:text-white mb-2 leading-tight">Weekly<br />Goal</h3>
 
                     <div className="flex items-center gap-3 text-gray-500 text-xs">
                         <div className="flex items-center gap-1 font-medium">
                             <Clock size={12} />
-                            <span>3 hours</span>
+                            <span>{stats.completions} of {stats.target}</span>
                         </div>
                         <div className="flex items-center gap-1 font-medium">
                             <Crown size={12} />
-                            <span>Beginner</span>
+                            <span>Done</span>
                         </div>
                     </div>
                 </div>
@@ -83,7 +94,13 @@ const ProgressCard = () => {
             </div>
 
             <button
-                onClick={() => navigate('/workouts')}
+                onClick={() => {
+                    if (stats.activeWorkoutId) {
+                        navigate(`/workout-details/${stats.activeWorkoutId}`);
+                    } else {
+                        navigate('/workouts');
+                    }
+                }}
                 className="w-full bg-[#1A1F2B] dark:bg-white text-white dark:text-black py-2.5 px-3 rounded-xl flex items-center justify-between font-bold shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all duration-300 mt-2 group"
             >
                 <span className="text-sm tracking-wide pl-1">Continue the workout</span>
@@ -94,5 +111,6 @@ const ProgressCard = () => {
         </div>
     );
 };
+
 
 export default ProgressCard;
