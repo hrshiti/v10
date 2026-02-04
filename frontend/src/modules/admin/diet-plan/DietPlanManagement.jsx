@@ -58,9 +58,10 @@ const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
   );
 };
 
-const CreateDietPlanModal = ({ isOpen, onClose, isDarkMode }) => {
+const CreateDietPlanModal = ({ isOpen, onClose, isDarkMode, onNext }) => {
   if (!isOpen) return null;
   const [privacyMode, setPrivacyMode] = useState('Select');
+  const [planName, setPlanName] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -73,6 +74,14 @@ const CreateDietPlanModal = ({ isOpen, onClose, isDarkMode }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleCreate = () => {
+    if (planName.trim() && privacyMode !== 'Select') {
+      onNext(planName, privacyMode);
+    } else {
+      alert('Please enter a plan name and select a privacy mode.');
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
@@ -97,6 +106,8 @@ const CreateDietPlanModal = ({ isOpen, onClose, isDarkMode }) => {
             <input
               type="text"
               placeholder="Type diet plan name here..."
+              value={planName}
+              onChange={(e) => setPlanName(e.target.value)}
               className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-medium outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-black placeholder-gray-400'
                 }`}
             />
@@ -141,7 +152,10 @@ const CreateDietPlanModal = ({ isOpen, onClose, isDarkMode }) => {
           >
             Cancel
           </button>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2 rounded-lg text-[14px] font-bold shadow-md active:scale-95 transition-none">
+          <button
+            onClick={handleCreate}
+            className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2 rounded-lg text-[14px] font-bold shadow-md active:scale-95 transition-none"
+          >
             Create
           </button>
         </div>
@@ -151,37 +165,45 @@ const CreateDietPlanModal = ({ isOpen, onClose, isDarkMode }) => {
 }
 
 // Edit Diet Plan Modal - Full Screen with 7 Days and Dynamic Cards
-const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
+const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, plan, onUpdate }) => {
   const [activeDay, setActiveDay] = useState('Monday');
-
-  // Initial diet cards data
-  const initialCards = [
-    { id: 1, foodType: 'VEG', mealType: 'Breakfast', quantity: '1', unit: 'Glass', timing: '07:00', itemName: 'black coffee/a small fruit/4 dates', description: '' },
-    { id: 2, foodType: 'VEG', mealType: 'Breakfast', quantity: '1', unit: 'Cup', timing: '08:00', itemName: 'green tea/skimmed milk+ 1 plate veg poha/dhokla', description: '' },
-    { id: 3, foodType: 'VEG', mealType: 'Breakfast', quantity: '1', unit: 'Plate', timing: '10:00', itemName: '1 plate fresh fruit salad + buttermilk +water +1 coconut water', description: '' },
-    { id: 4, foodType: 'VEG', mealType: 'Lunch', quantity: '1', unit: 'Plate', timing: '14:00', itemName: '1 plate salad +brown rice+dal+curd', description: '' },
-    { id: 5, foodType: 'VEG', mealType: 'Evening Snacks', quantity: '1', unit: 'Bowl', timing: '17:00', itemName: 'lemon tea/green tea/1 bowl boiled mung/chana', description: '' },
-    { id: 6, foodType: 'VEG', mealType: 'Dinner', quantity: '1', unit: 'Bowl', timing: '20:00', itemName: 'veg. soup + veg salad+veg khichdi/rice/curd', description: '' },
-    { id: 7, foodType: 'VEG', mealType: 'Dinner', quantity: '1', unit: 'Piece', timing: '22:00', itemName: 'fruit any 1 before going to bed', description: '' },
-  ];
-
-  // State for diet cards for each day
-  const [dietCardsPerDay, setDietCardsPerDay] = useState({
-    Monday: initialCards,
-    Tuesday: initialCards,
-    Wednesday: initialCards,
-    Thursday: initialCards,
-    Friday: initialCards,
-    Saturday: initialCards,
-    Sunday: initialCards,
-  });
-
-  const [nextId, setNextId] = useState(8);
-
-  if (!isOpen) return null;
-
+  const [dietCardsPerDay, setDietCardsPerDay] = useState({});
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const currentDayCards = dietCardsPerDay[activeDay];
+
+  useEffect(() => {
+    if (plan && plan.weeklyPlan) {
+      const mappedData = {};
+      days.forEach(day => mappedData[day] = []);
+
+      plan.weeklyPlan.forEach(dayObj => {
+        // Ensure IDs exist for keys
+        const meals = (dayObj.meals || []).map((m, idx) => ({
+          ...m,
+          id: m.id || m._id || `${dayObj.day}-${idx}-${Date.now()}`
+        }));
+        mappedData[dayObj.day] = meals;
+      });
+      // Ensure all days are initialized
+      days.forEach(day => {
+        if (!mappedData[day]) mappedData[day] = [];
+      });
+
+      setDietCardsPerDay(mappedData);
+    }
+  }, [plan, isOpen]);
+
+  if (!isOpen || !plan) return null;
+
+  const currentDayCards = dietCardsPerDay[activeDay] || [];
+
+  const handleUpdateCard = (cardId, field, value) => {
+    setDietCardsPerDay(prev => ({
+      ...prev,
+      [activeDay]: prev[activeDay].map(card =>
+        card.id === cardId ? { ...card, [field]: value } : card
+      )
+    }));
+  };
 
   // Delete card function
   const handleDeleteCard = (cardId) => {
@@ -194,12 +216,12 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
   // Add new card function
   const handleAddCard = () => {
     const newCard = {
-      id: nextId,
+      id: Date.now(),
       foodType: 'VEG',
       mealType: 'Breakfast',
       quantity: '1',
       unit: 'Glass',
-      timing: '07:00',
+      timing: '08:00',
       itemName: '',
       description: ''
     };
@@ -208,8 +230,21 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
       ...prev,
       [activeDay]: [...prev[activeDay], newCard]
     }));
+  };
 
-    setNextId(nextId + 1);
+  const handleSubmit = () => {
+    const weeklyPlan = days.map(day => ({
+      day,
+      meals: dietCardsPerDay[day] || []
+    }));
+
+    const updatedPlan = {
+      ...plan,
+      weeklyPlan
+    };
+
+    onUpdate(updatedPlan);
+    onClose();
   };
 
   return (
@@ -231,7 +266,7 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
         {/* Diet Plan Name */}
         <div className="px-6 pb-4">
           <h2 className={`text-[14px] font-bold tracking-wide ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-            {planName || 'INSTANT WEIGHT LOSS DIET'}
+            {plan.name || 'Diet Plan'}
           </h2>
         </div>
 
@@ -295,7 +330,8 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
                     Food Type*
                   </label>
                   <select
-                    defaultValue={card.foodType}
+                    value={card.foodType}
+                    onChange={(e) => handleUpdateCard(card.id, 'foodType', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
                       ? 'bg-[#0d0d0d] border-white/10 text-white'
                       : 'bg-white border-gray-300 text-gray-700'
@@ -313,7 +349,8 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
                     Meal Type*
                   </label>
                   <select
-                    defaultValue={card.mealType}
+                    value={card.mealType}
+                    onChange={(e) => handleUpdateCard(card.id, 'mealType', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
                       ? 'bg-[#0d0d0d] border-white/10 text-white'
                       : 'bg-white border-gray-300 text-gray-700'
@@ -333,7 +370,8 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
                   </label>
                   <input
                     type="text"
-                    defaultValue={card.quantity}
+                    value={card.quantity}
+                    onChange={(e) => handleUpdateCard(card.id, 'quantity', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
                       ? 'bg-[#0d0d0d] border-white/10 text-white placeholder-gray-500'
                       : 'bg-white border-gray-300 text-gray-700 placeholder-gray-400'
@@ -347,7 +385,8 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
                     Unit*
                   </label>
                   <select
-                    defaultValue={card.unit}
+                    value={card.unit}
+                    onChange={(e) => handleUpdateCard(card.id, 'unit', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
                       ? 'bg-[#0d0d0d] border-white/10 text-white'
                       : 'bg-white border-gray-300 text-gray-700'
@@ -368,7 +407,8 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
                   </label>
                   <input
                     type="time"
-                    defaultValue={card.timing}
+                    value={card.timing}
+                    onChange={(e) => handleUpdateCard(card.id, 'timing', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
                       ? 'bg-[#0d0d0d] border-white/10 text-white'
                       : 'bg-white border-gray-300 text-gray-700'
@@ -384,7 +424,8 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
                 </label>
                 <input
                   type="text"
-                  defaultValue={card.itemName}
+                  value={card.itemName}
+                  onChange={(e) => handleUpdateCard(card.id, 'itemName', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
                     ? 'bg-[#0d0d0d] border-white/10 text-white placeholder-gray-500'
                     : 'bg-white border-gray-300 text-gray-700 placeholder-gray-400'
@@ -400,7 +441,8 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
                 <textarea
                   rows={3}
                   placeholder="Describe Diet here..."
-                  defaultValue={card.description}
+                  value={card.description}
+                  onChange={(e) => handleUpdateCard(card.id, 'description', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none resize-none ${isDarkMode
                     ? 'bg-[#0d0d0d] border-white/10 text-white placeholder-gray-500'
                     : 'bg-white border-gray-300 text-gray-700 placeholder-gray-400'
@@ -414,7 +456,10 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
 
       {/* Footer - Submit Button */}
       <div className={`sticky bottom-0 border-t px-6 py-4 flex justify-end ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-        <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95 transition-none">
+        <button
+          onClick={handleSubmit}
+          className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95 transition-none"
+        >
           Submit
         </button>
       </div>
@@ -422,7 +467,7 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
   );
 }
 
-const MealAccordion = ({ meal, isDarkMode }) => {
+const MealAccordion = ({ mealType, foods, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -431,36 +476,38 @@ const MealAccordion = ({ meal, isDarkMode }) => {
         onClick={() => setIsOpen(!isOpen)}
         className="p-4 flex justify-between items-center cursor-pointer transition-none"
       >
-        <span className={`text-[15px] font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{meal.mealType}</span>
+        <span className={`text-[15px] font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{mealType}</span>
         <ChevronDown size={18} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-gray-400' : 'text-black'}`} />
       </div>
 
       {isOpen && (
         <div className={`border-t ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-          <div className={`flex flex-col md:flex-row border-b last:border-b-0 ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-            <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-              <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{meal.foodType}</span>
-              <span className="text-[11px] text-gray-500 font-medium">Food Type</span>
+          {foods.map((item, idx) => (
+            <div key={idx} className={`flex flex-col md:flex-row border-b last:border-b-0 ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+              <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.foodType}</span>
+                <span className="text-[11px] text-gray-500 font-medium">Food Type</span>
+              </div>
+              <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.timing}</span>
+                <span className="text-[11px] text-gray-500 font-medium">Timing</span>
+              </div>
+              <div className={`p-4 flex-1 flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.itemName}</span>
+                <span className="text-[11px] text-gray-500 font-medium">Diet</span>
+              </div>
+              <div className="p-4 w-full md:w-[200px] flex items-center">
+                <span className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{item.quantity} {item.unit}</span>
+              </div>
             </div>
-            <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-              <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{meal.timing}</span>
-              <span className="text-[11px] text-gray-500 font-medium">Timing</span>
-            </div>
-            <div className={`p-4 flex-1 flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-              <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{meal.itemName}</span>
-              <span className="text-[11px] text-gray-500 font-medium">Diet</span>
-            </div>
-            <div className="p-4 w-full md:w-[200px] flex items-center">
-              <span className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{meal.quantity} {meal.unit}</span>
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </div>
   );
 };
 
-const DietPlanItem = ({ plan, isDarkMode }) => {
+const DietPlanItem = ({ plan, isDarkMode, onDelete, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeActionRow, setActiveActionRow] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -525,6 +572,8 @@ const DietPlanItem = ({ plan, isDarkMode }) => {
                     onClick={() => {
                       if (action === 'Edit') {
                         setIsEditModalOpen(true);
+                      } else if (action === 'Delete') {
+                        onDelete(plan); // Call the delete handler
                       }
                       setActiveActionRow(false);
                     }}
@@ -568,8 +617,398 @@ const DietPlanItem = ({ plan, isDarkMode }) => {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         isDarkMode={isDarkMode}
-        planName={plan.name}
+        plan={plan}
+        onUpdate={onUpdate}
       />
+    </div>
+  );
+};
+
+const CreateDietPlanDetailsModal = ({ isOpen, onClose, isDarkMode, planName, privacyMode, onCreate }) => {
+  const [activeDay, setActiveDay] = useState('Monday');
+  const [copyToDays, setCopyToDays] = useState([]);
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  // Initial card structure
+  const initialCard = {
+    id: 1,
+    foodType: 'VEG',
+    mealType: 'Breakfast',
+    quantity: '1',
+    unit: 'Glass',
+    timing: '08:00',
+    itemName: '',
+    description: ''
+  };
+
+  const [dietCardsPerDay, setDietCardsPerDay] = useState({
+    Monday: [{ ...initialCard, id: Date.now() }],
+    Tuesday: [{ ...initialCard, id: Date.now() + 1 }],
+    Wednesday: [{ ...initialCard, id: Date.now() + 2 }],
+    Thursday: [{ ...initialCard, id: Date.now() + 3 }],
+    Friday: [{ ...initialCard, id: Date.now() + 4 }],
+    Saturday: [{ ...initialCard, id: Date.now() + 5 }],
+    Sunday: [{ ...initialCard, id: Date.now() + 6 }],
+  });
+
+  const [nextId, setNextId] = useState(2);
+
+  if (!isOpen) return null;
+
+  const currentDayCards = dietCardsPerDay[activeDay] || [];
+
+  const handleAddCard = () => {
+    const newCard = {
+      ...initialCard,
+      id: Date.now()
+    };
+
+    setDietCardsPerDay(prev => ({
+      ...prev,
+      [activeDay]: [...prev[activeDay], newCard]
+    }));
+  };
+
+  const handleDeleteCard = (cardId) => {
+    setDietCardsPerDay(prev => ({
+      ...prev,
+      [activeDay]: prev[activeDay].filter(card => card.id !== cardId)
+    }));
+  };
+
+  const handleCopyToChange = (day) => {
+    if (copyToDays.includes(day)) {
+      setCopyToDays(copyToDays.filter(d => d !== day));
+    } else {
+      setCopyToDays([...copyToDays, day]);
+    }
+  };
+
+  const handleCreatePlan = () => {
+    // Construct the final diet cards map applying copyTo logic
+    const finalDietCards = { ...dietCardsPerDay };
+
+    // Apply the current active day's schedule to selected 'copy to' days
+    copyToDays.forEach(targetDay => {
+      // Deep copy to avoid reference issues
+      finalDietCards[targetDay] = dietCardsPerDay[activeDay].map(card => ({ ...card, id: Date.now() + Math.random() }));
+    });
+
+    // Transform to weeklyPlan array format expected by the list component
+    const weeklyPlan = days.map(day => ({
+      day,
+      meals: finalDietCards[day]
+    }));
+
+    // Create the final plan object
+    const newPlan = {
+      name: planName,
+      privacyMode: privacyMode,
+      weeklyPlan: weeklyPlan,
+      // Add a temporary ID usually backend handles this
+      _id: Date.now().toString()
+    };
+
+    onCreate(newPlan);
+  };
+
+  return (
+    <div className={`fixed inset-0 z-[100] overflow-y-auto ${isDarkMode ? 'bg-[#121212] text-white' : 'bg-[#f8f9fa] text-black'}`}>
+      {/* Header */}
+      <div className={`sticky top-0 z-20 px-6 py-4 border-b flex items-center justify-between ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
+        <div className="flex items-center gap-3">
+          <div className="bg-black text-white p-1.5 rounded-lg">
+            <Plus size={18} strokeWidth={3} />
+          </div>
+          <h1 className="text-[18px] font-black tracking-tight">{planName || 'Create Diet Plan'}</h1>
+        </div>
+        <button onClick={onClose}>
+          <X size={24} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-400 hover:text-black'} />
+        </button>
+      </div>
+
+      <div className="p-6 grid grid-cols-12 gap-6 max-w-[1600px] mx-auto">
+        {/* Left Sidebar - Assign Members */}
+        <div className="col-span-12 lg:col-span-3">
+          <div className={`rounded-lg p-5 border h-fit ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
+            <h3 className="flex justify-center text-[15px] font-bold mb-6">Assign Members</h3>
+
+            <div className={`p-3 rounded-lg flex items-start gap-3 mb-6 ${isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-white border-gray-200'}`}>
+              <div className="mt-0.5 min-w-[16px] flex justify-center">
+                <div className="w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold">i</div>
+              </div>
+              <p className="text-[12px] font-medium leading-relaxed text-gray-500">
+                Diet Plan can be assigned to members directly from here.
+              </p>
+            </div>
+
+            <div className={`flex items-center border rounded-lg px-3 py-2.5 mb-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-300'}`}>
+              <Search size={16} className="text-gray-400 mr-2" />
+              <input
+                type="text"
+                placeholder="Search Members"
+                className={`w-full bg-transparent text-[13px] font-bold outline-none ${isDarkMode ? 'text-white' : 'text-gray-700 placeholder-gray-400'}`}
+              />
+            </div>
+            <p className="text-[11px] text-gray-400 font-medium pl-1">Search members from here</p>
+
+            <div className={`mt-6 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}></div>
+          </div>
+        </div>
+
+        {/* Right Content - Diet Plan */}
+        <div className="col-span-12 lg:col-span-9 space-y-6">
+          <h2 className="text-[16px] font-black">Weekly Diet Plan</h2>
+
+          {/* Days Tabs */}
+          <div className="flex flex-wrap gap-6 border-b border-gray-200 dark:border-white/10 pb-1">
+            {days.map(day => (
+              <button
+                key={day}
+                onClick={() => setActiveDay(day)}
+                className={`pb-3 text-[14px] font-bold transition-all relative ${activeDay === day
+                  ? 'text-[#f97316]'
+                  : isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-black'
+                  }`}
+              >
+                {day}
+                {activeDay === day && (
+                  <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#f97316]"></div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Copy To */}
+          <div className="flex items-center flex-wrap gap-4">
+            <span className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Copy To :-</span>
+            {days.filter(d => d !== activeDay).map(day => (
+              <label key={day} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={copyToDays.includes(day)}
+                  onChange={() => handleCopyToChange(day)}
+                  className="w-4 h-4 rounded-full border-gray-300 text-[#f97316] focus:ring-[#f97316]"
+                />
+                <span className={`text-[13px] font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{day}</span>
+              </label>
+            ))}
+          </div>
+
+          {/* Cards List */}
+          <div className="space-y-4">
+            {currentDayCards.map((card, index) => {
+              const isLastCard = index === currentDayCards.length - 1;
+              return (
+                <div key={card.id} className={`rounded-lg p-6 relative ${isDarkMode ? 'bg-[#1e1e1e] border border-white/10' : 'bg-white shadow-sm border border-gray-100'}`}>
+                  {/* Action Icons - Only on last card */}
+                  {isLastCard && (
+                    <div className="absolute top-4 right-4 flex items-center gap-3">
+                      {currentDayCards.length > 1 && (
+                        <button
+                          onClick={() => handleDeleteCard(card.id)}
+                          className="hover:bg-gray-100 dark:hover:bg-white/10 p-1.5 rounded transition-colors"
+                        >
+                          <Trash2 size={18} className="text-black dark:text-white" />
+                        </button>
+                      )}
+                      <button
+                        onClick={handleAddCard}
+                        className="hover:bg-gray-100 dark:hover:bg-white/10 p-1.5 rounded transition-colors"
+                      >
+                        <Plus size={18} className="text-black dark:text-white" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-5 gap-4 mb-6 mt-2">
+                    {/* Row 1 */}
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-bold text-gray-500 after:content-['*'] after:ml-0.5 after:text-gray-500">Food Type</label>
+                      <div className="relative">
+                        <select
+                          value={card.foodType}
+                          onChange={(e) => {
+                            const newCards = [...currentDayCards];
+                            newCards[index] = { ...newCards[index], foodType: e.target.value };
+                            setDietCardsPerDay({ ...dietCardsPerDay, [activeDay]: newCards });
+                          }}
+                          className={`w-full appearance-none px-3 py-2.5 rounded border text-[13px] font-medium outline-none ${isDarkMode ? 'bg-[#121212] border-white/10 text-white' : 'bg-[#f8f9fa] border-gray-200 text-gray-600'}`}
+                        >
+                          <option>Select</option>
+                          <option>VEG</option>
+                          <option>NON-VEG</option>
+                          <option>VEGAN</option>
+                        </select>
+                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-bold text-gray-500 after:content-['*'] after:ml-0.5 after:text-gray-500">Meal Type</label>
+                      <div className="relative">
+                        <select
+                          value={card.mealType}
+                          onChange={(e) => {
+                            const newCards = [...currentDayCards];
+                            newCards[index] = { ...newCards[index], mealType: e.target.value };
+                            setDietCardsPerDay({ ...dietCardsPerDay, [activeDay]: newCards });
+                          }}
+                          className={`w-full appearance-none px-3 py-2.5 rounded border text-[13px] font-medium outline-none ${isDarkMode ? 'bg-[#121212] border-white/10 text-white' : 'bg-[#f8f9fa] border-gray-200 text-gray-600'}`}
+                        >
+                          <option>Select</option>
+                          <option>Breakfast</option>
+                          <option>Lunch</option>
+                          <option>Snack</option>
+                          <option>Dinner</option>
+                        </select>
+                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-bold text-gray-500 after:content-['*'] after:ml-0.5 after:text-gray-500">Quantity</label>
+                      <input
+                        type="text"
+                        placeholder="Ex : 56"
+                        value={card.quantity}
+                        onChange={(e) => {
+                          const newCards = [...currentDayCards];
+                          newCards[index] = { ...newCards[index], quantity: e.target.value };
+                          setDietCardsPerDay({ ...dietCardsPerDay, [activeDay]: newCards });
+                        }}
+                        className={`w-full px-3 py-2.5 rounded border text-[13px] font-medium outline-none ${isDarkMode ? 'bg-[#121212] border-white/10 text-white placeholder-gray-500' : 'bg-[#f8f9fa] border-gray-200 text-gray-600 placeholder-gray-400'}`}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-bold text-gray-500 after:content-['*'] after:ml-0.5 after:text-gray-500">Unit</label>
+                      <div className="relative">
+                        <select
+                          value={card.unit}
+                          onChange={(e) => {
+                            const newCards = [...currentDayCards];
+                            newCards[index] = { ...newCards[index], unit: e.target.value };
+                            setDietCardsPerDay({ ...dietCardsPerDay, [activeDay]: newCards });
+                          }}
+                          className={`w-full appearance-none px-3 py-2.5 rounded border text-[13px] font-medium outline-none ${isDarkMode ? 'bg-[#121212] border-white/10 text-white' : 'bg-[#f8f9fa] border-gray-200 text-gray-600'}`}
+                        >
+                          <option>Select</option>
+                          <option>gm</option>
+                          <option>ml</option>
+                          <option>pcs</option>
+                          <option>Glass</option>
+                          <option>Cup</option>
+                          <option>Plate</option>
+                          <option>Bowl</option>
+                          <option>Piece</option>
+                        </select>
+                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-bold text-gray-500 after:content-['*'] after:ml-0.5 after:text-gray-500">Timing</label>
+                      <div className="relative">
+                        <input
+                          type="time"
+                          value={card.timing}
+                          onChange={(e) => {
+                            const newCards = [...currentDayCards];
+                            newCards[index] = { ...newCards[index], timing: e.target.value };
+                            setDietCardsPerDay({ ...dietCardsPerDay, [activeDay]: newCards });
+                          }}
+                          className={`w-full px-3 py-2.5 rounded border text-[13px] font-medium outline-none ${isDarkMode ? 'bg-[#121212] border-white/10 text-white' : 'bg-[#f8f9fa] border-gray-200 text-gray-600'}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Item Name */}
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-bold text-gray-500 after:content-['*'] after:ml-0.5 after:text-gray-500">Item Name</label>
+                      <input
+                        type="text"
+                        placeholder="Enter Item Name here..."
+                        value={card.itemName}
+                        onChange={(e) => {
+                          const newCards = [...currentDayCards];
+                          newCards[index] = { ...newCards[index], itemName: e.target.value };
+                          setDietCardsPerDay({ ...dietCardsPerDay, [activeDay]: newCards });
+                        }}
+                        className={`w-full px-3 py-2.5 rounded border text-[13px] font-medium outline-none ${isDarkMode ? 'bg-[#121212] border-white/10 text-white placeholder-gray-500' : 'bg-[#f8f9fa] border-gray-200 text-gray-600 placeholder-gray-400'}`}
+                      />
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-bold text-gray-500 after:content-['*'] after:ml-0.5 after:text-gray-500">Description</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Describe Diet here..."
+                        value={card.description}
+                        onChange={(e) => {
+                          const newCards = [...currentDayCards];
+                          newCards[index] = { ...newCards[index], description: e.target.value };
+                          setDietCardsPerDay({ ...dietCardsPerDay, [activeDay]: newCards });
+                        }}
+                        className={`w-full px-3 py-2.5 rounded border text-[13px] font-medium outline-none resize-none ${isDarkMode ? 'bg-[#121212] border-white/10 text-white placeholder-gray-500' : 'bg-[#f8f9fa] border-gray-200 text-gray-600 placeholder-gray-400'}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <button
+              onClick={handleCreatePlan}
+              className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded text-[14px] font-bold shadow-md active:scale-95 transition-all"
+            >
+              Create Diet Plan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
+      <div className={`w-[400px] rounded-lg shadow-xl p-6 relative flex flex-col items-center text-center ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        <button
+          onClick={onClose}
+          className={`absolute top-4 right-4 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-400 hover:text-black'}`}
+        >
+          <X size={20} />
+        </button>
+
+        <div className="mb-4">
+          <Trash2 size={48} className="text-[#ff4d4f]" fill="#ff4d4f" />
+        </div>
+
+        <h3 className={`text-[20px] font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          Delete Diet Plan?
+        </h3>
+
+        <p className={`text-[14px] font-medium mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          Do you really want to delete?
+        </p>
+
+        <button
+          onClick={onConfirm}
+          className="bg-[#ff4d4f] hover:bg-red-600 text-white px-6 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95 transition-none flex items-center gap-2"
+        >
+          <Trash2 size={16} className="text-white" fill="white" />
+          Yes, Delete Diet Plan
+        </button>
+      </div>
     </div>
   );
 };
@@ -580,6 +1019,14 @@ const DietPlanManagement = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateDetailsModalOpen, setIsCreateDetailsModalOpen] = useState(false);
+
+  // Delete Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState(null);
+
+  const [newPlanName, setNewPlanName] = useState('');
+  const [newPlanPrivacy, setNewPlanPrivacy] = useState('');
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -624,6 +1071,56 @@ const DietPlanManagement = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activeActionRow]);
 
+  const handleCreateNext = (name, privacy) => {
+    setNewPlanName(name);
+    setNewPlanPrivacy(privacy);
+    setIsCreateModalOpen(false);
+    setIsCreateDetailsModalOpen(true);
+  };
+
+  const handleFinalCreate = (newPlan) => {
+    // Ideally post to backend here
+    setPlans(prev => [newPlan, ...prev]);
+    setIsCreateDetailsModalOpen(false);
+    if (newPlan.privacyMode === 'Public') {
+      setActiveTab('Public');
+    } else {
+      setActiveTab('Private');
+    }
+  };
+
+  const handleDeleteClick = (plan) => {
+    setPlanToDelete(plan);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleUpdatePlan = (updatedPlan) => {
+    setPlans(prev => prev.map(p => p._id === updatedPlan._id ? updatedPlan : p));
+    // Optional: Add backend call here to persist changes
+  };
+
+  const confirmDelete = async () => {
+    if (!planToDelete) return;
+
+    // Optimistic update for UI demo
+    setPlans(prev => prev.filter(p => p._id !== planToDelete._id));
+    setIsDeleteModalOpen(false);
+    setPlanToDelete(null);
+
+    // Backend call would go here
+    /*
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      await fetch(`http://localhost:5000/api/admin/diet-plans/${planToDelete._id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${adminInfo?.token}` }
+      });
+    } catch (err) {
+      console.error(err);
+      // Revert if failed
+    }
+    */
+  };
 
   const publicPlans = plans.filter(p => p.privacyMode === 'Public');
   const privatePlans = plans.filter(p => p.privacyMode === 'Private' || !p.privacyMode);
@@ -674,7 +1171,13 @@ const DietPlanManagement = () => {
       <div className="space-y-4 transition-none min-h-[400px]">
         {currentPlans.length > 0 ? (
           currentPlans.map((plan, idx) => (
-            <DietPlanItem key={idx} plan={plan} isDarkMode={isDarkMode} />
+            <DietPlanItem
+              key={idx}
+              plan={plan}
+              isDarkMode={isDarkMode}
+              onDelete={handleDeleteClick}
+              onUpdate={handleUpdatePlan}
+            />
           ))
         ) : (
           <div className="flex flex-col items-center justify-center py-20">
@@ -723,6 +1226,23 @@ const DietPlanManagement = () => {
       <CreateDietPlanModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        isDarkMode={isDarkMode}
+        onNext={handleCreateNext}
+      />
+
+      <CreateDietPlanDetailsModal
+        isOpen={isCreateDetailsModalOpen}
+        onClose={() => setIsCreateDetailsModalOpen(false)}
+        isDarkMode={isDarkMode}
+        planName={newPlanName}
+        privacyMode={newPlanPrivacy}
+        onCreate={handleFinalCreate}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
         isDarkMode={isDarkMode}
       />
     </div>

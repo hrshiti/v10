@@ -49,18 +49,20 @@ const ProfileLayout = () => {
     ];
 
     const memberDataFromState = location.state?.member;
-    const memberId = memberDataFromState?.id || id || '489890';
+    const currentId = id || memberDataFromState?.id || '489890';
 
     // Find member in dummy list if not in state
-    const memberData = memberDataFromState || dummyMembers.find(m => m.id === memberId) || dummyMembers[0];
+    const foundMember = dummyMembers.find(m => m.id === currentId);
+    const memberData = memberDataFromState || foundMember || { id: currentId, name: 'Member' };
 
-    const memberName = memberData?.name || 'GIRDHAR BHAI';
-    const memberMobile = memberData?.mobile || memberData?.number || '9081815118';
-    const memberEmail = memberData?.email || '-';
-    const memberDOB = memberData?.dob || '-';
-    const memberAnniversary = memberData?.anniversary_date || '-';
-    const memberEmergencyName = memberData?.emergency_contact_name || '-';
-    const memberEmergencyNo = memberData?.emergency_contact_number || '-';
+    const memberName = memberData?.name || (foundMember ? foundMember.name : 'Member');
+    const memberId = memberData?.id || currentId;
+    const memberMobile = memberData?.mobile || memberData?.number || (foundMember ? (foundMember.mobile || foundMember.number) : '9081815118');
+    const memberEmail = memberData?.email || (foundMember ? foundMember.email : '-');
+    const memberDOB = memberData?.dob || (foundMember ? foundMember.dob : '-');
+    const memberAnniversary = memberData?.anniversary_date || (foundMember ? foundMember.anniversary_date : '-');
+    const memberEmergencyName = memberData?.emergency_contact_name || (foundMember ? foundMember.emergency_contact_name : '-');
+    const memberEmergencyNo = memberData?.emergency_contact_number || (foundMember ? foundMember.emergency_contact_number : '-');
 
     // Collapse main sidebar when viewing profile to give more space
     React.useEffect(() => {
@@ -89,7 +91,7 @@ const ProfileLayout = () => {
     ];
 
     return (
-        <div className="flex flex-col gap-6 p-6 min-h-screen bg-transparent text-gray-800 dark:text-gray-100 transition-colors duration-300">
+        <div className="flex flex-col gap-6 p-6 h-[calc(100vh-128px)] bg-transparent text-gray-800 dark:text-gray-100 transition-colors duration-300 overflow-hidden">
             {/* Back Button */}
             {/* Back Button - Now sticky or fixed if needed, but keeping it at top of content for now */}
             <div
@@ -100,53 +102,54 @@ const ProfileLayout = () => {
                 <span>Members Profile</span>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6 items-start relative">
-                {/* Left Sidebar */}
-                <div className="w-full lg:w-[300px] flex-shrink-0 space-y-4 lg:sticky lg:top-[100px] self-start z-10">
-
-                    {/* User Card */}
-                    <div className="bg-white dark:bg-[#1e1e1e] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-yellow-400 overflow-hidden flex items-center justify-center text-xl font-bold text-black border-2 border-white shadow-sm">
-                            <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(memberName)}&background=random`} alt="User" />
+            <div className="flex flex-col lg:flex-row gap-6 items-start flex-1 min-h-0 relative">
+                {/* Left Sidebar - Stationary */}
+                <div className="w-full lg:w-[300px] flex-shrink-0 h-full overflow-y-auto lg:pr-1 custom-scrollbar">
+                    <div className="flex flex-col gap-4 pb-10">
+                        {/* User Card */}
+                        <div className="bg-white dark:bg-[#1e1e1e] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-yellow-400 overflow-hidden flex items-center justify-center text-xl font-bold text-black border-2 border-white shadow-sm">
+                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(memberName)}&background=random`} alt="User" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold dark:text-white text-gray-900">{memberName}</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Client ID : {memberId}</p>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-sm font-bold dark:text-white text-gray-900">{memberName}</h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Client ID : {memberId}</p>
+
+                        {/* Add Sale Button */}
+                        <button
+                            onClick={() => navigate(`sale/fresh?id=${memberId}`, { state: { member: memberData } })}
+                            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2 text-sm shrink-0"
+                        >
+                            <Plus size={18} />
+                            Add to New Sale
+                        </button>
+
+                        {/* Navigation Menu */}
+                        <div className="bg-white dark:bg-[#1e1e1e] rounded-xl shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden py-2">
+                            {sidebarItems.map((item) => (
+                                <NavLink
+                                    key={item.path}
+                                    to={`${item.path}?id=${id}`}
+                                    state={{ member: memberData }}
+                                    className={({ isActive }) => `
+                      flex items-center gap-3 px-6 py-3.5 text-sm font-bold transition-all
+                      ${isActive
+                                            ? 'text-orange-500 bg-orange-50 dark:bg-orange-500/10 border-l-4 border-orange-500'
+                                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 border-l-4 border-transparent'}
+                    `}
+                                >
+                                    <item.icon size={18} />
+                                    {item.label}
+                                </NavLink>
+                            ))}
                         </div>
-                    </div>
-
-                    {/* Add Sale Button */}
-                    <button
-                        onClick={() => navigate(`sale/fresh?id=${memberId}`, { state: { member: memberData } })}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2 text-sm"
-                    >
-                        <Plus size={18} />
-                        Add to New Sale
-                    </button>
-
-                    {/* Navigation Menu */}
-                    <div className="bg-white dark:bg-[#1e1e1e] rounded-xl shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden py-2">
-                        {sidebarItems.map((item) => (
-                            <NavLink
-                                key={item.path}
-                                to={`${item.path}?id=${id}`}
-                                state={{ member: memberData }}
-                                className={({ isActive }) => `
-                  flex items-center gap-3 px-6 py-3.5 text-sm font-bold transition-all
-                  ${isActive
-                                        ? 'text-orange-500 bg-orange-50 dark:bg-orange-500/10 border-l-4 border-orange-500'
-                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 border-l-4 border-transparent'}
-                `}
-                            >
-                                <item.icon size={18} />
-                                {item.label}
-                            </NavLink>
-                        ))}
                     </div>
                 </div>
 
-                {/* Right Content */}
-                <div className="flex-1 w-full min-w-0">
+                {/* Right Content - Scrollable */}
+                <div className="flex-1 w-full min-w-0 h-full overflow-y-auto scroll-smooth custom-scrollbar pr-1">
                     {/* Pass parent context (isDarkMode) + current id + member details */}
                     <Outlet context={{
                         isDarkMode,
