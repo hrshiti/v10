@@ -1,32 +1,36 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
-import { ChevronDown, ArrowLeft, Check, Plus } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 
 const UpgradePlan = () => {
     const context = useOutletContext();
     const isDarkMode = context?.isDarkMode || false;
     const navigate = useNavigate();
-    const { memberName, memberId, memberMobile, memberEmail } = context || {};
+    const { id, memberName, memberId: mId, memberMobile, memberEmail, packageName: currentPkg, durationMonths: currentDur, startDate: currentStart, endDate: currentEnd, assignedTrainer: currentTrainer, paidAmount: currentPaid } = context || {};
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [packages, setPackages] = useState([]);
+    const [trainers, setTrainers] = useState([]);
+    const [selectedPlan, setSelectedPlan] = useState(null);
+    const [selectedTrainer, setSelectedTrainer] = useState('');
 
     const [form, setForm] = useState({
-        clientId: memberId || '23456',
-        mobile: memberMobile || '9081815118',
-        email: memberEmail !== '-' ? memberEmail : '',
+        clientId: mId || '',
+        mobile: memberMobile || '',
+        email: (memberEmail !== '-' && memberEmail) ? memberEmail : '',
         emergencyName: '',
         emergencyNumber: '',
         gstin: '',
         firmName: '',
         firmEmployeeName: '',
-        invoiceDate: '2026-02-03',
+        invoiceDate: new Date().toISOString().split('T')[0],
         firmAddress: '',
 
-        packageName: 'GYM WORKOUT',
-        duration: '12 Month',
-        totalSessions: '360',
-        startDate: '19-02-2025',
-        endDate: '18-02-2026',
-        assignedTrainer: 'Abdulla Pathan',
-        paidAmount: 7000,
+        packageName: currentPkg || '-',
+        duration: `${currentDur || 0} Month`,
+        totalSessions: '-',
+        startDate: currentStart ? new Date(currentStart).toLocaleDateString('en-GB') : '-',
+        endDate: currentEnd ? new Date(currentEnd).toLocaleDateString('en-GB') : '-',
+        assignedTrainer: currentTrainer?.firstName ? `${currentTrainer.firstName} ${currentTrainer.lastName || ''}` : '-',
+        paidAmount: currentPaid || 0,
 
         paymentMethod: 'Online',
         comment: '',
@@ -39,15 +43,41 @@ const UpgradePlan = () => {
     });
 
     const [activeTab, setActiveTab] = useState('General Training');
-    const tabs = ['General Training'];
+    const tabs = ['General Training', 'Personal Training'];
 
-    const trainingPlans = [
-        { name: 'GYM WORKOUT', duration: '1 Month', cost: 2500, trainer: 'Abdulla Pathan', startDate: '19-02-2025' },
-        { name: 'GYM WORKOUT', duration: '3 Month', cost: 5000, trainer: 'Abdulla Pathan', startDate: '19-02-2025' },
-        { name: 'GYM WORKOUT', duration: '6 Month', cost: 7000, trainer: 'Abdulla Pathan', startDate: '19-02-2025' },
-        { name: 'GYM WORKOUT', duration: '12 Month', cost: 9000, trainer: 'Abdulla Pathan', startDate: '19-02-2025' },
-        { name: 'Complementary', duration: '12 Month', cost: 0, trainer: 'Abdulla Pathan', startDate: '19-02-2025' },
-    ];
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
+                if (!token) return;
+
+                const [pkgRes, trainerRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/admin/packages`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_BASE_URL}/api/admin/employees?role=Trainer`, { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+
+                if (pkgRes.ok) {
+                    const pkgData = await pkgRes.json();
+                    setPackages(pkgData.packages || []);
+                }
+                if (trainerRes.ok) {
+                    const trainerData = await trainerRes.json();
+                    setTrainers(trainerData.employees || trainerData || []);
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const filteredPackages = packages.filter(p => {
+        if (!p.active) return false;
+        if (activeTab === 'General Training') return p.type === 'Membership';
+        if (activeTab === 'Personal Training') return p.activity === 'Personal Training' || p.type === 'PT';
+        return true;
+    });
 
     const [showTaxDropdown, setShowTaxDropdown] = useState(false);
     const taxDropdownRef = useRef(null);
@@ -59,6 +89,66 @@ const UpgradePlan = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const handleSubmit = async () => {
+        if (!selectedPlan) {
+            alert('Please select a plan to upgrade');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            if (!token) return;
+
+            // Calculate End Date
+            const start = new Date(form.invoiceDate);
+            const end = new Date(start);
+            if (selectedPlan.durationType === 'Months') {
+                end.setMonth(end.getMonth() + selectedPlan.duration);
+            } else {
+                end.setDate(end.getDate() + selectedPlan.duration);
+            }
+
+            const payload = {
+                packageName: selectedPlan.name,
+                durationMonths: selectedPlan.duration,
+                startDate: start,
+                endDate: end,
+                amount: payableAmount,
+                subTotal: form.selectedPlansTotal + parseFloat(form.subtotal || 0),
+                taxAmount: form.applyTaxes ? taxes.total : 0,
+                paidAmount: payableAmount, // Assuming full payment in upgrade for now
+                discount: form.totalDiscount,
+                paymentMode: form.paymentMethod,
+                assignedTrainer: selectedTrainer,
+                closedBy: adminInfo?._id
+            };
+
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}/upgrade`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert('Membership upgraded successfully');
+                navigate(-1);
+            } else {
+                const data = await res.json();
+                alert(data.message || 'Error upgrading membership');
+            }
+        } catch (error) {
+            console.error('Error upgrading membership:', error);
+            alert('Failed to upgrade membership');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const InputField = ({ label, value, placeholder, type = "text", required = false, onChange, readonly = false }) => (
         <div className="space-y-1.5 flex-1 min-w-[300px]">
@@ -116,9 +206,9 @@ const UpgradePlan = () => {
 
             <div className={`p-8 rounded-xl border ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <InputField label="Client ID" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} />
-                    <InputField label="Mobile Number" value={form.mobile} required onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
-                    <InputField label="Email Address" placeholder="Ex : abc@gmail.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                    <InputField label="Client ID" value={form.clientId} readonly />
+                    <InputField label="Mobile Number" value={form.mobile} required readonly />
+                    <InputField label="Email Address" placeholder="Ex : abc@gmail.com" value={form.email} readonly />
                     <InputField label="Emergency Contact Name" placeholder="Contact Name" value={form.emergencyName} onChange={(e) => setForm({ ...form, emergencyName: e.target.value })} />
                     <InputField label="Emergency Contact Number" placeholder="Ex : 9988776655" value={form.emergencyNumber} onChange={(e) => setForm({ ...form, emergencyNumber: e.target.value })} />
                     <InputField label="GSTIN No." placeholder="Ex : 123456789123456" value={form.gstin} onChange={(e) => setForm({ ...form, gstin: e.target.value })} />
@@ -158,7 +248,12 @@ const UpgradePlan = () => {
             {/* Selection Table */}
             <div className={`rounded-xl border overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
                 <div className="p-4 border-b dark:border-white/10 border-gray-100">
-                    <button className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${isDarkMode ? 'bg-white/5 text-gray-300 border border-white/10' : 'bg-white text-gray-700 border border-gray-200 shadow-sm'}`}>Clear Selected</button>
+                    <button
+                        onClick={() => { setSelectedPlan(null); setForm({ ...form, selectedPlansTotal: 0 }); }}
+                        className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${isDarkMode ? 'bg-white/5 text-gray-300 border border-white/10' : 'bg-white text-gray-700 border border-gray-200 shadow-sm'}`}
+                    >
+                        Clear Selected
+                    </button>
                 </div>
                 <div className="p-4 border-b dark:border-white/10 border-gray-100 flex gap-10">
                     {tabs.map(tab => (
@@ -186,28 +281,34 @@ const UpgradePlan = () => {
                             </tr>
                         </thead>
                         <tbody className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
-                            {trainingPlans.map((plan, idx) => (
+                            {filteredPackages.map((plan, idx) => (
                                 <tr key={idx} className={`border-b last:border-0 ${isDarkMode ? 'border-white/5' : 'border-gray-50 hover:bg-gray-50 transition-colors'}`}>
                                     <td className="px-8 py-5 flex items-center gap-5">
                                         <div
-                                            onClick={() => setForm({ ...form, selectedPlansTotal: plan.cost })}
-                                            className={`w-5 h-5 rounded-full border-2 cursor-pointer flex items-center justify-center transition-all ${form.selectedPlansTotal === plan.cost && plan.cost !== 0 ? 'border-orange-500 bg-orange-500' : 'border-gray-300'}`}
+                                            onClick={() => { setSelectedPlan(plan); setForm({ ...form, selectedPlansTotal: plan.baseRate }); }}
+                                            className={`w-5 h-5 rounded-full border-2 cursor-pointer flex items-center justify-center transition-all ${selectedPlan?._id === plan._id ? 'border-orange-500 bg-orange-500' : 'border-gray-300'}`}
                                         >
-                                            {form.selectedPlansTotal === plan.cost && plan.cost !== 0 && <Check size={12} className="text-white" />}
+                                            {selectedPlan?._id === plan._id && <Check size={12} className="text-white" />}
                                         </div>
                                         {plan.name}
                                     </td>
-                                    <td className="px-8 py-5">{plan.duration}</td>
+                                    <td className="px-8 py-5">{plan.duration} {plan.durationType}</td>
                                     <td className="px-8 py-5">
-                                        <div className={`flex items-center justify-between px-4 py-2 border rounded-lg w-48 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f9f9f9]'}`}>
-                                            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>{plan.trainer}</span>
-                                            <ChevronDown size={14} />
-                                        </div>
+                                        <select
+                                            className={`flex items-center justify-between px-4 py-2 border rounded-lg w-48 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a] text-white' : 'border-gray-200 bg-[#f9f9f9] text-gray-900'}`}
+                                            value={selectedTrainer}
+                                            onChange={(e) => setSelectedTrainer(e.target.value)}
+                                        >
+                                            <option value="">Select Trainer</option>
+                                            {trainers.map(t => (
+                                                <option key={t._id} value={t._id}>{t.firstName} {t.lastName}</option>
+                                            ))}
+                                        </select>
                                     </td>
-                                    <td className="px-8 py-5">{plan.cost}</td>
+                                    <td className="px-8 py-5">₹{plan.baseRate}</td>
                                     <td className="px-8 py-5">
                                         <div className={`flex items-center justify-between px-3 py-2 border rounded-lg w-44 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f9f9f9]'}`}>
-                                            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>{plan.startDate}</span>
+                                            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>{form.invoiceDate}</span>
                                             <ChevronDown size={14} />
                                         </div>
                                     </td>
@@ -250,7 +351,7 @@ const UpgradePlan = () => {
                         <span className="text-lg font-bold">₹{form.selectedPlansTotal.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Upgrad Amount (₹{form.selectedPlansTotal}- ₹{form.paidAmount})</span>
+                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Upgrade Amount (₹{form.selectedPlansTotal}- ₹{form.paidAmount})</span>
                         <span className="text-lg font-bold">₹{upgradeAmount.toFixed(2)}</span>
                     </div>
 
@@ -359,10 +460,11 @@ const UpgradePlan = () => {
             <div className={`mt-10 p-6 rounded-2xl border flex flex-col items-center justify-center gap-3 transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
                 <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">I want to make payment and generate invoice</p>
                 <button
-                    onClick={() => navigate(-1)}
-                    className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black uppercase text-[15px] py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 tracking-wider"
+                    disabled={isLoading}
+                    onClick={handleSubmit}
+                    className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black uppercase text-[15px] py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 tracking-wider disabled:opacity-50"
                 >
-                    ₹{payableAmount} Submit
+                    {isLoading ? 'Processing...' : `₹${payableAmount} Submit`}
                 </button>
             </div>
         </div>

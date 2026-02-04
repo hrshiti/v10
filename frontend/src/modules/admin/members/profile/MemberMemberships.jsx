@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
-import { MoreVertical, ChevronDown, ArrowLeftRight, Snowflake, Edit3, X, Maximize2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Trash2, Plus } from 'lucide-react';
+import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
+import { MoreVertical, ChevronDown, ArrowLeftRight, Snowflake, Edit3, X, Maximize2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 
 const Calendar = ({ selectedDate, onSelect, isDarkMode }) => {
     const [viewDate, setViewDate] = useState(selectedDate || new Date());
@@ -98,26 +99,45 @@ const Calendar = ({ selectedDate, onSelect, isDarkMode }) => {
     );
 };
 
-const EditMembershipModal = ({ isOpen, onClose, membership, isDarkMode }) => {
-    const [startDate, setStartDate] = useState(new Date('2025-02-19'));
+const EditMembershipModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => {
+    const [startDate, setStartDate] = useState(membership ? new Date(membership.startDate) : new Date());
     const [showCalendar, setShowCalendar] = useState(false);
-    const [trainer, setTrainer] = useState('');
-    const [showTrainerDropdown, setShowTrainerDropdown] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const calendarRef = useRef(null);
-    const trainerRef = useRef(null);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (calendarRef.current && !calendarRef.current.contains(e.target)) setShowCalendar(false);
-            if (trainerRef.current && !trainerRef.current.contains(e.target)) setShowTrainerDropdown(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    if (!isOpen) return null;
+    if (!isOpen || !membership) return null;
 
-    const trainers = ['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'];
+    const handleUpdate = async () => {
+        setIsSubmitting(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/${membership.memberId}/change-start-date`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ newStartDate: startDate })
+            });
+            if (res.ok) {
+                onSuccess();
+                onClose();
+            }
+        } catch (error) {
+            console.error('Error changing start date:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -129,38 +149,25 @@ const EditMembershipModal = ({ isOpen, onClose, membership, isDarkMode }) => {
                         <Edit3 size={20} className={isDarkMode ? 'text-gray-300' : 'text-gray-700'} />
                         <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Edit Membership</h3>
                     </div>
-                    <div className="flex items-center gap-4 text-gray-600">
-                        <button className="hover:text-gray-900"><Maximize2 size={18} /></button>
-                        <button onClick={onClose} className="hover:text-gray-900"><X size={20} /></button>
-                    </div>
+                    <button onClick={onClose} className="hover:text-gray-900 text-gray-500"><X size={20} /></button>
                 </div>
 
-                <div className="p-8 space-y-8 pb-32">
-                    <h4 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Personal Info</h4>
-
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                <div className="p-8 space-y-8">
+                    <div className="grid grid-cols-2 gap-8">
                         <div className="space-y-1.5">
-                            <p className="text-[13px] font-bold text-gray-500">Membership Name</p>
-                            <p className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>GYM WORKOUT</p>
-                        </div>
-                        <div className="space-y-1.5">
-                            <p className="text-[13px] font-bold text-gray-500">Duration</p>
-                            <p className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>12 Months</p>
-                        </div>
-                        <div className="space-y-1.5">
-                            <p className="text-[13px] font-bold text-gray-500">Sessions</p>
-                            <p className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>360/360</p>
+                            <p className="text-[13px] font-bold text-gray-400">Package Name</p>
+                            <p className={`text-[14px] font-black uppercase ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{membership.packageName}</p>
                         </div>
                         <div className="space-y-1.5 relative">
-                            <p className="text-[13px] font-bold text-gray-500">Start Date</p>
+                            <p className="text-[13px] font-bold text-gray-400">Start Date</p>
                             <div className="relative" ref={calendarRef}>
                                 <div
                                     onClick={() => setShowCalendar(!showCalendar)}
                                     className={`flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-300'}`}
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 text-sm font-bold">
                                         <CalendarIcon size={16} className="text-gray-400" />
-                                        <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{startDate.toLocaleDateString('en-GB').replace(/\//g, '-')}</span>
+                                        <span>{startDate.toLocaleDateString('en-GB')}</span>
                                     </div>
                                     <ChevronDown size={14} className="text-gray-400" />
                                 </div>
@@ -175,42 +182,16 @@ const EditMembershipModal = ({ isOpen, onClose, membership, isDarkMode }) => {
                                 )}
                             </div>
                         </div>
-                        <div className="space-y-1.5">
-                            <p className="text-[13px] font-bold text-gray-500">End Date</p>
-                            <p className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>18 Feb, 2026</p>
-                        </div>
-                        <div className="space-y-1.5 relative">
-                            <p className="text-[13px] font-bold text-gray-500">Trainer</p>
-                            <div className="relative" ref={trainerRef}>
-                                <div
-                                    onClick={() => setShowTrainerDropdown(!showTrainerDropdown)}
-                                    className={`flex items-center justify-between px-4 py-2 rounded-lg border cursor-pointer transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-orange-500 text-orange-500'}`}
-                                >
-                                    <span className="text-sm font-bold">{trainer || 'Select Trainer'}</span>
-                                    <ChevronDown size={14} className="text-gray-400" />
-                                </div>
-                                {showTrainerDropdown && (
-                                    <div className={`absolute left-0 top-full mt-1 w-full rounded-xl shadow-xl border z-[110] py-1 bg-white dark:bg-[#1e1e1e] ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-                                        {trainers.map(t => (
-                                            <div
-                                                key={t}
-                                                onClick={() => { setTrainer(t); setShowTrainerDropdown(false); }}
-                                                className={`px-4 py-2.5 text-[13px] font-bold cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-                                            >
-                                                {t}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                {/* Footer */}
-                <div className="p-4 flex items-center justify-end rounded-b-xl border-t dark:border-white/10 border-gray-100">
-                    <button onClick={onClose} className="px-10 py-2.5 bg-[#f97316] text-white font-bold rounded-lg shadow-lg shadow-orange-500/20 active:scale-95 transition-all">
-                        Submit
+                <div className="p-4 flex items-center justify-end rounded-b-xl border-t dark:border-white/10 border-gray-200">
+                    <button
+                        disabled={isSubmitting}
+                        onClick={handleUpdate}
+                        className="px-10 py-2.5 bg-[#f97316] text-white font-black rounded-lg shadow-lg active:scale-95"
+                    >
+                        {isSubmitting ? 'Updating...' : 'Submit'}
                     </button>
                 </div>
             </div>
@@ -218,78 +199,67 @@ const EditMembershipModal = ({ isOpen, onClose, membership, isDarkMode }) => {
     );
 };
 
-const DeleteMembershipModal = ({ isOpen, onClose, isDarkMode }) => {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className={`relative w-full max-w-lg rounded-xl shadow-2xl animate-in zoom-in duration-200 ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
-                <div className="p-4 py-3 border-b dark:border-white/10 border-gray-100 flex items-center justify-between">
-                    <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Delete Membership</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
-                </div>
-                <div className="p-6 space-y-4">
-                    <div className="space-y-1.5">
-                        <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Remark*</label>
-                        <textarea
-                            placeholder="Remark..."
-                            className={`w-full px-4 py-3 rounded-lg border text-sm h-32 resize-none outline-none ${isDarkMode ? 'bg-transparent border-white/10 text-white' : 'bg-white border-gray-200 focus:border-orange-500'}`}
-                        />
-                    </div>
-                </div>
-                <div className="p-6 flex items-center justify-end gap-3 pt-2">
-                    <button onClick={onClose} className={`px-6 py-2.5 rounded-lg text-sm font-bold ${isDarkMode ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>Cancel</button>
-                    <button onClick={onClose} className="px-6 py-2.5 bg-[#f97316] text-white text-sm font-bold rounded-lg shadow-lg shadow-orange-500/20 active:scale-95 transition-all">Submit</button>
-                </div>
-            </div>
-        </div>
-    );
-};
+const AddOnDaysModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => {
+    const [days, setDays] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-const AddOnDaysModal = ({ isOpen, onClose, isDarkMode }) => {
-    const [unit, setUnit] = useState('Days');
-    if (!isOpen) return null;
+    if (!isOpen || !membership) return null;
+
+    const handleSubmit = async () => {
+        if (!days) return;
+        setIsSubmitting(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/${membership.memberId}/extend`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ days: parseInt(days) })
+            });
+            if (res.ok) {
+                onSuccess();
+                onClose();
+                setDays('');
+            }
+        } catch (error) {
+            console.error('Error adding days:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <div className={`relative w-full max-w-lg rounded-xl shadow-2xl animate-in zoom-in duration-200 ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
                 <div className="p-4 py-3 border-b dark:border-white/10 border-gray-100 flex items-center justify-between">
-                    <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}></h3>
+                    <h3 className={`text-base font-black uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Extend Membership</h3>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
                 </div>
                 <div className="p-8 space-y-6">
                     <div className="space-y-1.5">
-                        <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Add on Days*</label>
+                        <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Add on Days*</label>
                         <input
-                            type="text"
-                            className={`w-full px-4 py-2.5 rounded-lg border text-sm outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white' : 'bg-white border-gray-300 focus:border-orange-500'}`}
+                            type="number"
+                            value={days}
+                            onChange={(e) => setDays(e.target.value)}
+                            placeholder="e.g. 7"
+                            className={`w-full px-4 py-3 rounded-lg border text-sm outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white' : 'bg-white border-gray-300'}`}
                         />
                     </div>
-                    <div className="space-y-1.5">
-                        <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Remark</label>
-                        <input
-                            type="text"
-                            className={`w-full px-4 py-2.5 rounded-lg border text-sm outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white' : 'bg-white border-gray-300 focus:border-orange-500'}`}
-                        />
-                    </div>
-                    <div className="flex items-center gap-8">
-                        {['Days', 'Months'].map(opt => (
-                            <label key={opt} className="flex items-center gap-2 cursor-pointer group">
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${unit === opt ? 'border-orange-500' : 'border-gray-400'}`}>
-                                    {unit === opt && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
-                                </div>
-                                <input type="radio" className="hidden" name="addon-unit" checked={unit === opt} onChange={() => setUnit(opt)} />
-                                <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{opt}</span>
-                            </label>
-                        ))}
-                    </div>
-                    <p className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Add on By: <span className={isDarkMode ? 'text-gray-200' : 'text-black'}>Abdulla Pathan</span>
-                    </p>
                 </div>
-                <div className="p-6 flex items-center justify-end gap-3 pt-2">
+                <div className="p-6 flex items-center justify-end gap-3 border-t dark:border-white/10 border-gray-100">
                     <button onClick={onClose} className={`px-10 py-2.5 rounded-lg text-sm font-bold ${isDarkMode ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>Cancel</button>
-                    <button onClick={onClose} className="px-10 py-2.5 bg-[#f97316] text-white text-sm font-bold rounded-lg shadow-lg shadow-orange-500/20 active:scale-95 transition-all">Submit</button>
+                    <button
+                        disabled={isSubmitting}
+                        onClick={handleSubmit}
+                        className="px-10 py-2.5 bg-[#f97316] text-white text-sm font-bold rounded-lg active:scale-95"
+                    >
+                        {isSubmitting ? 'Updating...' : 'Submit'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -297,24 +267,17 @@ const AddOnDaysModal = ({ isOpen, onClose, isDarkMode }) => {
 };
 
 const MemberMemberships = () => {
-    const context = useOutletContext();
-    const isDarkMode = context?.isDarkMode || false;
+    const { isDarkMode, memberData } = useOutletContext();
     const navigate = useNavigate();
-    const {
-        memberId,
-        memberMobile,
-        memberEmail,
-        memberDOB,
-        memberAnniversary,
-        memberEmergencyName,
-        memberEmergencyNo
-    } = context || {};
+    const { id } = useParams();
 
     const [activeTab, setActiveTab] = useState('Active Membership');
     const [activeMenu, setActiveMenu] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showAddOnModal, setShowAddOnModal] = useState(false);
+    const [selectedMembership, setSelectedMembership] = useState(null);
+    const [subscriptions, setSubscriptions] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const menuRef = useRef(null);
 
@@ -322,37 +285,30 @@ const MemberMemberships = () => {
         { name: 'Active Membership' },
         { name: 'Past Membership' },
         { name: 'Upcoming Membership' },
-        { name: 'Transferred', icon: ArrowLeftRight },
-        { name: 'Freeze', icon: Snowflake }
     ];
 
-    // Dummy Data
-    const memberships = [
-        {
-            id: '781552',
-            name: 'GYM WORKOUT',
-            duration: '12 Months',
-            sessions: '360/360',
-            startDate: '19 Feb, 2025',
-            endDate: '18 Feb, 2026',
-            addOnDays: '0',
-            addOnRemark: '',
-            trainer: 'Abdulla Pathan',
+    const fetchSubscriptions = async () => {
+        setIsLoading(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}/subscriptions`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setSubscriptions(data);
+            }
+        } catch (error) {
+            console.error('Error fetching subscriptions:', error);
+        } finally {
+            setIsLoading(false);
         }
-    ];
+    };
 
-    // Menu Options
-    const menuOptions = [
-        'Edit Membership',
-        'Delete Membership',
-        'Transfer',
-        'Freeze',
-        'Upgrade',
-        'Renew',
-        'Resale',
-        'Add-On Days',
-        'Print ID Card'
-    ];
+    useEffect(() => {
+        fetchSubscriptions();
+    }, [id]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -364,116 +320,86 @@ const MemberMemberships = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const filteredSubscriptions = subscriptions.filter(s => {
+        if (activeTab === 'Active Membership') return s.status === 'Active';
+        if (activeTab === 'Past Membership') return s.status === 'Expired';
+        if (activeTab === 'Upcoming Membership') return s.status === 'Upcoming';
+        return false;
+    });
+
     const handleActionClick = (opt, item) => {
         setActiveMenu(null);
-        if (opt === 'Edit Membership') {
-            setShowEditModal(true);
-        } else if (opt === 'Delete Membership') {
-            setShowDeleteModal(true);
-        } else if (opt === 'Transfer') {
-            navigate('/admin/members/profile/membership/transfer');
-        } else if (opt === 'Add-On Days') {
-            setShowAddOnModal(true);
-        } else if (opt === 'Resale') {
-            navigate('/admin/members/profile/membership/resale');
-        } else if (opt === 'Upgrade') {
-            navigate('/admin/members/profile/membership/upgrade');
-        } else if (opt === 'Freeze') {
-            navigate('/admin/members/profile/membership/freeze');
-        } else if (opt === 'Renew') {
-            navigate('/admin/members/profile/membership/renew');
-        }
-    }
+        setSelectedMembership(item);
+        if (opt === 'Add-On Days') setShowAddOnModal(true);
+        if (opt === 'Change Start Date') setShowEditModal(true);
+        if (opt === 'Renew') navigate(`/admin/members/profile/${id}/membership/renew`);
+        if (opt === 'Transfer') navigate(`/admin/members/profile/${id}/membership/transfer`);
+        if (opt === 'Freeze') navigate(`/admin/members/profile/${id}/membership/freeze`);
+        if (opt === 'Upgrade') navigate(`/admin/members/profile/${id}/membership/upgrade`);
+        if (opt === 'Resale') navigate(`/admin/members/profile/${id}/membership/resale`);
+    };
 
-    const renderTable = (data, type) => {
-        let headers = [];
-        if (type === 'Transferred') {
-            headers = ['Membership ID', 'Name', 'Duration', 'Sessions', 'Start Date', 'End Date', 'Assigned Trainer', 'User Name'];
-        } else if (type === 'Freeze') {
-            headers = ['Membership ID', 'Name', 'Duration', 'Sessions', 'Freeze Start Date', 'Freeze End Date', 'Freeze Frequency', 'Freeze Remark'];
-        } else {
-            headers = ['Membership ID', 'Name', 'Duration', 'Sessions', 'Start Date', 'End Date', 'Add On Days', 'Add On Days Remark', 'Assigned Trainer', 'Status', ''];
-        }
+    const renderTable = (data) => {
+        const headers = ['Package Name', 'Duration', 'Trainer', 'Start Date', 'End Date', 'Paid Amount', 'Due', 'Status', 'Action'];
 
         return (
             <div className="overflow-x-auto min-h-[300px]">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className={`text-xs font-bold border-b ${isDarkMode ? 'border-white/10 text-gray-400' : 'border-gray-100 text-gray-600'}`}>
+                        <tr className={`text-[11px] font-black uppercase border-b ${isDarkMode ? 'border-white/10 text-gray-500' : 'border-gray-100 text-gray-400'}`}>
                             {headers.map((h, i) => (
-                                <th key={i} className={`px-6 py-4 whitespace-nowrap ${h === '' ? 'w-10' : ''}`}>{h}</th>
+                                <th key={i} className="px-6 py-5 whitespace-nowrap">{h}</th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+                    <tbody className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
                         {data.length > 0 ? data.map((item, idx) => (
-                            <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50'}`}>
-                                {type === 'Transferred' ? (
-                                    <>
-                                        <td className="px-6 py-5">{item.id}</td>
-                                        <td className="px-6 py-5">{item.name}</td>
-                                        <td className="px-6 py-5">{item.duration}</td>
-                                        <td className="px-6 py-5">{item.sessions}</td>
-                                        <td className="px-6 py-5">{item.startDate}</td>
-                                        <td className="px-6 py-5">{item.endDate}</td>
-                                        <td className="px-6 py-5 text-blue-500">{item.trainer}</td>
-                                        <td className="px-6 py-5">{item.userName || '--'}</td>
-                                    </>
-                                ) : type === 'Freeze' ? (
-                                    <>
-                                        <td className="px-6 py-5">{item.id}</td>
-                                        <td className="px-6 py-5">{item.name}</td>
-                                        <td className="px-6 py-5">{item.duration}</td>
-                                        <td className="px-6 py-5">{item.sessions}</td>
-                                        <td className="px-6 py-5">{item.freezeStart || '--'}</td>
-                                        <td className="px-6 py-5">{item.freezeEnd || '--'}</td>
-                                        <td className="px-6 py-5">{item.freezeFreq || '--'}</td>
-                                        <td className="px-6 py-5">{item.freezeRemark || '--'}</td>
-                                    </>
-                                ) : (
-                                    <>
-                                        <td className="px-6 py-5">{item.id}</td>
-                                        <td className="px-6 py-5">{item.name}</td>
-                                        <td className="px-6 py-5">{item.duration}</td>
-                                        <td className="px-6 py-5 text-gray-500">{item.sessions}</td>
-                                        <td className="px-6 py-5">{item.startDate}</td>
-                                        <td className="px-6 py-5">{item.endDate}</td>
-                                        <td className="px-6 py-5">{item.addOnDays}</td>
-                                        <td className="px-6 py-5">{item.addOnRemark}</td>
-                                        <td className="px-6 py-5 text-blue-500">{item.trainer}</td>
-                                        <td className="px-6 py-5"></td>
-                                        <td className="px-6 py-5 text-right relative">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setActiveMenu(activeMenu === idx ? null : idx);
-                                                }}
-                                                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
-                                            >
-                                                <MoreVertical size={16} className="text-gray-500" />
-                                            </button>
+                            <tr key={item._id} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50'}`}>
+                                <td className="px-6 py-6 uppercase">{item.packageName}</td>
+                                <td className="px-6 py-6 whitespace-nowrap">{item.duration} {item.durationType}</td>
+                                <td className="px-6 py-6 whitespace-nowrap text-gray-400">
+                                    {item.assignedTrainer ? `${item.assignedTrainer.firstName} ${item.assignedTrainer.lastName}` : '-'}
+                                </td>
+                                <td className="px-6 py-6 whitespace-nowrap">{new Date(item.startDate).toLocaleDateString('en-GB')}</td>
+                                <td className="px-6 py-6 whitespace-nowrap">{new Date(item.endDate).toLocaleDateString('en-GB')}</td>
+                                <td className="px-6 py-6 whitespace-nowrap">₹{item.paidAmount}</td>
+                                <td className="px-6 py-6 text-red-500 whitespace-nowrap">₹{item.dueAmount}</td>
+                                <td className="px-6 py-6">
+                                    <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${item.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500' :
+                                        item.status === 'Expired' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
+                                        }`}>
+                                        {item.status}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-6 text-right relative">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveMenu(activeMenu === idx ? null : idx);
+                                        }}
+                                        className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
+                                    >
+                                        <MoreVertical size={16} className="text-gray-500" />
+                                    </button>
 
-                                            {activeMenu === idx && (
-                                                <div ref={menuRef} className={`absolute right-10 top-0 w-48 rounded-md shadow-xl border z-50 py-1 max-h-[250px] overflow-y-auto custom-scrollbar ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                                                    {menuOptions.map((opt, i) => (
-                                                        <div
-                                                            key={i}
-                                                            className={`px-4 py-2.5 text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'
-                                                                } ${i !== menuOptions.length - 1 ? 'border-b border-gray-100 dark:border-white/5' : ''}`}
-                                                            onClick={() => handleActionClick(opt, item)}
-                                                        >
-                                                            {opt}
-                                                        </div>
-                                                    ))}
+                                    {activeMenu === idx && (
+                                        <div ref={menuRef} className={`absolute right-10 top-0 w-48 rounded-md shadow-xl border z-50 py-1 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
+                                            {['Renew', 'Add-On Days', 'Change Start Date', 'Transfer', 'Freeze', 'Upgrade', 'Resale'].map((opt, i) => (
+                                                <div
+                                                    key={i}
+                                                    className={`px-4 py-3 text-[13px] font-bold cursor-pointer transition-all ${isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'}`}
+                                                    onClick={() => handleActionClick(opt, item)}
+                                                >
+                                                    {opt}
                                                 </div>
-                                            )}
-                                        </td>
-                                    </>
-                                )}
+                                            ))}
+                                        </div>
+                                    )}
+                                </td>
                             </tr>
                         )) : (
                             <tr>
-                                <td colSpan={headers.length} className="px-6 py-8 text-center text-gray-400 font-normal italic">No Records Found</td>
+                                <td colSpan={headers.length} className="px-6 py-12 text-center text-gray-500 font-bold uppercase tracking-widest text-[11px]">No {activeTab.toLowerCase()} found</td>
                             </tr>
                         )}
                     </tbody>
@@ -482,100 +408,106 @@ const MemberMemberships = () => {
         );
     };
 
+    if (isLoading && subscriptions.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                <div className="w-10 h-10 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500 font-bold animate-pulse">Syncing Subscriptions...</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-6 animate-in fade-in zoom-in duration-300">
-            <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Memberships</h2>
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-700">
+            <div className="flex justify-between items-center">
+                <h2 className={`text-[22px] font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Membership History</h2>
+                <button
+                    onClick={() => navigate(`/admin/members/profile/${id}/membership/renew`)}
+                    className="bg-[#f97316] text-white px-8 py-3 rounded-xl text-[13px] font-black shadow-lg shadow-orange-500/20 active:scale-95 hover:bg-orange-600 transition-all uppercase tracking-wider"
+                >
+                    New Subscription
+                </button>
+            </div>
 
-            {/* Info Card */}
-            <div className={`rounded-xl border ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x dark:divide-white/10 divide-gray-200">
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Mobile Number</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberMobile}</p>
-                    </div>
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Email ID</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberEmail}</p>
-                    </div>
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">DOB</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberDOB}</p>
-                    </div>
+            {/* Premium Stats Grid */}
+            <div className={`rounded-2xl border overflow-hidden grid grid-cols-1 md:grid-cols-3 ${isDarkMode ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
+                <div className={`p-8 flex flex-col gap-3 ${isDarkMode ? 'border-r border-white/5' : 'border-r border-gray-100'}`}>
+                    <span className="text-[11px] font-black text-gray-500 uppercase tracking-[2px]">Total Subscriptions</span>
+                    <span className={`text-4xl font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>{subscriptions.length}</span>
                 </div>
-                <div className="border-t dark:border-white/10 border-gray-200 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x dark:divide-white/10 divide-gray-200">
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Anniversary Date</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberAnniversary}</p>
-                    </div>
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Emergency Contact Name</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberEmergencyName}</p>
-                    </div>
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Emergency Contact No</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberEmergencyNo}</p>
+                <div className={`p-8 flex flex-col gap-3 ${isDarkMode ? 'border-r border-white/5' : 'border-r border-gray-100'}`}>
+                    <span className="text-[11px] font-black text-gray-500 uppercase tracking-[2px]">Active Since</span>
+                    <span className={`text-4xl font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        {subscriptions.length > 0
+                            ? new Date(subscriptions[subscriptions.length - 1].startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+                            : '--'}
+                    </span>
+                </div>
+                <div className="p-8 flex flex-col gap-3">
+                    <span className="text-[11px] font-black text-gray-500 uppercase tracking-[2px]">Investment</span>
+                    <div className="flex items-end gap-1">
+                        <span className="text-2xl font-black text-gray-400 mb-1">₹</span>
+                        <span className={`text-4xl font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                            {subscriptions.reduce((acc, curr) => acc + curr.paidAmount, 0).toLocaleString()}
+                        </span>
                     </div>
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex flex-wrap items-center gap-6 border-b dark:border-white/10 border-gray-200">
-                {tabs.map(tab => {
-                    const Icon = tab.icon;
-                    return (
-                        <button
-                            key={tab.name}
-                            onClick={() => setActiveTab(tab.name)}
-                            className={`pb-3 text-sm font-bold transition-colors relative flex items-center gap-2 ${activeTab === tab.name
-                                ? 'text-orange-500'
-                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                                }`}
-                        >
-                            {Icon && <Icon size={16} />}
-                            {tab.name}
-                            {activeTab === tab.name && (
-                                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500 rounded-t-full"></span>
-                            )}
-                        </button>
-                    );
-                })}
-            </div>
+            {/* Tabs & Table Container */}
+            <div className={`rounded-2xl border overflow-hidden ${isDarkMode ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
+                {/* Modern Tabs */}
+                <div className="flex items-center gap-10 px-8 pt-6 border-b dark:border-white/5 border-gray-50">
+                    {tabs.map(tab => {
+                        const count = subscriptions.filter(s => {
+                            if (tab.name === 'Active Membership') return s.status === 'Active';
+                            if (tab.name === 'Past Membership') return s.status === 'Expired';
+                            if (tab.name === 'Upcoming Membership') return s.status === 'Upcoming';
+                            return false;
+                        }).length;
 
-            {/* Table Content */}
-            <div className={`rounded-xl border overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                <div className="p-4 bg-white dark:bg-white/5 border-b dark:border-white/10 border-gray-100">
-                    <h3 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                        {activeTab === 'Transferred' ? 'Active Membership' : activeTab === 'Freeze' ? 'Freeze Membership' : activeTab}
-                    </h3>
+                        return (
+                            <button
+                                key={tab.name}
+                                onClick={() => setActiveTab(tab.name)}
+                                className={`pb-5 text-[12px] font-black uppercase tracking-widest transition-all relative ${activeTab === tab.name
+                                    ? 'text-orange-500'
+                                    : 'text-gray-400 hover:text-gray-600'
+                                    }`}
+                            >
+                                {tab.name} ({count})
+                                {activeTab === tab.name && (
+                                    <span className="absolute bottom-0 left-0 w-full h-1 bg-orange-500 rounded-t-full shadow-[0_-4px_10px_rgba(249,115,22,0.4)]"></span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {activeTab === 'Active Membership' && renderTable(memberships)}
-                {activeTab === 'Past Membership' && renderTable([])}
-                {activeTab === 'Upcoming Membership' && renderTable([])}
-                {activeTab === 'Transferred' && renderTable([], 'Transferred')}
-                {activeTab === 'Freeze' && renderTable([], 'Freeze')}
+                {/* Enhanced Table */}
+                <div className="p-2">
+                    {renderTable(filteredSubscriptions)}
+                </div>
             </div>
 
             <EditMembershipModal
                 isOpen={showEditModal}
+                membership={selectedMembership}
                 onClose={() => setShowEditModal(false)}
                 isDarkMode={isDarkMode}
-            />
-
-            <DeleteMembershipModal
-                isOpen={showDeleteModal}
-                onClose={() => setShowDeleteModal(false)}
-                isDarkMode={isDarkMode}
+                onSuccess={fetchSubscriptions}
             />
 
             <AddOnDaysModal
                 isOpen={showAddOnModal}
+                membership={selectedMembership}
                 onClose={() => setShowAddOnModal(false)}
                 isDarkMode={isDarkMode}
+                onSuccess={fetchSubscriptions}
             />
-
         </div>
     );
+
 };
 
 export default MemberMemberships;

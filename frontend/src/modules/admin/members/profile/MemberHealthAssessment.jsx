@@ -1,14 +1,13 @@
 import React from 'react';
-import { useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { ShieldPlus } from 'lucide-react';
 
 const MemberHealthAssessment = () => {
     const context = useOutletContext();
     const isDarkMode = context?.isDarkMode || false;
 
+    const { id } = context || {};
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const id = searchParams.get('id');
 
     return (
         <div className="space-y-6 animate-in fade-in zoom-in duration-300">

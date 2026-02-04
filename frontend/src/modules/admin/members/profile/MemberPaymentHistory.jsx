@@ -2,7 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { MoreVertical, Maximize2, X, ChevronLeft, ChevronRight, Calendar as CalendarIcon, ChevronDown, Edit3 } from 'lucide-react';
 
+import { API_BASE_URL } from '../../../../config/api';
+
 const Calendar = ({ selectedDate, onSelect, isDarkMode }) => {
+    // Calendar component remains same
     const [viewDate, setViewDate] = useState(selectedDate || new Date());
     const [view, setView] = useState('days');
 
@@ -99,6 +102,7 @@ const Calendar = ({ selectedDate, onSelect, isDarkMode }) => {
 };
 
 const EditInvoiceModal = ({ isOpen, onClose, invoice, isDarkMode }) => {
+    // Modal component remains same
     const [selectedDate, setSelectedDate] = useState(null);
     const [showCalendar, setShowCalendar] = useState(false);
     const calendarRef = useRef(null);
@@ -116,9 +120,7 @@ const EditInvoiceModal = ({ isOpen, onClose, invoice, isDarkMode }) => {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            {/* Removed overflow-hidden to let calendar show outside if needed, or we'll ensure space */}
             <div className={`relative w-full max-w-lg rounded-xl shadow-2xl animate-in zoom-in duration-200 ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
-                {/* Header */}
                 <div className={`p-4 flex items-center justify-between rounded-t-xl ${isDarkMode ? 'bg-[#2a2a2a] border-b border-white/10' : 'bg-[#e5e5e5] border-b border-gray-300'}`}>
                     <div className="flex items-center gap-2">
                         <Edit3 size={20} className={isDarkMode ? 'text-gray-300' : 'text-gray-700'} />
@@ -130,15 +132,14 @@ const EditInvoiceModal = ({ isOpen, onClose, invoice, isDarkMode }) => {
                     </div>
                 </div>
 
-                {/* Form Body */}
-                <div className="p-6 space-y-4 pb-64"> {/* Increased padding to prevent calendar clipping */}
+                <div className="p-6 space-y-4 pb-64">
                     <div className={`flex items-center justify-between py-3 border-b ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
                         <span className={`text-[14px] font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Invoice No:</span>
-                        <span className={`text-[14px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{invoice?.id}</span>
+                        <span className={`text-[14px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{invoice?.invoiceNumber}</span>
                     </div>
                     <div className={`flex items-center justify-between py-3 border-b ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
                         <span className={`text-[14px] font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Membership ID:</span>
-                        <span className={`text-[14px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{invoice?.membershipId || '761552'}</span>
+                        <span className={`text-[14px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{invoice?.memberId?.memberId || '-'}</span>
                     </div>
 
                     <div className="space-y-2 relative">
@@ -157,7 +158,7 @@ const EditInvoiceModal = ({ isOpen, onClose, invoice, isDarkMode }) => {
                                 <ChevronDown size={18} className="text-gray-400" />
                             </div>
                             {showCalendar && (
-                                <div className="absolute left-0 top-full mt-2 z-[999]"> {/* Open downwards with very high z-index */}
+                                <div className="absolute left-0 top-full mt-2 z-[999]">
                                     <Calendar
                                         selectedDate={selectedDate}
                                         onSelect={(date) => { setSelectedDate(date); setShowCalendar(false); }}
@@ -169,7 +170,6 @@ const EditInvoiceModal = ({ isOpen, onClose, invoice, isDarkMode }) => {
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className={`p-4 border-t flex items-center justify-end rounded-b-xl ${isDarkMode ? 'bg-[#2a2a2a] border-white/10' : 'bg-gray-50 border-gray-200'}`}>
                     <button className="bg-[#f97316] hover:bg-orange-600 active:scale-95 text-white px-8 py-2 rounded-lg font-bold shadow-lg shadow-orange-500/30 transition-all">
                         Submit
@@ -185,18 +185,48 @@ const MemberPaymentHistory = () => {
     const isDarkMode = context?.isDarkMode || false;
     const navigate = useNavigate();
     const {
+        id,
         memberMobile,
         memberEmail,
         memberDOB,
         memberAnniversary,
         memberEmergencyName,
-        memberEmergencyNo
+        memberEmergencyNo,
+        dueAmount
     } = context || {};
 
     const [activeActionRow, setActiveActionRow] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
+    const [payments, setPayments] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const actionRef = useRef({});
+
+    useEffect(() => {
+        const fetchPaymentHistory = async () => {
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
+                if (!token || !id) return;
+
+                const response = await fetch(`${API_BASE_URL}/api/admin/sales/member/${id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setPayments(data);
+                }
+            } catch (error) {
+                console.error('Error fetching payment history:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchPaymentHistory();
+    }, [id]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -210,35 +240,7 @@ const MemberPaymentHistory = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [activeActionRow]);
 
-    const payments = [
-        {
-            id: '834212',
-            membershipId: '761552',
-            invoiceDate: '23 Mar, 2025',
-            total: '7000.00',
-            discount: '0.00',
-            paid: '3000.00',
-            balance: '0',
-            dueDate: '-',
-            planType: 'General Training',
-            status: 'PAID'
-        },
-        {
-            id: '811774',
-            membershipId: '761552',
-            invoiceDate: '21 Feb, 2025',
-            total: '7000.00',
-            discount: '2000.00',
-            paid: '4000.00',
-            balance: '3000',
-            dueDate: '06 Mar, 2025',
-            planType: 'General Training',
-            status: 'BALANCE PAID'
-        }
-    ];
-
     const handleViewInvoice = (invoiceId) => {
-        // Redirect to invoice detail page as requested
         navigate(`/admin/business/payments/invoice-detail?id=${invoiceId}`);
     };
 
@@ -289,70 +291,72 @@ const MemberPaymentHistory = () => {
                             <tr className={`text-xs font-bold border-b ${isDarkMode ? 'border-white/10 text-gray-400' : 'border-gray-100 text-gray-600'}`}>
                                 <th className="px-6 py-4 whitespace-nowrap">Invoice No</th>
                                 <th className="px-6 py-4 whitespace-nowrap">Invoice Date</th>
-                                <th className="px-6 py-4 whitespace-nowrap">Total</th>
+                                <th className="px-6 py-4 whitespace-nowrap">Sub Total</th>
                                 <th className="px-6 py-4 whitespace-nowrap">Discount</th>
-                                <th className="px-6 py-4 whitespace-nowrap">Paid</th>
-                                <th className="px-6 py-4 whitespace-nowrap">Balance</th>
-                                <th className="px-6 py-4 whitespace-nowrap">Due Date</th>
+                                <th className="px-6 py-4 whitespace-nowrap">Tax</th>
+                                <th className="px-6 py-4 whitespace-nowrap">Net Amount</th>
+                                <th className="px-6 py-4 whitespace-nowrap text-emerald-500">Paid</th>
+                                <th className="px-6 py-4 whitespace-nowrap text-red-500">Balance</th>
                                 <th className="px-6 py-4 whitespace-nowrap">Plan Type</th>
                                 <th className="px-6 py-4 whitespace-nowrap text-center">status</th>
                                 <th className="px-6 py-4 whitespace-nowrap"></th>
                             </tr>
                         </thead>
                         <tbody className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
-                            {payments.map((item, idx) => (
-                                <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50'} `}>
-                                    <td className="px-6 py-5">{item.id}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap">{item.invoiceDate}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap">₹{item.total}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap">₹{item.discount}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap">₹{item.paid}</td>
-                                    <td className="px-6 py-5">{item.balance}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap">{item.dueDate}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap">{item.planType}</td>
-                                    <td className="px-6 py-5 text-center">
-                                        <span className={`px-4 py-1.5 rounded-lg text-[10px] uppercase font-black tracking-wider ${isDarkMode ? 'bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/30' : 'bg-[#22c55e] text-white shadow-sm'}`}>
-                                            {item.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-5 text-right relative" ref={el => actionRef.current[idx] = el}>
-                                        <button
-                                            onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
-                                            className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
-                                        >
-                                            <MoreVertical size={16} className="text-gray-500" />
-                                        </button>
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan="11" className="px-6 py-10 text-center text-gray-400">Loading payment history...</td>
+                                </tr>
+                            ) : payments.length === 0 ? (
+                                <tr>
+                                    <td colSpan="11" className="px-6 py-10 text-center text-gray-400">No payment records found</td>
+                                </tr>
+                            ) : payments.map((item, idx) => {
+                                const netAmount = (item.subTotal || 0) + (item.taxAmount || 0) - (item.discountAmount || 0);
+                                const balance = Math.max(0, netAmount - (item.amount || 0));
+                                return (
+                                    <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50'} `}>
+                                        <td className="px-6 py-5">{item.invoiceNumber}</td>
+                                        <td className="px-6 py-5 whitespace-nowrap">{new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                        <td className="px-6 py-5 whitespace-nowrap">₹{(item.subTotal || 0).toFixed(2)}</td>
+                                        <td className="px-6 py-5 whitespace-nowrap">₹{(item.discountAmount || 0).toFixed(2)}</td>
+                                        <td className="px-6 py-5 whitespace-nowrap">₹{(item.taxAmount || 0).toFixed(2)}</td>
+                                        <td className="px-6 py-5 whitespace-nowrap">₹{netAmount.toFixed(2)}</td>
+                                        <td className="px-6 py-5 whitespace-nowrap text-emerald-500">₹{(item.amount || 0).toFixed(2)}</td>
+                                        <td className="px-6 py-5 text-red-500">₹{balance.toFixed(2)}</td>
+                                        <td className="px-6 py-5 whitespace-nowrap">{item.type}</td>
+                                        <td className="px-6 py-5 text-center">
+                                            <span className={`px-4 py-1.5 rounded-lg text-[10px] uppercase font-black tracking-wider ${balance === 0 ? (isDarkMode ? 'bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/30' : 'bg-[#22c55e] text-white shadow-sm') : (isDarkMode ? 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30' : 'bg-[#ef4444] text-white shadow-sm')}`}>
+                                                {balance === 0 ? 'PAID' : 'DUE'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5 text-right relative" ref={el => actionRef.current[idx] = el}>
+                                            <button
+                                                onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
+                                                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
+                                            >
+                                                <MoreVertical size={16} className="text-gray-500" />
+                                            </button>
 
-                                        {activeActionRow === idx && (
-                                            <div className={`absolute right-12 top-2 w-[140px] rounded-lg shadow-xl border z-50 overflow-hidden text-left animate-in fade-in slide-in-from-right-2 duration-150 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
-                                                <div className="py-1">
-                                                    <div
-                                                        onClick={() => {
-                                                            setActiveActionRow(null);
-                                                            handleViewInvoice(item.id);
-                                                        }}
-                                                        className={`px-4 py-2 text-[13px] font-bold cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-                                                    >
-                                                        View Invoice
-                                                    </div>
-                                                    {item.status === 'BALANCE PAID' && (
+                                            {activeActionRow === idx && (
+                                                <div className={`absolute right-12 top-2 w-[140px] rounded-lg shadow-xl border z-50 overflow-hidden text-left animate-in fade-in slide-in-from-right-2 duration-150 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                                                    <div className="py-1">
                                                         <div
                                                             onClick={() => {
                                                                 setActiveActionRow(null);
-                                                                setSelectedInvoice(item);
-                                                                setIsEditModalOpen(true);
+                                                                handleViewInvoice(item.invoiceNumber);
                                                             }}
                                                             className={`px-4 py-2 text-[13px] font-bold cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                                                         >
-                                                            Edit Invoice
+                                                            View Invoice
                                                         </div>
-                                                    )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

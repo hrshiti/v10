@@ -23,11 +23,10 @@ const employeeSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Auto-generate Employee ID
-employeeSchema.pre('save', async function (next) {
+employeeSchema.pre('save', async function () {
     if (!this.employeeId) {
         this.employeeId = 'EMP' + Math.floor(100000 + Math.random() * 900000).toString();
     }
-    next();
 });
 
 module.exports = mongoose.model('Employee', employeeSchema);

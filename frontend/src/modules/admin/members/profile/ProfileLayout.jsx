@@ -1,5 +1,6 @@
-import React from 'react';
-import { NavLink, Outlet, useSearchParams, useNavigate, useOutletContext, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, Outlet, useParams, useNavigate, useOutletContext, useLocation } from 'react-router-dom';
+import { API_BASE_URL } from '../../../../config/api';
 import {
     User,
     CreditCard,
@@ -18,8 +19,7 @@ import {
 
 
 const ProfileLayout = () => {
-    const [searchParams] = useSearchParams();
-    const id = searchParams.get('id');
+    const { id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
     const { isDarkMode, setSidebarOpen } = useOutletContext();
@@ -49,18 +49,47 @@ const ProfileLayout = () => {
     ];
 
     const memberDataFromState = location.state?.member;
-    const memberId = memberDataFromState?.id || id || '489890';
+    const [memberData, setMemberData] = useState(memberDataFromState || null);
+    const [isLoading, setIsLoading] = useState(!memberData);
 
-    // Find member in dummy list if not in state
-    const memberData = memberDataFromState || dummyMembers.find(m => m.id === memberId) || dummyMembers[0];
+    const fetchMember = async () => {
+        if (!id) return;
+        setIsLoading(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            if (!token) return;
 
-    const memberName = memberData?.name || 'GIRDHAR BHAI';
-    const memberMobile = memberData?.mobile || memberData?.number || '9081815118';
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            setMemberData(data);
+        } catch (error) {
+            console.error('Error fetching member profile:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!memberDataFromState) {
+            fetchMember();
+        }
+    }, [id]);
+
+    const refreshProfile = () => {
+        fetchMember();
+    };
+
+    const memberName = memberData ? `${memberData.firstName} ${memberData.lastName}` : 'Loading...';
+    const memberMobile = memberData?.mobile || '-';
     const memberEmail = memberData?.email || '-';
-    const memberDOB = memberData?.dob || '-';
-    const memberAnniversary = memberData?.anniversary_date || '-';
-    const memberEmergencyName = memberData?.emergency_contact_name || '-';
-    const memberEmergencyNo = memberData?.emergency_contact_number || '-';
+    const memberDOB = memberData?.dob ? new Date(memberData.dob).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+    const memberAnniversary = memberData?.anniversaryDate ? new Date(memberData.anniversaryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+    const memberEmergencyName = memberData?.emergencyContact?.name || '-';
+    const memberEmergencyNo = memberData?.emergencyContact?.number || '-';
+    const displayId = memberData?.memberId || id || '-';
 
     // Collapse main sidebar when viewing profile to give more space
     React.useEffect(() => {
@@ -89,7 +118,7 @@ const ProfileLayout = () => {
     ];
 
     return (
-        <div className="flex flex-col gap-6 p-6 min-h-screen bg-transparent text-gray-800 dark:text-gray-100 transition-colors duration-300">
+        <div className={`flex flex-col gap-6 p-8 min-h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#f8f9fa] text-gray-800'}`}>
             {/* Back Button */}
             {/* Back Button - Now sticky or fixed if needed, but keeping it at top of content for now */}
             <div
@@ -110,15 +139,15 @@ const ProfileLayout = () => {
                             <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(memberName)}&background=random`} alt="User" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold dark:text-white text-gray-900">{memberName}</h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Client ID : {memberId}</p>
+                            <h3 className="text-sm font-bold dark:text-white text-gray-900 uppercase">{memberName}</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Client ID : {displayId}</p>
                         </div>
                     </div>
 
                     {/* Add Sale Button */}
                     <button
-                        onClick={() => navigate(`sale/fresh?id=${memberId}`, { state: { member: memberData } })}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2 text-sm"
+                        onClick={() => navigate(`/admin/members/profile/${id}/sale/fresh`, { state: { member: memberData } })}
+                        className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black py-4 rounded-xl shadow-lg shadow-orange-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 text-[13px] uppercase tracking-wider"
                     >
                         <Plus size={18} />
                         Add to New Sale
@@ -129,7 +158,7 @@ const ProfileLayout = () => {
                         {sidebarItems.map((item) => (
                             <NavLink
                                 key={item.path}
-                                to={`${item.path}?id=${id}`}
+                                to={`${item.path}`}
                                 state={{ member: memberData }}
                                 className={({ isActive }) => `
                   flex items-center gap-3 px-6 py-3.5 text-sm font-bold transition-all
@@ -153,13 +182,15 @@ const ProfileLayout = () => {
                         id,
                         memberData,
                         memberName,
-                        memberId,
+                        memberId: displayId,
                         memberMobile,
                         memberEmail,
                         memberDOB,
                         memberAnniversary,
                         memberEmergencyName,
-                        memberEmergencyNo
+                        memberEmergencyNo,
+                        isLoading,
+                        refreshProfile
                     }} />
                 </div>
             </div>

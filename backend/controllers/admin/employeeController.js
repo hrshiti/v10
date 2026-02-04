@@ -54,10 +54,13 @@ const createEmployee = asyncHandler(async (req, res) => {
         throw new Error('Employee already exists with this mobile number');
     }
 
+    const photo = req.file ? req.file.path : undefined;
+
     const employee = await Employee.create({
         firstName, lastName, mobile, email, gender, maritalStatus,
         birthDate, anniversaryDate, language, gymRole,
-        gymActivities, address, country, state, city, employeeType
+        gymActivities, address, country, state, city, employeeType,
+        photo
     });
 
     if (employee) {
@@ -91,6 +94,9 @@ const updateEmployee = asyncHandler(async (req, res) => {
         employee.state = req.body.state || employee.state;
         employee.city = req.body.city || employee.city;
         employee.employeeType = req.body.employeeType || employee.employeeType;
+        if (req.file) {
+            employee.photo = req.file.path;
+        }
         employee.active = req.body.active !== undefined ? req.body.active : employee.active;
 
         const updatedEmployee = await employee.save();
@@ -118,11 +124,25 @@ const toggleEmployeeStatus = asyncHandler(async (req, res) => {
 // @desc    Delete employee
 // @route   DELETE /api/admin/employees/:id
 // @access  Private/Admin
+// @desc    Delete employee
+// @route   DELETE /api/admin/employees/:id
+// @access  Private/Admin
 const deleteEmployee = asyncHandler(async (req, res) => {
     const employee = await Employee.findById(req.params.id);
     if (employee) {
+        const { newTrainerId } = req.body;
+
+        // If it's a trainer, we might want to reassign members
+        if (newTrainerId) {
+            const Member = require('../../models/Member');
+            await Member.updateMany(
+                { assignedTrainer: req.params.id },
+                { assignedTrainer: newTrainerId }
+            );
+        }
+
         await employee.deleteOne();
-        res.json({ message: 'Employee removed' });
+        res.json({ message: 'Employee removed and members reassigned if applicable' });
     } else {
         res.status(404);
         throw new Error('Employee not found');

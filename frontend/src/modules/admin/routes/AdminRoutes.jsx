@@ -48,71 +48,82 @@ import GymDetails from '../settings/gym-details/GymDetails';
 import Biometric from '../settings/biometric/Biometric';
 import AccessControl from '../business-settings/team/access-control/AccessControl';
 
+import AdminProtectedRoute from '../components/AdminProtectedRoute';
+import Login from '../auth/Login';
+
 const AdminRoutes = () => {
     return (
         <Routes>
-            <Route element={<AdminLayout />}>
-                <Route index element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="enquiries" element={<Enquiries />} />
-                <Route path="follow-ups" element={<FollowUps />} />
+            {/* Public Admin Routes */}
+            <Route path="login" element={<Login />} />
 
-                <Route path="members">
-                    <Route path="list" element={<Members />} />
-                    <Route path="memberships" element={<Memberships />} />
-                    <Route path="packages" element={<MembershipPackages />} />
-                    <Route path="workout-cards" element={<MembersWorkoutCard />} />
-                    <Route path="analytics" element={<MembershipAnalytics />} />
-                    <Route path="profile" element={<ProfileLayout />}>
-                        <Route path="edit" element={<EditProfile />} />
-                        <Route path="memberships" element={<MemberMemberships />} />
-                        <Route path="followup" element={<MemberFollowUps />} />
-                        <Route path="payment-history" element={<MemberPaymentHistory />} />
-                        <Route path="report-card" element={<MemberReportCard />} />
-                        <Route path="workout-history" element={<MemberWorkoutHistory />} />
-                        <Route path="diet-history" element={<MemberDietHistory />} />
-                        <Route path="documents" element={<MemberDocuments />} />
-                        <Route path="attendance" element={<MemberAttendance />} />
-                        <Route path="biometric" element={<MemberBiometric />} />
-                        <Route path="health-assessment" element={<MemberHealthAssessment />} />
-                        <Route path="health-assessment-add" element={<HealthAssessmentAdd />} />
-                        <Route path="sale/fresh" element={<FreshSale />} />
-                        <Route path="membership/transfer" element={<TransferMembership />} />
-                        <Route path="membership/resale" element={<ResalePlan />} />
-                        <Route path="membership/upgrade" element={<UpgradePlan />} />
-                        <Route path="membership/freeze" element={<FreezePlan />} />
-                        <Route path="membership/renew" element={<RenewPlan />} />
+            {/* Protected Admin Routes */}
+            <Route element={<AdminProtectedRoute />}>
+                <Route element={<AdminLayout />}>
+                    <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                    <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="enquiries" element={<Enquiries />} />
+                    <Route path="follow-ups" element={<FollowUps />} />
+
+                    <Route path="members">
+                        <Route path="list" element={<Members />} />
+                        <Route path="memberships" element={<Memberships />} />
+                        <Route path="packages" element={<MembershipPackages />} />
+                        <Route path="workout-cards" element={<MembersWorkoutCard />} />
+                        <Route path="analytics" element={<MembershipAnalytics />} />
+                        <Route path="profile/:id" element={<ProfileLayout />}>
+                            <Route index element={<Navigate to="edit" replace />} />
+                            <Route path="edit" element={<EditProfile />} />
+                            <Route path="memberships" element={<MemberMemberships />} />
+                            <Route path="followup" element={<MemberFollowUps />} />
+                            <Route path="payment-history" element={<MemberPaymentHistory />} />
+                            <Route path="report-card" element={<MemberReportCard />} />
+                            <Route path="workout-history" element={<MemberWorkoutHistory />} />
+                            <Route path="diet-history" element={<MemberDietHistory />} />
+                            <Route path="documents" element={<MemberDocuments />} />
+                            <Route path="attendance" element={<MemberAttendance />} />
+                            <Route path="biometric" element={<MemberBiometric />} />
+                            <Route path="health-assessment" element={<MemberHealthAssessment />} />
+                            <Route path="health-assessment-add" element={<HealthAssessmentAdd />} />
+                            <Route path="sale/fresh" element={<FreshSale />} />
+                            <Route path="membership/transfer" element={<TransferMembership />} />
+                            <Route path="membership/resale" element={<ResalePlan />} />
+                            <Route path="membership/upgrade" element={<UpgradePlan />} />
+                            <Route path="membership/freeze" element={<FreezePlan />} />
+                            <Route path="membership/renew" element={<RenewPlan />} />
+                        </Route>
+
                     </Route>
-                </Route>
 
-                <Route path="feedback" element={<FeedbackManagement />} />
-                <Route path="diet-plan" element={<DietPlanManagement />} />
+                    <Route path="feedback" element={<FeedbackManagement />} />
+                    <Route path="diet-plan" element={<DietPlanManagement />} />
 
-                <Route path="reports">
-                    <Route path="sales" element={<SalesReport />} />
-                    <Route path="balance-due" element={<BalanceDueReport />} />
-                    <Route path="attendance" element={<AttendanceReport />} />
-                    <Route path="expired" element={<ExpiredMemberReport />} />
-                    <Route path="members" element={<MembersReportCard />} />
-                    <Route path="due" element={<DueMembershipReport />} />
-                    <Route path="sms" element={<SmsReport />} />
-                    <Route path="pt" element={<PtReport />} />
-                </Route>
+                    <Route path="reports">
+                        <Route path="sales" element={<SalesReport />} />
+                        <Route path="balance-due" element={<BalanceDueReport />} />
+                        <Route path="attendance" element={<AttendanceReport />} />
+                        <Route path="expired" element={<ExpiredMemberReport />} />
+                        <Route path="members" element={<MembersReportCard />} />
+                        <Route path="due" element={<DueMembershipReport />} />
+                        <Route path="sms" element={<SmsReport />} />
+                        <Route path="pt" element={<PtReport />} />
+                    </Route>
 
-                <Route path="business">
-                    <Route path="team" element={<Employees />} />
-                    <Route path="employees" element={<Employees />} />
-                    <Route path="employees/access-control" element={<AccessControl />} />
-                    <Route path="attendance" element={<EmployeeAttendance />} />
-                    <Route path="payments" element={<Payments />} />
-                    <Route path="payments/invoice-detail" element={<InvoiceDetail />} />
-                    <Route path="expenses" element={<ExpenseManagement />} />
-                    <Route path="slots" element={<SlotManagement />} />
-                </Route>
+                    <Route path="business">
+                        <Route path="team" element={<Employees />} />
+                        <Route path="employees" element={<Employees />} />
+                        <Route path="employees/access-control" element={<AccessControl />} />
+                        <Route path="attendance" element={<EmployeeAttendance />} />
+                        <Route path="payments" element={<Payments />} />
+                        <Route path="payments/invoice-detail" element={<InvoiceDetail />} />
+                        <Route path="expenses" element={<ExpenseManagement />} />
+                        <Route path="slots" element={<SlotManagement />} />
+                    </Route>
 
-                <Route path="settings">
-                    <Route path="gym" element={<GymDetails />} />
-                    <Route path="biometric" element={<Biometric />} />
+                    <Route path="settings">
+                        <Route path="gym" element={<GymDetails />} />
+                        <Route path="biometric" element={<Biometric />} />
+                    </Route>
                 </Route>
             </Route>
         </Routes>

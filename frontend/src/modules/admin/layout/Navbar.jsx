@@ -1,7 +1,20 @@
 import React from 'react';
 import { Bell, Menu, ChevronDown, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, toggleTheme }) => {
+    const navigate = useNavigate();
+
+    // Get admin data from localStorage
+    const adminInfo = JSON.parse(localStorage.getItem('adminInfo') || '{}');
+    const adminName = adminInfo.name || 'Admin';
+    const adminEmail = adminInfo.email || '';
+
+    const handleLogout = () => {
+        localStorage.removeItem('adminInfo');
+        navigate('/admin/login');
+    };
+
     return (
         <header className={`h-16 flex items-center justify-between px-4 lg:px-8 fixed top-0 left-0 right-0 z-50 border-b transition-colors ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
             <div className="flex items-center gap-4 lg:gap-6">
@@ -43,7 +56,7 @@ const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, t
                         </div>
                         <div className="hidden sm:block leading-none text-left">
                             <h4 className={`text-[14px] lg:text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>V-10 Fitness ...</h4>
-                            <p className="text-[11px] lg:text-[13px] text-gray-500 font-bold mt-1 uppercase tracking-tight">Abdulla Pathan</p>
+                            <p className="text-[11px] lg:text-[13px] text-gray-500 font-bold mt-1 uppercase tracking-tight">{adminName}</p>
                         </div>
                         <ChevronDown size={16} className="text-gray-400" />
                     </div>
@@ -51,8 +64,8 @@ const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, t
                     {/* Profile Dropdown */}
                     <div className={`absolute top-full right-0 mt-1 w-64 lg:w-72 rounded-xl shadow-2xl border transition-all opacity-0 invisible translate-y-1 group-hover/profile:opacity-100 group-hover/profile:visible group-hover/profile:translate-y-0 z-50 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-200'}`}>
                         <div className="p-5 border-b border-gray-100 dark:border-white/5">
-                            <p className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>Abdulla Pathan</p>
-                            <p className="text-[14px] text-gray-500 font-bold mt-1 truncate">pathanabdulla19997@gmail.com</p>
+                            <p className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>{adminName}</p>
+                            <p className="text-[14px] text-gray-500 font-bold mt-1 truncate">{adminEmail}</p>
                         </div>
 
                         <div className="p-5 border-b border-gray-100 dark:border-white/5">
@@ -82,7 +95,10 @@ const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, t
                         </div>
 
                         <div className="p-2">
-                            <button className="w-full flex items-center gap-4 px-4 py-4 text-[15px] font-black text-[#f97316] hover:bg-orange-50 dark:hover:bg-[#f97316]/10 rounded-lg transition-colors">
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-4 px-4 py-4 text-[15px] font-black text-[#f97316] hover:bg-orange-50 dark:hover:bg-[#f97316]/10 rounded-lg transition-colors"
+                            >
                                 <LogOut size={20} />
                                 <span>Log Out</span>
                             </button>

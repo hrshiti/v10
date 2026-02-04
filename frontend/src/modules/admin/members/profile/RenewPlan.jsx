@@ -2,19 +2,27 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { ChevronDown, Upload, Plus, ArrowLeft, Check } from 'lucide-react';
 
+import { API_BASE_URL } from '../../../../config/api';
+
 const RenewPlan = () => {
     const context = useOutletContext();
     const isDarkMode = context?.isDarkMode || false;
     const navigate = useNavigate();
-    const { memberName, memberId, memberMobile, memberEmail } = context || {};
+    const { id, memberName, memberId, memberMobile, memberEmail } = context || {};
 
     const [activeTab, setActiveTab] = useState('General Training');
     const tabs = ['General Training', 'Personal Training', 'Complete Fitness', 'Group EX'];
 
+    const [packages, setPackages] = useState([]);
+    const [trainers, setTrainers] = useState([]);
+    const [selectedPlan, setSelectedPlan] = useState(null);
+    const [selectedTrainer, setSelectedTrainer] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
     const [form, setForm] = useState({
         clientId: memberId || '',
         mobile: memberMobile || '',
-        email: memberEmail !== '-' ? memberEmail : '',
+        email: (memberEmail && memberEmail !== '-') ? memberEmail : '',
         emergencyName: '',
         emergencyNumber: '',
         adharNo: '',
@@ -41,21 +49,47 @@ const RenewPlan = () => {
     });
 
     const [showTaxDropdown, setShowTaxDropdown] = useState(false);
+    const [showTrainerDropdown, setShowTrainerDropdown] = useState(false);
     const taxDropdownRef = useRef(null);
+    const trainerDropdownRef = useRef(null);
     const fileInputRef1 = useRef(null);
     const fileInputRef2 = useRef(null);
 
-    const trainingPlans = [
-        { name: 'GYM WORKOUT', duration: '1 Month', cost: 2500 },
-        { name: 'GYM WORKOUT', duration: '3 Month', cost: 5000 },
-        { name: 'GYM WORKOUT', duration: '6 Month', cost: 7000 },
-        { name: 'GYM WORKOUT', duration: '12 Month', cost: 9000 },
-        { name: 'Complementary', duration: '12 Month', cost: 0 },
-    ];
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
+                const headers = { 'Authorization': `Bearer ${token}` };
+
+                const [pkgRes, trainerRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/admin/packages`, { headers }),
+                    fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, { headers })
+                ]);
+
+                if (pkgRes.ok) setPackages(await pkgRes.json());
+                if (trainerRes.ok) setTrainers(await trainerRes.json());
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const trainingPlans = packages.filter(pkg => {
+        if (!pkg.active) return false;
+        const tabLower = activeTab.toLowerCase();
+        if (tabLower.includes('general')) return pkg.type === 'general' || pkg.activity === 'gym';
+        if (tabLower.includes('personal')) return pkg.type === 'pt';
+        if (tabLower.includes('complete')) return pkg.type === 'general';
+        if (tabLower.includes('group')) return ['zumba', 'yoga', 'crossfit'].includes(pkg.activity);
+        return false;
+    });
 
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (taxDropdownRef.current && !taxDropdownRef.current.contains(event.target)) setShowTaxDropdown(false);
+            if (trainerDropdownRef.current && !trainerDropdownRef.current.contains(event.target)) setShowTrainerDropdown(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -108,6 +142,65 @@ const RenewPlan = () => {
     const subtotalCalc = (parseFloat(form.selectedPlansTotal || 0) + parseFloat(form.subtotal || 0) + parseFloat(form.surcharges || 0)) - parseFloat(form.totalDiscount || 0);
     const payableAmount = (subtotalCalc + (form.applyTaxes ? parseFloat(taxes.total) : 0)).toFixed(2);
     const remainingAmount = (parseFloat(payableAmount) - parseFloat(form.amountPaid || 0)).toFixed(2);
+
+    const handleSubmit = async () => {
+        if (!selectedPlan || !id) {
+            alert('Please select a plan');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+
+            // Calculate End Date
+            const start = new Date(form.invoiceDate);
+            const end = new Date(start);
+            if (selectedPlan.durationType === 'Months') {
+                end.setMonth(end.getMonth() + selectedPlan.durationValue);
+            } else {
+                end.setDate(end.getDate() + selectedPlan.durationValue);
+            }
+
+            const payload = {
+                memberId: id,
+                packageName: selectedPlan.name,
+                durationMonths: selectedPlan.durationValue, // Backend expects this but we adapt
+                startDate: start,
+                endDate: end,
+                amount: payableAmount,
+                subTotal: subtotalCalc,
+                taxAmount: form.applyTaxes ? taxes.total : 0,
+                paidAmount: form.amountPaid,
+                discount: form.totalDiscount,
+                paymentMode: form.paymentMethod,
+                assignedTrainer: selectedTrainer,
+                closedBy: adminInfo?._id // Match backend _id field
+            };
+
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/renew`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                navigate(-1);
+            } else {
+                const err = await res.json();
+                alert(err.message || 'Error renewing membership');
+            }
+        } catch (error) {
+            console.error('Error renewing membership:', error);
+            alert('Failed to renew membership');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in zoom-in duration-300">
@@ -242,28 +335,54 @@ const RenewPlan = () => {
                             </tr>
                         </thead>
                         <tbody className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
-                            {trainingPlans.map((plan, idx) => (
-                                <tr key={idx} className={`border-b last:border-0 ${isDarkMode ? 'border-white/5' : 'border-gray-50 hover:bg-gray-50 transition-colors'}`}>
+                            {trainingPlans.map((plan) => (
+                                <tr key={plan._id} className={`border-b last:border-0 ${isDarkMode ? 'border-white/5' : 'border-gray-50 hover:bg-gray-50 transition-colors'}`}>
                                     <td className="px-8 py-5 flex items-center gap-5">
                                         <div
-                                            onClick={() => setForm({ ...form, selectedPlansTotal: plan.cost })}
-                                            className={`w-5 h-5 rounded-full border-2 cursor-pointer flex items-center justify-center transition-all ${form.selectedPlansTotal === plan.cost ? 'border-orange-500 bg-orange-500' : 'border-gray-300'}`}
+                                            onClick={() => {
+                                                setSelectedPlan(plan);
+                                                setForm({ ...form, selectedPlansTotal: plan.baseRate });
+                                            }}
+                                            className={`w-5 h-5 rounded-full border-2 cursor-pointer flex items-center justify-center transition-all ${selectedPlan?._id === plan._id ? 'border-orange-500 bg-orange-500' : 'border-gray-300'}`}
                                         >
-                                            {form.selectedPlansTotal === plan.cost && <Check size={12} className="text-white" />}
+                                            {selectedPlan?._id === plan._id && <Check size={12} className="text-white" />}
                                         </div>
                                         {plan.name}
                                     </td>
-                                    <td className="px-8 py-5">{plan.duration}</td>
+                                    <td className="px-8 py-5 text-gray-400">{plan.durationValue} {plan.durationType}</td>
                                     <td className="px-8 py-5">
-                                        <div className={`flex items-center justify-between px-4 py-2 border rounded-lg w-48 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f9f9f9]'}`}>
-                                            <span className="text-gray-400">Select Trainer</span>
-                                            <ChevronDown size={14} />
+                                        <div className="relative" ref={trainerDropdownRef}>
+                                            <div
+                                                onClick={() => setShowTrainerDropdown(!showTrainerDropdown)}
+                                                className={`flex items-center justify-between px-4 py-2 border rounded-lg w-48 transition-all cursor-pointer ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f9f9f9]'}`}
+                                            >
+                                                <span className={selectedTrainer ? (isDarkMode ? 'text-white' : 'text-gray-900') : 'text-gray-400'}>
+                                                    {selectedTrainer ? trainers.find(t => t._id === selectedTrainer)?.firstName + ' ' + trainers.find(t => t._id === selectedTrainer)?.lastName : 'Select Trainer'}
+                                                </span>
+                                                <ChevronDown size={14} className={`transition-transform duration-200 ${showTrainerDropdown ? 'rotate-180' : ''}`} />
+                                            </div>
+                                            {showTrainerDropdown && (
+                                                <div className={`absolute left-0 top-full mt-1 w-48 rounded-xl shadow-xl border z-[60] py-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+                                                    {trainers.map(t => (
+                                                        <div
+                                                            key={t._id}
+                                                            onClick={() => {
+                                                                setSelectedTrainer(t._id);
+                                                                setShowTrainerDropdown(false);
+                                                            }}
+                                                            className={`px-4 py-2.5 text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-gray-50'}`}
+                                                        >
+                                                            {t.firstName} {t.lastName}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
-                                    <td className="px-8 py-5">{plan.cost}</td>
+                                    <td className="px-8 py-5">₹{plan.baseRate}</td>
                                     <td className="px-8 py-5">
                                         <div className={`flex items-center justify-between px-3 py-2 border rounded-lg w-44 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f9f9f9]'}`}>
-                                            <span className="text-gray-400 text-xs font-bold">dd-mm-yyyy</span>
+                                            <span className="text-gray-400 text-xs font-bold">{new Date().toLocaleDateString('en-GB')}</span>
                                             <ChevronDown size={14} />
                                         </div>
                                     </td>
@@ -391,6 +510,12 @@ const RenewPlan = () => {
                     <div className="flex items-center justify-between">
                         <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Amount Paid (₹)</span>
                         <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setForm(prev => ({ ...prev, amountPaid: payableAmount }))}
+                                className="text-[10px] uppercase font-black px-2 py-1 rounded bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+                            >
+                                Pay Full
+                            </button>
                             <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-[#f4f4f4] border-gray-100'}`}>
                                 <span className="px-3 text-gray-400 font-bold border-r dark:border-white/10 border-gray-200">₹</span>
                                 <input
@@ -416,14 +541,15 @@ const RenewPlan = () => {
                 </div>
             </div>
 
-            {/* Submit Section - Now inside the form flow */}
+            {/* Submit Section */}
             <div className={`mt-10 p-6 rounded-2xl border flex flex-col items-center justify-center gap-3 transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
                 <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">I want to make payment and generate invoice</p>
                 <button
-                    onClick={() => navigate(-1)}
-                    className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black uppercase text-[15px] py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 tracking-wider"
+                    disabled={isLoading}
+                    onClick={handleSubmit}
+                    className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black uppercase text-[15px] py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    ₹{payableAmount} Submit
+                    {isLoading ? 'Processing...' : `₹${payableAmount} Submit`}
                 </button>
             </div>
         </div>

@@ -5,7 +5,7 @@ const Package = require('../../models/Package');
 // @route   GET /api/admin/packages
 // @access  Public/Admin
 const getPackages = asyncHandler(async (req, res) => {
-    const packages = await Package.find({ active: true }).sort({ createdAt: -1 });
+    const packages = await Package.find({ isDeleted: false }).sort({ createdAt: -1 });
     res.json(packages);
 });
 
@@ -37,9 +37,25 @@ const createPackage = asyncHandler(async (req, res) => {
 const updatePackage = asyncHandler(async (req, res) => {
     const pkg = await Package.findById(req.params.id);
     if (pkg) {
+        // Update all fields if provided
         pkg.name = req.body.name || pkg.name;
-        pkg.price = req.body.price || pkg.price;
-        // ... other fields
+        pkg.type = req.body.type || pkg.type;
+        pkg.activity = req.body.activity || pkg.activity;
+        pkg.timing = req.body.timing || pkg.timing;
+        pkg.description = req.body.description !== undefined ? req.body.description : pkg.description;
+        pkg.durationType = req.body.durationType || pkg.durationType;
+        pkg.durationValue = req.body.durationValue || pkg.durationValue;
+        pkg.sessions = req.body.sessions || pkg.sessions;
+        pkg.rackRate = req.body.rackRate || pkg.rackRate;
+        pkg.baseRate = req.body.baseRate || pkg.baseRate;
+        pkg.transferDays = req.body.transferDays !== undefined ? req.body.transferDays : pkg.transferDays;
+        pkg.upgradeDays = req.body.upgradeDays !== undefined ? req.body.upgradeDays : pkg.upgradeDays;
+        pkg.freezeFrequency = req.body.freezeFrequency !== undefined ? req.body.freezeFrequency : pkg.freezeFrequency;
+        pkg.freezeDuration = req.body.freezeDuration !== undefined ? req.body.freezeDuration : pkg.freezeDuration;
+        pkg.soldLimit = req.body.soldLimit !== undefined ? req.body.soldLimit : pkg.soldLimit;
+        pkg.active = req.body.active !== undefined ? req.body.active : pkg.active;
+        pkg.sessionDays = req.body.sessionDays || pkg.sessionDays;
+
         const updated = await pkg.save();
         res.json(updated);
     } else {
@@ -53,9 +69,9 @@ const updatePackage = asyncHandler(async (req, res) => {
 const deletePackage = asyncHandler(async (req, res) => {
     const pkg = await Package.findById(req.params.id);
     if (pkg) {
-        pkg.active = false; // Soft delete
+        pkg.isDeleted = true; // Soft delete distinct from inactive
         await pkg.save();
-        res.json({ message: 'Package deactivated' });
+        res.json({ message: 'Package deleted' });
     } else {
         res.status(404);
         throw new Error('Package not found');

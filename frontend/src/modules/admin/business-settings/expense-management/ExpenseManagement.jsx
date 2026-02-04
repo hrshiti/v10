@@ -13,6 +13,7 @@ import {
   Trash2 // Added Trash2 for Delete Modal
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import { API_BASE_URL } from '../../../../config/api';
 
 // --- Reusable Components ---
 
@@ -303,7 +304,7 @@ const DeleteExpenseModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
   )
 }
 
-const AddExpenseModal = ({ isOpen, onClose, isDarkMode, onAddExpense, onEditExpense, initialData, isEditMode }) => {
+const AddExpenseModal = ({ isOpen, onClose, isDarkMode, onAddExpense, onEditExpense, initialData, isEditMode, employeesList }) => {
   if (!isOpen) return null;
 
   const [expenseData, setExpenseData] = useState({
@@ -317,7 +318,13 @@ const AddExpenseModal = ({ isOpen, onClose, isDarkMode, onAddExpense, onEditExpe
 
   useEffect(() => {
     if (isEditMode && initialData) {
-      setExpenseData(initialData);
+      // Format date for the picker if it's a full Date object/ISO string
+      let dateValue = initialData.date;
+      if (dateValue && (dateValue.includes('T') || !dateValue.includes('-'))) {
+        const d = new Date(dateValue);
+        dateValue = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+      }
+      setExpenseData({ ...initialData, date: dateValue });
     } else {
       setExpenseData({
         expenseType: '',
@@ -341,7 +348,7 @@ const AddExpenseModal = ({ isOpen, onClose, isDarkMode, onAddExpense, onEditExpe
     } else {
       onAddExpense(expenseData);
     }
-    onClose();
+    // onClose(); // Handle onClose in parent after successful API call
   };
 
   return (
@@ -395,7 +402,7 @@ const AddExpenseModal = ({ isOpen, onClose, isDarkMode, onAddExpense, onEditExpe
           <div>
             <label className={`block text-[13px] font-bold mb-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>Expense Amount*</label>
             <input
-              type="text"
+              type="number"
               placeholder="Enter Expense Amount"
               className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black'
                 }`}
@@ -430,7 +437,7 @@ const AddExpenseModal = ({ isOpen, onClose, isDarkMode, onAddExpense, onEditExpe
           <div>
             <label className={`block text-[13px] font-bold mb-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>Staff Name*</label>
             <CustomSelect
-              options={["Abdulla Pathan", "ANJALI KANWAR", "PARI PANDYA"]}
+              options={employeesList}
               placeholder="Select"
               isDarkMode={isDarkMode}
               value={expenseData.staffName}
@@ -454,10 +461,10 @@ const AddExpenseModal = ({ isOpen, onClose, isDarkMode, onAddExpense, onEditExpe
   );
 };
 
-const StaffDropdown = ({ isDarkMode, selected, onSelect }) => {
+const StaffDropdown = ({ isDarkMode, selected, onSelect, employeesList }) => {
   // Kept for the main filter (could also use CustomSelect but this has custom styling active for filter)
   const [isOpen, setIsOpen] = useState(false);
-  const options = ["Abdulla Pathan", "ANJALI KANWAR", "PARI PANDYA"];
+  const options = employeesList;
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -782,14 +789,92 @@ const ExpenseManagement = () => {
   const [deleteId, setDeleteId] = useState(null); // Stores ID of expense to delete
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const handleAddExpense = (newExpense) => {
-    // Generate simple ID
-    const id = Math.floor(Math.random() * 90000) + 10000;
-    const expenseWithId = { ...newExpense, id };
+  // API States
+  const [isLoading, setIsLoading] = useState(true);
+  const [employeesList, setEmployeesList] = useState([]);
 
-    setExpenses(prev => [...prev, expenseWithId]);
-    setTotalExpenses(prev => prev + Number(newExpense.amount));
-    setToast({ message: 'Expense Added successfully.' });
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('keyword', searchQuery);
+      if (selectedStaff) params.append('staffName', selectedStaff);
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/expenses?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setExpenses(data);
+        const total = data.reduce((sum, item) => sum + Number(item.amount), 0);
+        setTotalExpenses(total);
+      }
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/employees`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const list = Array.isArray(data) ? data : (data.employees || []);
+        setEmployeesList(list.map(e => `${e.firstName} ${e.lastName}`));
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    fetchEmployees();
+  }, []);
+
+  const handleAddExpense = async (newExpense) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      // Format date for backend
+      const parts = newExpense.date.split('-');
+      const formattedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/expenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ...newExpense, date: formattedDate })
+      });
+
+      if (response.ok) {
+        setToast({ message: 'Expense Added successfully.' });
+        fetchData();
+        handleAddModalClose();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to add expense');
+      }
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      alert('Error adding expense');
+    }
   };
 
   const handleEditClick = (expense) => {
@@ -797,16 +882,38 @@ const ExpenseManagement = () => {
     setIsAddExpenseModalOpen(true);
   };
 
-  const handleUpdateExpense = (updatedData) => {
-    setExpenses(prev => prev.map(ex => ex.id === editingExpense.id ? { ...updatedData, id: editingExpense.id } : ex));
+  const handleUpdateExpense = async (updatedData) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
 
-    // Recalculate total expenses
-    const newTotal = expenses.map(ex => ex.id === editingExpense.id ? { ...updatedData, id: editingExpense.id } : ex)
-      .reduce((sum, item) => sum + Number(item.amount), 0);
-    setTotalExpenses(newTotal);
+      // Format date for backend
+      const parts = updatedData.date.split('-');
+      const formattedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
 
-    setToast({ message: 'Edit Successfully' });
-    setEditingExpense(null);
+      const response = await fetch(`${API_BASE_URL}/api/admin/expenses/${editingExpense._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ...updatedData, date: formattedDate })
+      });
+
+      if (response.ok) {
+        setToast({ message: 'Edit Successfully' });
+        fetchData();
+        setEditingExpense(null);
+        setIsAddExpenseModalOpen(false);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to update expense');
+      }
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      alert('Error updating expense');
+    }
   };
 
   const handleDeleteClick = (id) => {
@@ -814,15 +921,33 @@ const ExpenseManagement = () => {
     setIsDeleteModalOpen(true);
   }
 
-  const handleConfirmDelete = () => {
-    const expenseToDelete = expenses.find(e => e.id === deleteId);
-    if (expenseToDelete) {
-      setExpenses(prev => prev.filter(e => e.id !== deleteId));
-      setTotalExpenses(prev => prev - Number(expenseToDelete.amount));
-      setToast({ message: 'Expense Deleted successfully.' });
+  const handleConfirmDelete = async () => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/expenses/${deleteId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setToast({ message: 'Expense Deleted successfully.' });
+        fetchData();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to delete expense');
+      }
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      alert('Error deleting expense');
+    } finally {
+      setIsDeleteModalOpen(false);
+      setDeleteId(null);
     }
-    setIsDeleteModalOpen(false);
-    setDeleteId(null);
   };
 
   const handleAddModalClose = () => {
@@ -892,12 +1017,27 @@ const ExpenseManagement = () => {
           isDarkMode={isDarkMode}
           selected={selectedStaff}
           onSelect={setSelectedStaff}
+          employeesList={employeesList}
         />
 
         <DateRangePicker isDarkMode={isDarkMode} />
 
-        <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Apply</button>
-        <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Clear</button>
+        <button
+          onClick={fetchData}
+          className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md"
+        >
+          Apply
+        </button>
+        <button
+          onClick={() => {
+            setSelectedStaff('');
+            setSearchQuery('');
+            fetchData();
+          }}
+          className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md"
+        >
+          Clear
+        </button>
 
         <div className="relative flex-1 max-w-md">
           <Search size={20} className="absolute left-4 top-3 text-gray-400" />
@@ -948,18 +1088,20 @@ const ExpenseManagement = () => {
                   <td colSpan={7} className="px-8 py-8 text-center text-gray-400 font-medium">No expenses found</td>
                 </tr>
               ) : (
-                expenses.map((expense) => (
-                  <tr key={expense.id} className={`border-b transition-none ${isDarkMode ? 'bg-transparent border-white/5 hover:bg-white/5' : 'bg-white border-gray-50 hover:bg-gray-50'}`}>
-                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{expense.id}</td>
+                expenses.map((expense, idx) => (
+                  <tr key={expense._id} className={`border-b transition-none ${isDarkMode ? 'bg-transparent border-white/5 hover:bg-white/5' : 'bg-white border-gray-50 hover:bg-gray-50'}`}>
+                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{idx + 1}</td>
                     <td className="px-8 py-5">
                       <span className={`inline-block px-3 py-1 border rounded text-[13px] font-bold ${isDarkMode ? 'border-orange-500/30 text-orange-400 bg-orange-500/10' : 'border-orange-200 text-orange-600 bg-orange-50'}`}>
                         {expense.expenseType}
                       </span>
                     </td>
                     <td className={`px-8 py-5 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{expense.description}</td>
-                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{expense.date}</td>
+                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                      {new Date(expense.date).toLocaleDateString('en-GB')}
+                    </td>
                     <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800 uppercase'}`}>{expense.staffName}</td>
-                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{expense.amount}</td>
+                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>₹ {expense.amount}</td>
                     <td className="px-8 py-5">
                       <span className={`inline-block px-3 py-1 border rounded text-[12px] font-bold uppercase ${isDarkMode ? 'border-orange-500/30 text-orange-400 bg-orange-500/10' : 'border-orange-200 text-orange-600 bg-orange-50'}`}>
                         {expense.paymentMode}
@@ -973,7 +1115,7 @@ const ExpenseManagement = () => {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteClick(expense.id)}
+                          onClick={() => handleDeleteClick(expense._id)}
                           className="bg-[#f97316] text-white px-4 py-1.5 rounded-lg text-[13px] font-bold shadow-sm hover:bg-orange-600 transition-none">
                           Delete
                         </button>
@@ -1041,6 +1183,7 @@ const ExpenseManagement = () => {
         onEditExpense={handleUpdateExpense}
         initialData={editingExpense}
         isEditMode={!!editingExpense}
+        employeesList={employeesList}
       />
 
       <DeleteExpenseModal

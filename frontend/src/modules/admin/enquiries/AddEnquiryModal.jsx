@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Maximize2, Minimize2, PenLine, Calendar as CalendarIcon, ChevronDown, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { API_BASE_URL } from '../../../config/api';
 
 // --- Helper Components ---
 
@@ -414,7 +415,7 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode, withTime = false
 
 // --- Main Component ---
 
-const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData }) => {
+const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData, onSuccess }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [formData, setFormData] = useState({
         firstName: '',
@@ -452,25 +453,46 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData }) => {
         remarksSummary: '',
     });
 
+    const [trainers, setTrainers] = useState([]);
+
+    useEffect(() => {
+        const fetchTrainers = async () => {
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
+                if (!token) return;
+
+                const res = await fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                setTrainers(data || []);
+            } catch (error) {
+                console.error('Error fetching trainers:', error);
+            }
+        };
+        if (isOpen) fetchTrainers();
+    }, [isOpen]);
+
     useEffect(() => {
         if (initialData) {
             setFormData({
-                firstName: initialData.name?.split(' ')[0] || '',
-                lastName: initialData.name?.split(' ')[1] || '',
-                mobileNumber: initialData.mobile?.replace('+91', '') || '',
+                firstName: initialData.firstName || '',
+                lastName: initialData.lastName || '',
+                mobileNumber: initialData.mobile || '',
                 emailAddress: initialData.email || '',
-                landlineNumber: '',
+                landlineNumber: initialData.landline || '',
                 gender: initialData.gender || 'Male',
                 maritalStatus: initialData.maritalStatus || 'Single',
-                birthDate: initialData.birthDate || '',
-                anniversaryDate: initialData.anniversaryDate || '',
-                residentialAddress: initialData.address || 'C.T.M.',
+                birthDate: initialData.birthDate ? new Date(initialData.birthDate).toISOString().split('T')[0].split('-').reverse().join('-') : '',
+                anniversaryDate: initialData.anniversaryDate ? new Date(initialData.anniversaryDate).toISOString().split('T')[0].split('-').reverse().join('-') : '',
+                residentialAddress: initialData.address || '',
                 occupation: initialData.occupation || '',
                 jobProfile: initialData.jobProfile || '',
                 companyName: initialData.companyName || '',
-                emergencyContactPerson: initialData.emergencyContactPerson || '',
-                emergencyContactNumber: initialData.emergencyContactNumber || '',
-                commitmentDate: initialData.commitmentDate || '',
+                emergencyContactPerson: initialData.emergencyContact?.name || '',
+                emergencyContactNumber: initialData.emergencyContact?.number || '',
+                commitmentDate: initialData.commitmentDate ? new Date(initialData.commitmentDate).toISOString().split('T')[0].split('-').reverse().join('-') : '',
                 source: initialData.source || '',
                 isExercising: initialData.isExercising || 'No',
                 currentActivities: initialData.currentActivities || '',
@@ -478,16 +500,16 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData }) => {
                 hasHealthChallenges: initialData.hasHealthChallenges || 'No',
                 healthIssueDescription: initialData.healthIssueDescription || '',
                 fitnessGoal: initialData.fitnessGoal || '',
-                gymService: initialData.gymService || [],
-                trialStartDate: initialData.trialStartDate || '',
-                trialEndDate: initialData.trialEndDate || '',
-                assignTo: initialData.handle || '',
-                leadType: initialData.type || 'Cold',
+                gymService: initialData.gymServices || [],
+                trialStartDate: initialData.trialStartDate ? new Date(initialData.trialStartDate).toISOString().split('T')[0].split('-').reverse().join('-') : '',
+                trialEndDate: initialData.trialEndDate ? new Date(initialData.trialEndDate).toISOString().split('T')[0].split('-').reverse().join('-') : '',
+                assignTo: initialData.handleBy?._id || initialData.handleBy || '',
+                leadType: initialData.leadType || 'Cold',
                 personalityType: initialData.personalityType || '',
                 referralMember: initialData.referralMember || '',
-                budgetPerMonth: initialData.budgetPerMonth || '',
+                budgetPerMonth: initialData.budgetPerMonth || '', // Assuming this exists in DB but not in model? 
                 otherReferral: initialData.otherReferral || '',
-                remarksSummary: initialData.remarks || '',
+                remarksSummary: initialData.remark || '',
             });
         } else {
             setFormData({
@@ -545,17 +567,9 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData }) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    // Dummy Data
-    const trainerOptions = [
-        "Abdulla Pathan",
-        "ANJALI KANWAR",
-        "V10 FITNESS LAB",
-        "Ravi Kumar",
-        "Priya Singh",
-        "Amit Patel",
-        "Suresh Raina",
-        "Deepak Chahar"
-    ];
+    // Dynamic Data
+    const trainerOptions = trainers.map(t => ({ label: `${t.firstName} ${t.lastName}`, id: t._id }));
+    const trainerLabels = trainerOptions.map(t => t.label);
 
     const referralOptions = [
         "GIRDHAR BHAI",
@@ -579,6 +593,101 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData }) => {
         "Massage",
         "Pilates"
     ];
+
+    const handleSubmit = async () => {
+        console.log('--- Submit Enquiry Started ---');
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            if (!token) {
+                console.error('Submit Error: No token found');
+                alert('Session expired. Please login again.');
+                return;
+            }
+
+            console.log('Form Data:', formData);
+
+            // Basic Validation
+            if (!formData.firstName || !formData.lastName || !formData.mobileNumber) {
+                console.warn('Validation Failed: Missing required fields', {
+                    firstName: !!formData.firstName,
+                    lastName: !!formData.lastName,
+                    mobileNumber: !!formData.mobileNumber
+                });
+                alert('Please fill at least First Name, Last Name and Mobile Number.');
+                return;
+            }
+
+            const payload = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                mobile: formData.mobileNumber,
+                email: formData.emailAddress,
+                landline: formData.landlineNumber,
+                gender: formData.gender,
+                maritalStatus: formData.maritalStatus,
+                birthDate: formData.birthDate,
+                anniversaryDate: formData.anniversaryDate,
+                address: formData.residentialAddress,
+                occupation: formData.occupation,
+                jobProfile: formData.jobProfile,
+                companyName: formData.companyName,
+                emergencyContactName: formData.emergencyContactPerson,
+                emergencyContactNumber: formData.emergencyContactNumber,
+                commitmentDate: formData.commitmentDate,
+                source: formData.source,
+                isExercising: formData.isExercising,
+                currentActivities: formData.currentActivities,
+                dropoutReason: formData.dropoutReason,
+                hasHealthChallenges: formData.hasHealthChallenges,
+                healthIssueDescription: formData.healthIssueDescription,
+                fitnessGoal: formData.fitnessGoal,
+                gymServices: formData.gymService,
+                trialStartDate: formData.trialStartDate,
+                trialEndDate: formData.trialEndDate,
+                assignTo: trainerOptions.find(t => t.label === formData.assignTo)?.id || null,
+                leadType: formData.leadType,
+                personalityType: formData.personalityType,
+                referralMember: formData.referralMember,
+                remark: formData.remarksSummary,
+                status: initialData?.status || 'Open'
+            };
+
+            console.log('Submission Payload:', payload);
+
+            const url = initialData
+                ? `${API_BASE_URL}/api/admin/enquiries/${initialData._id}`
+                : `${API_BASE_URL}/api/admin/enquiries`;
+
+            const method = initialData ? 'PUT' : 'POST';
+            console.log(`Request: ${method} ${url}`);
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            console.log('Response Status:', response.status);
+
+            if (response.ok) {
+                console.log('Submission Successful');
+                onSuccess();
+            } else {
+                const errorData = await response.json();
+                console.error('Submission Failed:', errorData);
+                alert(errorData.message || 'Something went wrong');
+            }
+        } catch (error) {
+            console.error('--- Submit Enquiry Fatal Error ---');
+            console.error('Error Object:', error);
+            console.error('Error Message:', error.message);
+            alert('Failed to submit enquiry');
+        }
+    };
 
 
     return (
@@ -989,7 +1098,7 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData }) => {
                                 <CustomDropdown
                                     label="Assign To"
                                     placeholder="Select Trainer"
-                                    options={trainerOptions}
+                                    options={trainerLabels}
                                     value={formData.assignTo}
                                     onChange={(val) => handleInputChange('assignTo', val)}
                                     isDarkMode={isDarkMode}
@@ -1068,7 +1177,10 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData }) => {
 
                 {/* Footer */}
                 <div className={`p-4 border-t flex justify-end ${isDarkMode ? 'border-white/10 bg-[#1e1e1e]' : 'border-gray-100 bg-white'} rounded-b-xl`}>
-                    <button className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-bold shadow-lg shadow-orange-500/20 active:scale-95 transition-all">
+                    <button
+                        onClick={handleSubmit}
+                        className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-bold shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+                    >
                         Submit
                     </button>
                 </div>

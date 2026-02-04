@@ -1,22 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { ChevronDown, ArrowLeft, Check } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 
 const FreezePlan = () => {
     const context = useOutletContext();
     const isDarkMode = context?.isDarkMode || false;
     const navigate = useNavigate();
-    const { memberName, memberId, memberMobile, memberEmail } = context || {};
+    const { id, memberName, memberId: mId, memberMobile, memberEmail, endDate: mEndDate } = context || {};
 
+    const [isLoading, setIsLoading] = useState(false);
     const [form, setForm] = useState({
-        clientId: memberId || '23456',
-        mobile: memberMobile || '9081815118',
-        email: memberEmail !== '-' ? memberEmail : '',
+        clientId: mId || '',
+        mobile: memberMobile || '',
+        email: (memberEmail !== '-' && memberEmail) ? memberEmail : '',
         startDate: '',
         endDate: '',
         freezeRemark: '',
         freezeFrequency: '0/1',
-        membershipEndDate: '2026-02-18',
+        membershipEndDate: mEndDate ? new Date(mEndDate).toLocaleDateString('en-GB') : '-',
         paymentMethod: 'Online',
         comment: '',
         freezeCharge: 0,
@@ -30,12 +32,87 @@ const FreezePlan = () => {
     const taxDropdownRef = useRef(null);
 
     useEffect(() => {
+        const fetchCurrentSub = async () => {
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
+                if (!token || !id) return;
+
+                const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}/subscriptions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const subs = await res.json();
+                    const current = subs.find(s => s.isCurrent);
+                    if (current) {
+                        setForm(prev => ({
+                            ...prev,
+                            membershipEndDate: new Date(current.endDate).toLocaleDateString('en-GB'),
+                            freezeFrequency: `${current.freezeHistory?.length || 0}/1`
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching subscription:', error);
+            }
+        };
+        fetchCurrentSub();
+    }, [id]);
+
+    useEffect(() => {
         const handleClickOutside = (event) => {
             if (taxDropdownRef.current && !taxDropdownRef.current.contains(event.target)) setShowTaxDropdown(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const handleSubmit = async () => {
+        if (!form.startDate || !form.endDate) {
+            alert('Please select start and end dates for freezing');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            if (!token) return;
+
+            const payload = {
+                startDate: form.startDate,
+                endDate: form.endDate,
+                freezeCharge: form.freezeCharge,
+                subTotal: (parseFloat(form.freezeCharge || 0) + parseFloat(form.subtotal || 0) + parseFloat(form.surcharges || 0)),
+                taxAmount: form.applyTaxes ? taxes.total : 0,
+                paymentMethod: form.paymentMethod,
+                comment: form.freezeRemark || form.comment,
+                closedBy: adminInfo?._id
+            };
+
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}/freeze`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert('Membership frozen successfully');
+                navigate(-1);
+            } else {
+                const data = await res.json();
+                alert(data.message || 'Error freezing membership');
+            }
+        } catch (error) {
+            console.error('Error freezing membership:', error);
+            alert('Failed to freeze membership');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const InputField = ({ label, value, placeholder, type = "text", required = false, onChange, readonly = false }) => (
         <div className="space-y-1.5 flex-1 min-w-[300px]">
@@ -52,7 +129,7 @@ const FreezePlan = () => {
                     className={`w-full px-4 py-2.5 rounded-lg border text-sm outline-none transition-all ${isDarkMode
                         ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-600 focus:border-orange-500/50'
                         : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-orange-500'
-                        } ${readonly ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        } ${readonly ? 'opacity-70 cursor-not-allowed bg-gray-50' : ''}`}
                 />
                 {(type === 'date' || label.includes('Date')) && <ChevronDown size={14} className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" />}
             </div>
@@ -91,9 +168,9 @@ const FreezePlan = () => {
 
             <div className={`p-8 rounded-xl border ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <InputField label="Client ID" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} />
-                    <InputField label="Mobile Number" value={form.mobile} required onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
-                    <InputField label="Email Address" placeholder="Ex : abc@gmail.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                    <InputField label="Client ID" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} readonly />
+                    <InputField label="Mobile Number" value={form.mobile} required onChange={(e) => setForm({ ...form, mobile: e.target.value })} readonly />
+                    <InputField label="Email Address" placeholder="Ex : abc@gmail.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} readonly />
                     <div className="hidden md:block" />
 
                     <InputField label="Start Date" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
@@ -235,10 +312,11 @@ const FreezePlan = () => {
             <div className={`mt-10 p-6 rounded-2xl border flex flex-col items-center justify-center gap-3 transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
                 <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">I want to make payment and generate invoice</p>
                 <button
-                    onClick={() => navigate(-1)}
-                    className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black uppercase text-[15px] py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 tracking-wider"
+                    disabled={isLoading}
+                    onClick={handleSubmit}
+                    className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black uppercase text-[15px] py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 tracking-wider disabled:opacity-50"
                 >
-                    ₹{payableAmount} Submit
+                    {isLoading ? 'Processing...' : `₹${payableAmount} Submit`}
                 </button>
             </div>
         </div>

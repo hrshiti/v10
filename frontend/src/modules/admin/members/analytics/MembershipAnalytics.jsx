@@ -5,9 +5,12 @@ import {
   Download,
   User,
   X,
-  CheckCircle
+  Target,
+  TrendingUp,
+  Users
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import { API_BASE_URL } from '../../../../config/api';
 
 // --- Reusable Components ---
 
@@ -38,6 +41,7 @@ const CustomDatePicker = ({ value, onChange, isDarkMode }) => {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   const handleDateClick = (day) => {
+    // Format for display: DD-MM-YYYY
     const dateString = `${String(day).padStart(2, '0')}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${currentDate.getFullYear()}`;
     onChange(dateString);
     setIsOpen(false);
@@ -51,7 +55,7 @@ const CustomDatePicker = ({ value, onChange, isDarkMode }) => {
           }`}
       >
         <Calendar size={18} className="text-gray-400" />
-        <span className={value ? (isDarkMode ? 'text-white' : 'text-gray-700') : 'text-gray-400'}>{value || '01-01-2026'}</span>
+        <span className={value ? (isDarkMode ? 'text-white' : 'text-gray-700') : 'text-gray-400'}>{value || 'Select Date'}</span>
         <ChevronDown size={14} className={`ml-auto text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
 
@@ -108,40 +112,23 @@ const CustomDatePicker = ({ value, onChange, isDarkMode }) => {
   );
 };
 
-const GenerateReportModal = ({ isOpen, onClose, isDarkMode }) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className={`w-full max-w-[500px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
-        <div className={`px-6 py-5 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
-          <div className="flex items-center gap-3">
-            <Calendar size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
-            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Generate Report</h2>
-          </div>
-          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-8">
-          <label className={`block text-[14px] font-bold mb-3 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>OTP*</label>
-          <input
-            type="text"
-            placeholder="OTP"
-            className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
-          />
-        </div>
-
-        <div className={`px-6 py-4 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600">
-            Validate
-          </button>
-        </div>
+const AnalystCard = ({ title, value, subValue, icon: Icon, isDarkMode, colorClass }) => (
+  <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
+    <div className="flex items-center justify-between mb-4">
+      <div className={`p-3 rounded-xl ${colorClass}`}>
+        <Icon size={24} className="text-white" />
+      </div>
+      <div className={`text-[12px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+        Relation Analysis
       </div>
     </div>
-  );
-};
+    <h3 className={`text-[14px] font-black uppercase tracking-tight mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{title}</h3>
+    <div className="flex items-baseline gap-2">
+      <span className={`text-[28px] font-black leading-none ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{value}</span>
+      {subValue && <span className="text-[14px] font-bold text-emerald-500">{subValue}</span>}
+    </div>
+  </div>
+);
 
 const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -192,71 +179,66 @@ const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
 
 const MembershipAnalytics = () => {
   const { isDarkMode } = useOutletContext();
-  const [selectedCategory, setSelectedCategory] = useState('General Training');
-  const [startDate, setStartDate] = useState('01-01-2026');
-  const [endDate, setEndDate] = useState('31-01-2026');
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [analyticsData, setAnalyticsData] = useState(null);
 
-  const stats = [
-    { label: 'General Training', icon: User, theme: 'blue' },
-    { label: 'Personal Training', icon: User, theme: 'emerald' },
-    { label: 'Group Ex', icon: User, theme: 'purple' },
-    { label: 'Complete Fitness', icon: User, theme: 'red' },
-  ];
-
-  const themeConfig = {
-    blue: { bg: 'bg-blue-600', border: 'border-blue-600', ring: 'ring-blue-400', shadow: 'shadow-blue-500/20' },
-    emerald: { bg: 'bg-emerald-600', border: 'border-emerald-600', ring: 'ring-emerald-400', shadow: 'shadow-emerald-500/20' },
-    purple: { bg: 'bg-purple-600', border: 'border-purple-600', ring: 'ring-purple-400', shadow: 'shadow-purple-500/20' },
-    red: { bg: 'bg-red-500', border: 'border-red-500', ring: 'ring-red-400', shadow: 'shadow-red-500/20' },
+  const formatDateForAPI = (dateStr) => {
+    if (!dateStr) return '';
+    const [d, m, y] = dateStr.split('-');
+    return `${y}-${m}-${d}`;
   };
 
-  const reportData = [
-    { name: 'GYM WORKOUT', duration: '12 Month', invoiceAmount: '325500.00', sessions: '360', paidAmount: '320000.00', sold: '78' },
-    { name: 'GYM WORKOUT', duration: '1 Month', invoiceAmount: '6400.00', sessions: '30', paidAmount: '6400.00', sold: '6' },
-    { name: 'GYM WORKOUT', duration: '3 Month', invoiceAmount: '3200.00', sessions: '90', paidAmount: '3200.00', sold: '3' },
-  ];
+  const fetchAnalytics = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+
+      let url = `${API_BASE_URL}/api/admin/reports/subscription-analytics`;
+      const params = new URLSearchParams();
+      if (startDate) params.append('fromDate', formatDateForAPI(startDate));
+      if (endDate) params.append('toDate', formatDateForAPI(endDate));
+
+      const res = await fetch(`${url}?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setAnalyticsData(data);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, []);
+
+  const performanceTable = analyticsData?.packagePerformance || [];
+  const totalPages = Math.ceil(performanceTable.length / rowsPerPage);
+  const displayData = performanceTable.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   return (
-    <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>
+    <div className={`space-y-8 transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>
       <div className="flex justify-between items-center transition-none">
-        <h1 className="text-[28px] font-black tracking-tight">Membership Analytics</h1>
+        <div>
+          <h1 className="text-[28px] font-black tracking-tight uppercase">Subscription Analysis</h1>
+          <p className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Analyze membership performance and enquiry-to-subscription relations
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 transition-none">
-        {stats.map((stat, idx) => {
-          const isActive = selectedCategory === stat.label;
-          const config = themeConfig[stat.theme];
-          return (
-            <div
-              key={idx}
-              onClick={() => setSelectedCategory(stat.label)}
-              className={`group p-6 rounded-xl flex items-center gap-5 transition-all duration-300 cursor-pointer border-2
-                ${isActive
-                  ? (isDarkMode
-                    ? `bg-[#1a1a1a] ${config.border} text-white hover:${config.bg} hover:border-transparent hover:shadow-lg ${config.shadow}`
-                    : `bg-white ${config.border} text-gray-700 hover:text-white hover:${config.bg} hover:border-transparent hover:shadow-lg ${config.shadow}`
-                  )
-                  : (isDarkMode
-                    ? `bg-[#1a1a1a] border-white/5 text-white hover:${config.bg} hover:border-transparent hover:shadow-lg ${config.shadow}`
-                    : `bg-white border-gray-100 text-gray-700 hover:text-white hover:${config.bg} hover:border-transparent hover:shadow-lg ${config.shadow}`
-                  )}`}
-            >
-              <div className={`p-4 rounded-xl transition-all duration-300 
-                ${isDarkMode
-                  ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
-                  : 'bg-[#f8f9fa] text-gray-400 group-hover:bg-white/20 group-hover:text-white'
-                }`}>
-                <stat.icon size={28} />
-              </div>
-              <span className={`text-[16px] font-black transition-colors duration-300 ${isActive ? (isDarkMode ? 'text-white' : 'text-gray-900') : 'text-inherit'} group-hover:text-white`}>{stat.label}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4 transition-none pt-4">
+      {/* Date Filters */}
+      <div className="flex flex-wrap items-center gap-4 transition-none">
         <CustomDatePicker
           value={startDate}
           onChange={setStartDate}
@@ -269,67 +251,133 @@ const MembershipAnalytics = () => {
           isDarkMode={isDarkMode}
         />
 
-        <button className="bg-[#f97316] text-white px-10 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600">Apply</button>
         <button
-          onClick={() => { setStartDate(''); setEndDate(''); }}
-          className="bg-[#f97316] text-white px-10 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600"
+          onClick={fetchAnalytics}
+          className="bg-[#f97316] text-white px-10 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600 uppercase tracking-wider"
         >
-          Clear
+          Apply Filter
         </button>
-
-        <div className="flex-1" />
-
         <button
-          onClick={() => setIsReportModalOpen(true)}
-          className={`flex items-center gap-3 px-8 py-3 border rounded-xl text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f8f9fa] border-gray-200 shadow-sm text-gray-700'}`}
+          onClick={() => { setStartDate(''); setEndDate(''); fetchAnalytics(); }}
+          className={`px-10 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 border ${isDarkMode ? 'border-white/10 text-white hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
         >
-          <Download size={20} className="text-gray-400" />
-          Generate XLS Report
+          Reset
         </button>
       </div>
 
-      <div className="pt-6 space-y-2 transition-none">
-        <p className="text-[15px] font-black text-gray-800 dark:text-gray-200 uppercase tracking-tight">Current Report: GYM WORKOUT</p>
-        <p className="text-[15px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-tight">Previous Report: N/A</p>
+      {/* Relation Analysis Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <AnalystCard
+          title="Total Enquiries"
+          value={analyticsData?.conversion?.totalEnquiries || 0}
+          icon={Users}
+          colorClass="bg-blue-500"
+          isDarkMode={isDarkMode}
+        />
+        <AnalystCard
+          title="Converted Members"
+          value={analyticsData?.conversion?.convertedMembers || 0}
+          subValue={analyticsData?.conversion?.conversionRate ? `${analyticsData.conversion.conversionRate.toFixed(1)}% Rate` : ''}
+          icon={Target}
+          colorClass="bg-emerald-500"
+          isDarkMode={isDarkMode}
+        />
+        <AnalystCard
+          title="Active Subscriptions"
+          value={analyticsData?.statusBreakdown?.find(s => s._id === 'Active')?.count || 0}
+          icon={CheckCircle}
+          colorClass="bg-purple-500"
+          isDarkMode={isDarkMode}
+        />
+        <AnalystCard
+          title="Total Revenue"
+          value={`₹${analyticsData?.revenueOverTime?.reduce((acc, curr) => acc + curr.revenue, 0).toLocaleString() || 0}`}
+          icon={TrendingUp}
+          colorClass="bg-[#f97316]"
+          isDarkMode={isDarkMode}
+        />
       </div>
 
-      <div className={`mt-4 border rounded-xl overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
+      {/* Table Section */}
+      <div className={`border rounded-xl overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
+        <div className="px-8 py-6 border-b bg-white dark:bg-white/5 flex items-center justify-between">
+          <h2 className="text-[14px] font-black uppercase tracking-wider">Plan-wise Performance Analysis</h2>
+          <div className={`text-[11px] font-bold uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            Showing transactional data from sales
+          </div>
+        </div>
         <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-left">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-[#fcfcfc] border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
-                <th className="px-8 py-6 uppercase tracking-wider">Package Name</th>
-                <th className="px-8 py-6 uppercase tracking-wider">Duration</th>
-                <th className="px-8 py-6 uppercase tracking-wider">Invoice Amount</th>
-                <th className="px-8 py-6 uppercase tracking-wider">Sessions</th>
-                <th className="px-8 py-6 uppercase tracking-wider">Paid Amount</th>
-                <th className="px-8 py-6 uppercase tracking-wider">Membership Sold</th>
+                <th className="px-8 py-6 uppercase tracking-wider">Package / Membership Name</th>
+                <th className="px-8 py-6 uppercase tracking-wider text-center">Subscriptions Sold</th>
+                <th className="px-8 py-6 uppercase tracking-wider text-right">Revenue Generated</th>
+                <th className="px-8 py-6 uppercase tracking-wider text-center">Avg. Price</th>
               </tr>
             </thead>
             <tbody className={`text-[14px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {reportData.map((row, idx) => (
-                <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-8 py-8 uppercase">{row.name}</td>
-                  <td className="px-8 py-8">{row.duration}</td>
-                  <td className="px-8 py-8">{row.invoiceAmount}</td>
-                  <td className="px-8 py-8">{row.sessions}</td>
-                  <td className="px-8 py-8">{row.paidAmount}</td>
-                  <td className="px-8 py-8">{row.sold}</td>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="4" className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-10 h-10 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-gray-500 uppercase tracking-widest text-[12px]">Processing analysis...</span>
+                    </div>
+                  </td>
                 </tr>
-              ))}
+              ) : displayData.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="py-20 text-center text-gray-500 uppercase tracking-widest text-[12px]">
+                    No performance data available for this period
+                  </td>
+                </tr>
+              ) : (
+                displayData.map((row, idx) => (
+                  <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                    <td className="px-8 py-8">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-[#f97316]">
+                          <User size={18} />
+                        </div>
+                        <span className="uppercase font-black text-[15px]">{row._id || 'Standard Membership'}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-8 text-center">
+                      <span className={`px-4 py-1.5 rounded-full text-[13px] font-black ${isDarkMode ? 'bg-white/5' : 'bg-gray-100'}`}>
+                        {row.count}
+                      </span>
+                    </td>
+                    <td className="px-8 py-8 text-right font-black text-[16px]">₹{row.totalCollected.toLocaleString()}</td>
+                    <td className="px-8 py-8 text-center text-gray-500">₹{(row.totalCollected / row.count).toFixed(0)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         <div className={`p-8 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100'}`}>
           <div className="flex flex-wrap items-center gap-3">
-            <button className={`px-6 py-2.5 border rounded-xl text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>« Previous</button>
-            <button className="w-11 h-11 border rounded-xl text-[13px] font-bold bg-[#f97316] text-white shadow-lg transition-none">1</button>
-            <button className={`px-6 py-2.5 border rounded-xl text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`px-6 py-2.5 border rounded-xl text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'} ${currentPage === 1 ? 'opacity-50' : ''}`}
+            >
+              « Previous
+            </button>
+            <button className="w-11 h-11 border rounded-xl text-[13px] font-bold bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className={`px-6 py-2.5 border rounded-xl text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'} ${currentPage === totalPages ? 'opacity-50' : ''}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-5 transition-none">
-            <span className="text-[15px] font-black text-gray-500">Rows per page</span>
+            <span className="text-[15px] font-black text-gray-500 uppercase tracking-tight">Rows per page</span>
             <RowsPerPageDropdown
               rowsPerPage={rowsPerPage}
               setRowsPerPage={setRowsPerPage}
@@ -338,12 +386,6 @@ const MembershipAnalytics = () => {
           </div>
         </div>
       </div>
-
-      <GenerateReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        isDarkMode={isDarkMode}
-      />
     </div>
   );
 };

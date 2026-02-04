@@ -180,8 +180,283 @@ const getMembershipExpiryReport = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Get Subscription / Membership Analytics
+// @route   GET /api/admin/reports/subscription-analytics
+const getSubscriptionAnalytics = asyncHandler(async (req, res) => {
+    const { fromDate, toDate, type } = req.query;
+
+    const query = {};
+    if (fromDate && toDate) {
+        query.createdAt = {
+            $gte: new Date(fromDate),
+            $lte: new Date(toDate)
+        };
+    }
+
+    // 1. Package Performance (from Sales)
+    // We group by description or join with package if possible.
+    // Given the current schema, we'll aggregate Sales of type 'New Membership' and 'Renewal'
+    const salesAgg = await Sale.aggregate([
+        {
+            $match: {
+                ...query,
+                type: { $in: ['New Membership', 'Renewal'] }
+            }
+        },
+        {
+            $group: {
+                _id: "$description", // Use description which contains package name
+                totalCollected: { $sum: "$amount" },
+                count: { $sum: 1 }
+            }
+        },
+        { $sort: { totalCollected: -1 } }
+    ]);
+
+    // 2. Conversion Analytics (Enquiries -> Members)
+    const totalEnquiries = await mongoose.model('Enquiry').countDocuments(query);
+    const convertedMembers = await Member.countDocuments({
+        ...query,
+        enquiryId: { $ne: null }
+    });
+
+    // 3. Status Breakdown
+    const statusBreakdown = await Member.aggregate([
+        { $group: { _id: "$status", count: { $sum: 1 } } }
+    ]);
+
+    // 4. Revenue Over Time (Simple monthly)
+    const revenueOverTime = await Sale.aggregate([
+        {
+            $match: {
+                ...query,
+                type: { $in: ['New Membership', 'Renewal'] }
+            }
+        },
+        {
+            $group: {
+                _id: { $dateToString: { format: "%Y-%m", date: "$date" } },
+                revenue: { $sum: "$amount" }
+            }
+        },
+        { $sort: { "_id": 1 } }
+    ]);
+
+    res.json({
+        packagePerformance: salesAgg,
+        conversion: {
+            totalEnquiries,
+            convertedMembers,
+            conversionRate: totalEnquiries > 0 ? (convertedMembers / totalEnquiries) * 100 : 0
+        },
+        statusBreakdown,
+        revenueOverTime
+    });
+});
+
+// @desc    Get Attendance Report
+// @route   GET /api/admin/reports/attendance
+const getAttendanceReport = asyncHandler(async (req, res) => {
+    const { fromDate, toDate, view, search } = req.query;
+    const pageSize = Number(req.query.pageSize) || 10;
+    const page = Number(req.query.pageNumber) || 1;
+
+    // Default dates to today if not provided
+    const start = fromDate ? new Date(fromDate) : new Date(new Date().setHours(0, 0, 0, 0));
+    const end = toDate ? new Date(toDate) : new Date(new Date().setHours(23, 59, 59, 999));
+
+    // Lazy load MemberAttendance
+    const MemberAttendance = require('../../models/MemberAttendance');
+
+    let result = { members: [], page, pages: 0, total: 0 };
+
+    if (view === 'attendance') {
+        // Find attendance records first
+        // We want to list members who were present
+        // Aggregation to get unique members and their latest check-in in the range
+        const attendanceAgg = await MemberAttendance.aggregate([
+            {
+                $match: {
+                    date: { $gte: start, $lte: end },
+                    status: 'Present'
+                }
+            },
+            {
+                $sort: { date: -1 } // Latest first
+            },
+            {
+                $group: {
+                    _id: "$memberId",
+                    lastMarked: { $first: "$date" }, // Latest checkin
+                    attendedCount: { $sum: 1 } // Checkins in this period? Or total info needs lookup
+                }
+            },
+            {
+                $lookup: {
+                    from: "members",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "memberInfo"
+                }
+            },
+            { $unwind: "$memberInfo" },
+            {
+                $match: {
+                    $or: [
+                        { "memberInfo.firstName": { $regex: search || '', $options: 'i' } },
+                        { "memberInfo.lastName": { $regex: search || '', $options: 'i' } },
+                        { "memberInfo.mobile": { $regex: search || '', $options: 'i' } }
+                    ]
+                }
+            },
+            {
+                $facet: {
+                    metadata: [{ $count: "total" }],
+                    data: [{ $skip: pageSize * (page - 1) }, { $limit: pageSize }]
+                }
+            }
+        ]);
+
+        const data = attendanceAgg[0].data;
+        const total = attendanceAgg[0].metadata[0]?.total || 0;
+
+        // Transform data for UI
+        // We might need to fetch TOTAL historical attendance for "Attended Sessions" column if that's what UI wants
+        // For now, let's map what we have.
+        result.members = data.map(item => ({
+            _id: item.memberInfo._id,
+            firstName: item.memberInfo.firstName,
+            lastName: item.memberInfo.lastName,
+            mobile: item.memberInfo.mobile,
+            packageName: item.memberInfo.packageName,
+            endDate: item.memberInfo.endDate,
+            assignedTrainer: item.memberInfo.assignedTrainer, // This is ID, ideally lookup detailed
+            lastMarked: item.lastMarked,
+            attended: item.attendedCount // This is count in range
+        }));
+        result.total = total;
+        result.pages = Math.ceil(total / pageSize);
+
+    } else if (view === 'absent') {
+        // Find Active members NOT in attendance
+        // 1. Get IDs of present members
+        const presentMemberIds = await MemberAttendance.find({
+            date: { $gte: start, $lte: end },
+            status: 'Present'
+        }).distinct('memberId');
+
+        // 2. Find Members NOT in that list
+        const query = {
+            status: 'Active',
+            _id: { $nin: presentMemberIds }
+        };
+
+        if (search) {
+            query.$or = [
+                { firstName: { $regex: search, $options: 'i' } },
+                { mobile: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const count = await Member.countDocuments(query);
+        const members = await Member.find(query)
+            .limit(pageSize)
+            .skip(pageSize * (page - 1))
+            .select('firstName lastName mobile');
+
+        result.members = members;
+        result.total = count;
+        result.pages = Math.ceil(count / pageSize);
+    }
+
+    res.json(result);
+});
+
+// @desc    Get Due Membership Report (Members whose membership is expiring soon - due for renewal)
+// @route   GET /api/admin/reports/due-membership
+const getDueMembershipReport = asyncHandler(async (req, res) => {
+    const { fromDate, toDate, membershipType, trainer, closedBy, search, withoutResalePayment, excludeUpcoming } = req.query;
+    const pageSize = Number(req.query.pageSize) || 10;
+    const page = Number(req.query.pageNumber) || 1;
+
+    // Build query for members whose endDate falls within the date range
+    const query = {
+        status: { $in: ['Active', 'Pending'] } // Only active/pending members
+    };
+
+    // Date range filter on endDate (membership expiring in this range)
+    if (fromDate && toDate) {
+        query.endDate = {
+            $gte: new Date(fromDate),
+            $lte: new Date(toDate)
+        };
+    }
+
+    // Filter by membership type (would need to be added to Member model if not exists)
+    // For now, we can filter by packageName pattern
+    if (membershipType && membershipType !== 'All') {
+        // Assuming packageName contains the type info
+        query.packageName = { $regex: membershipType, $options: 'i' };
+    }
+
+    // Filter by assigned trainer
+    if (trainer && mongoose.Types.ObjectId.isValid(trainer)) {
+        query.assignedTrainer = trainer;
+    }
+
+    // Filter by closedBy
+    if (closedBy && mongoose.Types.ObjectId.isValid(closedBy)) {
+        query.closedBy = closedBy;
+    }
+
+    // Search by name, mobile, or memberId
+    if (search) {
+        query.$or = [
+            { firstName: { $regex: search, $options: 'i' } },
+            { lastName: { $regex: search, $options: 'i' } },
+            { mobile: { $regex: search, $options: 'i' } },
+            { memberId: { $regex: search, $options: 'i' } }
+        ];
+    }
+
+    // Without resale payment filter (members with due amount > 0)
+    if (withoutResalePayment === 'true') {
+        query.dueAmount = { $gt: 0 };
+    }
+
+    // Exclude upcoming members (those whose startDate is in the future)
+    if (excludeUpcoming === 'true') {
+        query.startDate = { $lte: new Date() };
+    }
+
+    const count = await Member.countDocuments(query);
+    const members = await Member.find(query)
+        .populate('assignedTrainer', 'firstName lastName')
+        .populate('closedBy', 'firstName lastName')
+        .sort({ endDate: 1 }) // Sort by end date ascending (soonest first)
+        .limit(pageSize)
+        .skip(pageSize * (page - 1));
+
+    // Calculate expected business (total amount that should be collected)
+    const expectedBusiness = members.reduce((sum, member) => sum + (member.dueAmount || 0), 0);
+
+    res.json({
+        members,
+        page,
+        pages: Math.ceil(count / pageSize),
+        total: count,
+        stats: {
+            memberCount: count,
+            expectedBusiness: expectedBusiness.toFixed(2)
+        }
+    });
+});
+
 module.exports = {
     getSalesReport,
     getBalanceDueReport,
-    getMembershipExpiryReport
+    getMembershipExpiryReport,
+    getSubscriptionAnalytics,
+    getAttendanceReport,
+    getDueMembershipReport
 };

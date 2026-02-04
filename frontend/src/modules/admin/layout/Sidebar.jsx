@@ -53,7 +53,6 @@ const Sidebar = ({ isOpen, isDarkMode }) => {
                 { title: 'Expired Members', path: '/admin/reports/expired' },
                 { title: 'Report Cards', path: '/admin/reports/members' },
                 { title: 'Due Membership', path: '/admin/reports/due' },
-                { title: 'SMS Report', path: '/admin/reports/sms' },
                 { title: 'Attendance Audit', path: '/admin/reports/attendance' },
                 { title: 'PT Report', path: '/admin/reports/pt' },
             ]

@@ -18,8 +18,23 @@ const getEnquiries = asyncHandler(async (req, res) => {
         }
         : {};
 
-    const count = await Enquiry.countDocuments({ ...keyword });
-    const enquiries = await Enquiry.find({ ...keyword })
+    let query = { ...keyword };
+
+    if (req.query.status) {
+        query.status = req.query.status;
+    }
+    if (req.query.leadType) {
+        query.leadType = req.query.leadType;
+    }
+    if (req.query.gender) {
+        query.gender = req.query.gender;
+    }
+    if (req.query.handleBy) {
+        query.handleBy = req.query.handleBy;
+    }
+
+    const count = await Enquiry.countDocuments(query);
+    const enquiries = await Enquiry.find(query)
         .populate('handleBy', 'firstName lastName')
         .limit(pageSize)
         .skip(pageSize * (page - 1))
@@ -124,7 +139,7 @@ const createEnquiry = asyncHandler(async (req, res) => {
         trialBooked,
         trialStartDate,
         trialEndDate,
-        handleBy: assignTo,
+        handleBy: assignTo || null,
         leadType: leadType || 'Cold',
         personalityType,
         referralMember,
@@ -164,7 +179,7 @@ const updateEnquiry = asyncHandler(async (req, res) => {
         // Special handling for nested or mapped fields
         if (req.body.emergencyContactName) enquiry.emergencyContact.name = req.body.emergencyContactName;
         if (req.body.emergencyContactNumber) enquiry.emergencyContact.number = req.body.emergencyContactNumber;
-        if (req.body.assignTo) enquiry.handleBy = req.body.assignTo;
+        if (req.body.assignTo !== undefined) enquiry.handleBy = req.body.assignTo || null;
 
         const updatedEnquiry = await enquiry.save();
         res.json(updatedEnquiry);

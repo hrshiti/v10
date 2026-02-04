@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { ChevronDown, Upload, Trash2, Plus, ArrowLeft } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 
 const ResalePlan = () => {
     const context = useOutletContext();
@@ -44,6 +45,39 @@ const ResalePlan = () => {
     const taxDropdownRef = useRef(null);
     const fileInputRef1 = useRef(null);
     const fileInputRef2 = useRef(null);
+    const [trainers, setTrainers] = useState([]);
+    const [selectedTrainer, setSelectedTrainer] = useState('');
+    const [openTrainerDropdownIdx, setOpenTrainerDropdownIdx] = useState(null);
+    const trainerRef = useRef(null);
+
+    useEffect(() => {
+        const fetchTrainers = async () => {
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
+                if (!token) return;
+
+                const res = await fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setTrainers(data);
+                }
+            } catch (error) {
+                console.error("Error fetching trainers:", error);
+            }
+        };
+        fetchTrainers();
+
+        const handleClickOutside = (event) => {
+            if (trainerRef.current && !trainerRef.current.contains(event.target)) {
+                setOpenTrainerDropdownIdx(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const trainingPlans = [
         { name: 'GYM WORKOUT', duration: '1 Month', cost: 2500 },
@@ -240,9 +274,32 @@ const ResalePlan = () => {
                                     </td>
                                     <td className="px-8 py-5">{plan.duration}</td>
                                     <td className="px-8 py-5">
-                                        <div className={`flex items-center justify-between px-4 py-2 border rounded-lg w-48 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f9f9f9]'}`}>
-                                            <span className="text-gray-400">Select Trainer</span>
-                                            <ChevronDown size={14} />
+                                        <div className="relative" ref={trainerRef}>
+                                            <div
+                                                onClick={() => setOpenTrainerDropdownIdx(openTrainerDropdownIdx === idx ? null : idx)}
+                                                className={`flex items-center justify-between px-4 py-2 border rounded-lg w-48 cursor-pointer ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f9f9f9]'}`}
+                                            >
+                                                <span className={selectedTrainer ? (isDarkMode ? 'text-white' : 'text-gray-900') : 'text-gray-400'}>
+                                                    {selectedTrainer ? (trainers.find(t => t._id === selectedTrainer)?.firstName + ' ' + trainers.find(t => t._id === selectedTrainer)?.lastName) : 'Select Trainer'}
+                                                </span>
+                                                <ChevronDown size={14} />
+                                            </div>
+                                            {openTrainerDropdownIdx === idx && (
+                                                <div className={`absolute left-0 top-full mt-1 w-48 rounded-xl shadow-xl border z-[60] py-1 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+                                                    {trainers.map(t => (
+                                                        <div
+                                                            key={t._id}
+                                                            onClick={() => {
+                                                                setSelectedTrainer(t._id);
+                                                                setOpenTrainerDropdownIdx(null);
+                                                            }}
+                                                            className={`px-4 py-2.5 text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-gray-50'}`}
+                                                        >
+                                                            {t.firstName} {t.lastName}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                     <td className="px-8 py-5">{plan.cost}</td>

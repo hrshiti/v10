@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { X, Maximize2, Minimize2, Edit2, History, ChevronDown } from 'lucide-react';
 
-const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, isDarkMode }) => {
+const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, isDarkMode, onSubmit }) => {
     const [activeTab, setActiveTab] = useState(initialTab);
     const [isMaximized, setIsMaximized] = useState(false);
+    const [convertibility, setConvertibility] = useState('');
+    const [remarks, setRemarks] = useState('');
 
     useEffect(() => {
         if (isOpen) {
             setActiveTab(initialTab);
+            setConvertibility(rowData?.status || '');
+            setRemarks(rowData?.comment || '');
         }
-    }, [isOpen, initialTab]);
+    }, [isOpen, initialTab, rowData]);
 
     if (!isOpen) return null;
 
@@ -23,8 +27,8 @@ const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, is
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
             <div
                 className={`bg-white dark:bg-[#1e1e1e] shadow-2xl transition-all duration-300 flex flex-col ${isMaximized
-                        ? 'fixed inset-0 w-full h-full rounded-none'
-                        : 'w-[600px] max-h-[90vh] rounded-lg'
+                    ? 'fixed inset-0 w-full h-full rounded-none'
+                    : 'w-[600px] max-h-[90vh] rounded-lg'
                     }`}
             >
                 {/* Header */}
@@ -55,8 +59,8 @@ const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, is
                         <button
                             onClick={() => setActiveTab('edit')}
                             className={`pb-3 flex items-center gap-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'edit'
-                                    ? 'border-[#f97316] text-[#f97316]'
-                                    : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`
+                                ? 'border-[#f97316] text-[#f97316]'
+                                : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`
                                 }`}
                         >
                             <Edit2 size={16} />
@@ -65,8 +69,8 @@ const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, is
                         <button
                             onClick={() => setActiveTab('history')}
                             className={`pb-3 flex items-center gap-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'history'
-                                    ? 'border-[#f97316] text-[#f97316]'
-                                    : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`
+                                ? 'border-[#f97316] text-[#f97316]'
+                                : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`
                                 }`}
                         >
                             <History size={16} />
@@ -127,9 +131,13 @@ const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, is
                                     <div>
                                         <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Convertibility Status</label>
                                         <div className="relative">
-                                            <select className={`w-full appearance-none px-4 py-2.5 border rounded-lg text-sm bg-transparent outline-none ${isDarkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-700'}`}>
-                                                <option>Select</option>
-                                                {convertibilityOptions.map(o => <option key={o}>{o}</option>)}
+                                            <select
+                                                value={convertibility}
+                                                onChange={(e) => setConvertibility(e.target.value)}
+                                                className={`w-full appearance-none px-4 py-2.5 border rounded-lg text-sm bg-transparent outline-none ${isDarkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-700'}`}
+                                            >
+                                                <option value="">Select</option>
+                                                {convertibilityOptions.map(o => <option key={o} value={o}>{o}</option>)}
                                             </select>
                                             <ChevronDown size={14} className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                                         </div>
@@ -151,6 +159,8 @@ const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, is
                                         <textarea
                                             placeholder="Type your Remarks here"
                                             rows={4}
+                                            value={remarks}
+                                            onChange={(e) => setRemarks(e.target.value)}
                                             className={`w-full px-4 py-3 border rounded-lg text-sm outline-none resize-none ${isDarkMode ? 'bg-transparent border-white/10 text-white' : 'bg-transparent border-gray-200 text-gray-700'}`}
                                         />
                                     </div>
@@ -234,7 +244,14 @@ const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, is
                         <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{rowData?.allocate || 'Abdulla Pathan'}</span>
                         <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Enquiry Created by</span>
                     </div>
-                    <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-orange-500/20 transition-all">
+                    <button
+                        onClick={() => {
+                            if (onSubmit) {
+                                onSubmit({ status: convertibility, comment: remarks, _id: rowData?._id });
+                            }
+                        }}
+                        className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-orange-500/20 transition-all"
+                    >
                         Submit
                     </button>
                 </div>

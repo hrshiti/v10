@@ -24,6 +24,7 @@ const packageSchema = new mongoose.Schema({
     // Configuration
     soldLimit: { type: Boolean, default: false },
     active: { type: Boolean, default: true },
+    isDeleted: { type: Boolean, default: false },
     sessionDays: [{ type: String }] // e.g. ['Mon', 'Tue', 'Wed'...]
 }, { timestamps: true });
 
