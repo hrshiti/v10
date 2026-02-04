@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
@@ -73,6 +74,43 @@ const DueMembershipReport = () => {
   const [isRowsPerPageOpen, setIsRowsPerPageOpen] = useState(false);
   const rowsPerPageRef = useRef(null);
 
+  const [trainers, setTrainers] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const token = adminInfo?.token;
+        if (!token) return;
+
+        const [trainerRes, empRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch(`${API_BASE_URL}/api/admin/employees`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+
+        if (trainerRes.ok) {
+          const data = await trainerRes.json();
+          setTrainers(data.map(t => `${t.firstName} ${t.lastName}`));
+        }
+
+        if (empRes.ok) {
+          const data = await empRes.json();
+          const empList = Array.isArray(data) ? data : (data.employees || []);
+          setEmployees(empList.map(e => `${e.firstName} ${e.lastName}`));
+        }
+
+      } catch (error) {
+        console.error("Error fetching filter data:", error);
+      }
+    };
+    fetchDropdownData();
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (rowsPerPageRef.current && !rowsPerPageRef.current.contains(event.target)) {
@@ -83,29 +121,83 @@ const DueMembershipReport = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filterOptions = {
-    'Select Membership Type': ['General Training', 'Personal Training', 'Group Ex'],
-    'Select Trainer': ['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'],
-    'Select Closed By': ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'],
+  const [dueMembers, setDueMembers] = useState([]);
+  const [stats, setStats] = useState({ memberCount: 0, expectedBusiness: 0 });
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [withoutResalePayment, setWithoutResalePayment] = useState(false);
+  const [excludeUpcoming, setExcludeUpcoming] = useState(false);
+
+  const fetchDueMembershipData = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const queryParams = new URLSearchParams({
+        pageNumber: currentPage,
+        pageSize: rowsPerPage,
+        search: searchQuery,
+        fromDate: fromDate?.split('-').reverse().join('-') || '',
+        toDate: toDate?.split('-').reverse().join('-') || '',
+        withoutResalePayment: withoutResalePayment.toString(),
+        excludeUpcoming: excludeUpcoming.toString()
+      });
+
+      // Add filter values if selected
+      if (filterValues['Select Membership Type']) {
+        queryParams.append('membershipType', filterValues['Select Membership Type']);
+      }
+      if (filterValues['Select Trainer']) {
+        queryParams.append('trainer', filterValues['Select Trainer']);
+      }
+      if (filterValues['Select Closed By']) {
+        queryParams.append('closedBy', filterValues['Select Closed By']);
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/due-membership?${queryParams.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      setDueMembers(data.members || []);
+      setStats(data.stats || { memberCount: 0, expectedBusiness: 0 });
+      setTotalPages(data.pages || 1);
+
+    } catch (error) {
+      console.error("Error fetching due membership report:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const dueData = [
-    { id: '551', name: 'BHARWAD JAGDISH', number: '7990769808', mType: 'General Training', sDate: '31-01-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '5555.00', discount: '0.00', balance: '0.00', cBy: 'Abdulla Pathan' },
-    { id: '1226-A', name: 'ANKHUSH MAURYA', number: '9537971487', mType: 'General Training', sDate: '01-02-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '9000.00', discount: '3000.00', balance: '100400.00', cBy: 'Abdulla Pathan' },
-    { id: '1227-A', name: 'RAHUL BHAI', number: '6351339232', mType: 'General Training', sDate: '01-02-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '9000.00', discount: '3000.00', balance: '4400.00', cBy: 'Abdulla Pathan' },
-    { id: '1228-A', name: 'siddharth parmar', number: '9974713590', mType: 'General Training', sDate: '01-11-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '5000.00', discount: '1500.00', balance: '0.00', cBy: 'Abdulla Pathan' },
-    { id: '1229-A', name: 'parmar prince', number: '9106843438', mType: 'General Training', sDate: '01-11-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '5000.00', discount: '1000.00', balance: '0.00', cBy: 'Abdulla Pathan' },
-  ];
+  useEffect(() => {
+    fetchDueMembershipData();
+  }, [currentPage, rowsPerPage]);
 
-  const filteredData = dueData.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.number.includes(searchQuery) ||
-    item.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleApply = () => {
+    setCurrentPage(1);
+    fetchDueMembershipData();
+  };
 
-  const stats = [
-    { label: 'Members', value: filteredData.length.toString(), icon: User, theme: 'blue' },
-    { label: 'Expected Business', value: '33555', icon: User, theme: 'emerald' },
+  const handleClear = () => {
+    setSearchQuery('');
+    setFromDate('31-01-2026');
+    setToDate('31-01-2026');
+    setWithoutResalePayment(false);
+    setExcludeUpcoming(false);
+    setFilterValues({});
+    setCurrentPage(1);
+    setTimeout(fetchDueMembershipData, 100);
+  };
+
+  const statCards = [
+    { label: 'Members', value: stats.memberCount.toString(), icon: User, theme: 'blue' },
+    { label: 'Expected Business', value: `₹${stats.expectedBusiness}`, icon: User, theme: 'emerald' },
   ];
 
   const themeConfig = {
@@ -122,6 +214,13 @@ const DueMembershipReport = () => {
     setActiveFilter(null);
   };
 
+  const filterOptions = {
+    'Select Membership Type': ['General Training', 'Personal Training', 'Group Ex'],
+    'Select Trainer': trainers.length > 0 ? trainers : ['No Trainers Found'],
+    'Select Closed By': employees.length > 0 ? employees : ['No Employees Found'],
+  };
+
+
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'} max-w-full overflow-x-hidden`}>
       {/* Header */}
@@ -131,7 +230,7 @@ const DueMembershipReport = () => {
 
       {/* Stats Cards */}
       <div className="flex gap-4 transition-none">
-        {stats.map((stat, idx) => {
+        {statCards.map((stat, idx) => {
           const config = themeConfig[stat.theme];
           return (
             <div
@@ -170,11 +269,21 @@ const DueMembershipReport = () => {
 
           <div className="flex items-center gap-6 ml-2">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="w-5 h-5 accent-[#f97316] border-gray-300 rounded" />
+              <input
+                type="checkbox"
+                className="w-5 h-5 accent-[#f97316] border-gray-300 rounded"
+                checked={withoutResalePayment}
+                onChange={(e) => setWithoutResalePayment(e.target.checked)}
+              />
               <span className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Without Resal Payment</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="w-5 h-5 accent-[#f97316] border-gray-300 rounded" />
+              <input
+                type="checkbox"
+                className="w-5 h-5 accent-[#f97316] border-gray-300 rounded"
+                checked={excludeUpcoming}
+                onChange={(e) => setExcludeUpcoming(e.target.checked)}
+              />
               <span className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Exclude Upcoming Members</span>
             </label>
           </div>
@@ -194,8 +303,8 @@ const DueMembershipReport = () => {
             />
           ))}
 
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Apply</button>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Clear</button>
+          <button onClick={handleApply} className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Apply</button>
+          <button onClick={handleClear} className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Clear</button>
         </div>
 
         <div className="flex justify-between items-center pt-2 transition-none">
@@ -247,35 +356,41 @@ const DueMembershipReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {filteredData.slice(0, rowsPerPage).map((row, idx) => (
-                <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-8">{row.id}</td>
-                  <td className="px-6 py-8">
-                    <div className="flex flex-col transition-none">
-                      <span
-                        onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
-                        className="text-[#3b82f6] uppercase cursor-pointer hover:underline font-black"
-                      >
-                        {row.name}
-                      </span>
-                      <span
-                        onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
-                        className="text-[#3b82f6] text-[12px] font-bold mt-0.5 cursor-pointer hover:underline"
-                      >
-                        {row.number}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-8">{row.mType}</td>
-                  <td className="px-6 py-8">{row.sDate}</td>
-                  <td className="px-6 py-8">{row.eDate}</td>
-                  <td className="px-6 py-8">{row.trainer}</td>
-                  <td className="px-6 py-8 font-black">₹{row.price}</td>
-                  <td className="px-6 py-8 font-black">₹{row.discount}</td>
-                  <td className="px-6 py-8 font-black">₹{row.balance}</td>
-                  <td className="px-6 py-8">{row.cBy}</td>
-                </tr>
-              ))}
+              {isLoading ? (
+                <tr><td colSpan="10" className="text-center py-10">Loading...</td></tr>
+              ) : dueMembers.length === 0 ? (
+                <tr><td colSpan="10" className="text-center py-10">No members found with due memberships</td></tr>
+              ) : (
+                dueMembers.map((row, idx) => (
+                  <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                    <td className="px-6 py-8">{row.memberId}</td>
+                    <td className="px-6 py-8">
+                      <div className="flex flex-col transition-none">
+                        <span
+                          onClick={() => navigate(`/admin/members/profile/memberships?id=${row._id}`)}
+                          className="text-[#3b82f6] uppercase cursor-pointer hover:underline font-black"
+                        >
+                          {row.firstName} {row.lastName}
+                        </span>
+                        <span
+                          onClick={() => navigate(`/admin/members/profile/memberships?id=${row._id}`)}
+                          className="text-[#3b82f6] text-[12px] font-bold mt-0.5 cursor-pointer hover:underline"
+                        >
+                          {row.mobile}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-8">{row.packageName}</td>
+                    <td className="px-6 py-8">{new Date(row.startDate).toLocaleDateString('en-GB')}</td>
+                    <td className="px-6 py-8">{new Date(row.endDate).toLocaleDateString('en-GB')}</td>
+                    <td className="px-6 py-8">{row.assignedTrainer?.firstName} {row.assignedTrainer?.lastName}</td>
+                    <td className="px-6 py-8 font-black">₹{row.totalAmount?.toFixed(2)}</td>
+                    <td className="px-6 py-8 font-black">₹{row.discount?.toFixed(2)}</td>
+                    <td className="px-6 py-8 font-black">₹{row.dueAmount?.toFixed(2)}</td>
+                    <td className="px-6 py-8">{row.closedBy?.firstName} {row.closedBy?.lastName}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -283,9 +398,15 @@ const DueMembershipReport = () => {
         {/* Pagination Section */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2 transition-none">
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>Next »</button>
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>« Previous</button>
+            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
+            <button
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>Next »</button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">

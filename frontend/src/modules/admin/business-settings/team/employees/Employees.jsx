@@ -15,7 +15,7 @@ import {
 
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-// Removed EditEmployeeModal import as we are reusing AddEmployeeModal
+import { API_BASE_URL } from '../../../../../config/api';
 
 const ToastNotification = ({ message, onClose, isDarkMode }) => {
   useEffect(() => {
@@ -84,7 +84,7 @@ const CustomDropdown = ({ label, options, value, onChange, isMulti = false, isDa
           : isOpen ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 text-gray-500'
           }`}
       >
-        <span className={`font-medium truncate ${value.length > 0 ? (isDarkMode ? 'text-white' : 'text-black') : ''}`}>
+        <span className={`font-medium truncate ${(value && value.length > 0) ? (isDarkMode ? 'text-white' : 'text-black') : ''}`}>
           {isMulti
             ? value.length > 0 ? value.join(', ') : placeholder
             : value || placeholder}
@@ -209,8 +209,11 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode }) => {
   );
 };
 
-const DeleteEmployeeModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
+const DeleteEmployeeModal = ({ isOpen, onClose, onConfirm, isDarkMode, employees, selectedEmployeeId }) => {
+  const [newTrainerId, setNewTrainerId] = useState('');
   if (!isOpen) return null;
+
+  const otherEmployees = employees.filter(e => e._id !== selectedEmployeeId);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
@@ -232,21 +235,22 @@ const DeleteEmployeeModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
           This process cannot be undone.
         </p>
 
-        <p className="text-[14px] font-medium mb-2 text-gray-800">Select New Trainer*</p>
-        <div className="w-full mb-4">
+        <p className="text-[14px] font-medium mb-2 text-gray-800">Assign Members To (Optional)</p>
+        <div className="w-full mb-6">
           <CustomDropdown
             isDarkMode={false}
-            placeholder="Select Trainer"
-            options={["Abdulla Pathan", "ANJALI KANWAR", "V10 FITNESS LAB"]}
-            value=""
-            onChange={() => { }}
+            placeholder="Select New Trainer"
+            options={otherEmployees.map(e => `${e.firstName} ${e.lastName}`)}
+            value={otherEmployees.find(e => e._id === newTrainerId) ? `${otherEmployees.find(e => e._id === newTrainerId).firstName} ${otherEmployees.find(e => e._id === newTrainerId).lastName}` : ''}
+            onChange={(val) => {
+              const emp = otherEmployees.find(e => `${e.firstName} ${e.lastName}` === val);
+              setNewTrainerId(emp?._id || '');
+            }}
           />
         </div>
 
-
-
         <button
-          onClick={onConfirm}
+          onClick={() => onConfirm(newTrainerId)}
           className="bg-[#ef4444] hover:bg-red-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-lg shadow-red-500/20 transition-all flex items-center gap-2"
         >
           <Trash2 size={16} />
@@ -259,45 +263,51 @@ const DeleteEmployeeModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
 
 const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEmployee, initialData, isEditMode }) => {
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', mobile: '', email: '', gender: '', marital: '',
+    firstName: '', lastName: '', mobile: '', email: '', gender: 'Male', maritalStatus: 'Single',
     birthDate: '', anniversaryDate: '',
     language: [], gymRole: [],
-    gymActivities: '',
+    gymActivities: [],
     address: '',
-    country: '', state: '', city: '',
-    employeeType: ''
+    country: 'India', state: '', city: '',
+    employeeType: 'Full Time'
   });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
 
   useEffect(() => {
     if (isEditMode && initialData) {
-      const [first, ...last] = initialData.name ? initialData.name.split(' ') : ['', ''];
       setFormData({
-        firstName: first || '',
-        lastName: last.join(' ') || '',
+        firstName: initialData.firstName || '',
+        lastName: initialData.lastName || '',
         mobile: initialData.mobile || '',
-        email: 'user@example.com', // Dummy
-        gender: 'Male', // Dummy
-        marital: 'Single', // Dummy
-        birthDate: '',
-        anniversaryDate: '',
-        language: [],
-        gymRole: initialData.role ? initialData.role.split(',') : [],
-        gymActivities: initialData.activities || '',
-        address: '',
-        country: '', state: '', city: '',
-        employeeType: ''
+        email: initialData.email || '',
+        gender: initialData.gender || 'Male',
+        maritalStatus: initialData.maritalStatus || 'Single',
+        birthDate: initialData.birthDate ? new Date(initialData.birthDate).toISOString().split('T')[0] : '',
+        anniversaryDate: initialData.anniversaryDate ? new Date(initialData.anniversaryDate).toISOString().split('T')[0] : '',
+        language: initialData.language || [],
+        gymRole: initialData.gymRole || [],
+        gymActivities: initialData.gymActivities || [],
+        address: initialData.address || '',
+        country: initialData.country || 'India',
+        state: initialData.state || '',
+        city: initialData.city || '',
+        employeeType: initialData.employeeType || 'Full Time'
       });
+      setPreviewUrl(initialData.photo || '');
     } else {
       setFormData({
-        firstName: '', lastName: '', mobile: '', email: '', gender: '', marital: '',
+        firstName: '', lastName: '', mobile: '', email: '', gender: 'Male', maritalStatus: 'Single',
         birthDate: '', anniversaryDate: '',
         language: [], gymRole: [],
-        gymActivities: '',
+        gymActivities: [],
         address: '',
-        country: '', state: '', city: '',
-        employeeType: ''
+        country: 'India', state: '', city: '',
+        employeeType: 'Full Time'
       });
+      setPreviewUrl('');
     }
+    setSelectedFile(null);
   }, [isOpen, isEditMode, initialData]);
 
   const handleMultiChange = (field, value) => {
@@ -308,23 +318,37 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEm
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = () => {
-    if (!formData.firstName || !formData.mobile) {
-      alert("Please fill required fields");
+    if (!formData.firstName || !formData.lastName || !formData.mobile || !formData.birthDate || !formData.email) {
+      alert("Please fill required fields (First Name, Last Name, Mobile, Email, Birth Date)");
       return;
     }
-    const employeeData = {
-      name: `${formData.firstName} ${formData.lastName}`,
-      mobile: formData.mobile,
-      role: formData.gymRole.join(','),
-      activities: formData.gymActivities,
-      active: true
+
+    const submissionData = new FormData();
+    Object.keys(formData).forEach(key => {
+      if (Array.isArray(formData[key])) {
+        formData[key].forEach(val => submissionData.append(key, val));
+      } else {
+        submissionData.append(key, formData[key]);
+      }
+    });
+
+    if (selectedFile) {
+      submissionData.append('photo', selectedFile);
     }
 
     if (isEditMode) {
-      onEditEmployee(employeeData);
+      onEditEmployee(initialData._id, submissionData);
     } else {
-      onAddEmployee(employeeData);
+      onAddEmployee(submissionData);
     }
     onClose();
   }
@@ -361,18 +385,20 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEm
               id="employee-photo-upload"
               className="hidden"
               accept="image/*"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  console.log("File selected:", e.target.files[0].name);
-                }
-              }}
+              onChange={handleFileChange}
             />
             <label
               htmlFor="employee-photo-upload"
-              className={`w-32 h-32 rounded-full border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors ${isDarkMode ? 'border-white/20 hover:bg-white/5' : 'border-gray-300'}`}
+              className={`w-32 h-32 rounded-full border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors overflow-hidden ${isDarkMode ? 'border-white/20 hover:bg-white/5' : 'border-gray-300'}`}
             >
-              <Upload size={24} className="text-gray-400 mb-1" />
-              <span className={`text-[13px] font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Upload</span>
+              {previewUrl ? (
+                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+              ) : (
+                <>
+                  <Upload size={24} className="text-gray-400 mb-1" />
+                  <span className={`text-[13px] font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Upload</span>
+                </>
+              )}
             </label>
           </div>
 
@@ -438,11 +464,11 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEm
               <label className={`block text-[13px] font-bold mb-3 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Marital Status</label>
               <div className="flex gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('marital', 'Single')} checked={formData.marital === 'Single'} />
+                  <input type="radio" name="maritalStatus" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('maritalStatus', 'Single')} checked={formData.maritalStatus === 'Single'} />
                   <span className={`text-[14px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Single</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('marital', 'Married')} checked={formData.marital === 'Married'} />
+                  <input type="radio" name="maritalStatus" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('maritalStatus', 'Married')} checked={formData.maritalStatus === 'Married'} />
                   <span className={`text-[14px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Married</span>
                 </label>
               </div>
@@ -453,18 +479,20 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEm
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Birth Date*</label>
-              <CustomDatePicker
+              <input
+                type="date"
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
                 value={formData.birthDate}
-                onChange={(date) => handleChange('birthDate', date)}
-                isDarkMode={isDarkMode}
+                onChange={(e) => handleChange('birthDate', e.target.value)}
               />
             </div>
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Anniversary Date</label>
-              <CustomDatePicker
+              <input
+                type="date"
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
                 value={formData.anniversaryDate}
-                onChange={(date) => handleChange('anniversaryDate', date)}
-                isDarkMode={isDarkMode}
+                onChange={(e) => handleChange('anniversaryDate', e.target.value)}
               />
             </div>
             <div>
@@ -499,7 +527,8 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEm
               label="Gym Activities"
               options={['Gym', 'Cardio', 'Zumba', 'Yoga', 'Crossfit']}
               value={formData.gymActivities}
-              onChange={(val) => handleChange('gymActivities', val)}
+              onChange={(val) => handleMultiChange('gymActivities', val)}
+              isMulti={true}
               isDarkMode={isDarkMode}
               placeholder="Gym Services"
             />
@@ -629,34 +658,97 @@ const Employees = () => {
   const { isDarkMode } = useOutletContext();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null); // Used for editing
   const [notification, setNotification] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // States for interactive table
   const [activeActionRow, setActiveActionRow] = useState(null);
-  const [employees, setEmployees] = useState([
-    { id: '492360', name: 'PARI PANDYA', mobile: '9586638773', activities: '', role: 'Trainer,Receptionist,Sales consultant', active: true },
-    { id: '491419', name: 'V10 FITNESS LAB', mobile: '8347008511', activities: '', role: 'Trainer', active: true },
-    { id: '489895', name: 'ANJALI KANWAR', mobile: '9824060468', activities: '', role: 'Trainer,Receptionist,Sales consultant', active: true },
-    { id: '489291', name: 'Abdulla Pathan', mobile: '8320350506', activities: '', role: 'Gym owner,Trainer,Sales consultant', active: true },
-  ]);
+  const [employees, setEmployees] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Delete State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
-  const handleAddEmployee = (newEmployee) => {
-    const id = String(Math.floor(Math.random() * 900000) + 100000);
-    setEmployees(prev => [...prev, { ...newEmployee, id }]);
-    setNotification('Employee Added successfully');
+  const fetchEmployees = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees?pageNumber=${page}&pageSize=${rowsPerPage}&keyword=${searchQuery}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEmployees(data.employees);
+        setTotalPages(data.pages);
+        setTotalItems(data.total);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [page, rowsPerPage, searchQuery]);
+
+  const handleAddEmployee = async (employeeData) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: employeeData
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotification('Employee Added successfully');
+        fetchEmployees();
+      } else {
+        alert(data.message || 'Error adding employee');
+      }
+    } catch (error) {
+      console.error('Error adding employee:', error);
+    }
   }
 
-  const handleUpdateEmployee = (updatedData) => {
-    setEmployees(prev => prev.map(emp => emp.id === selectedEmployee.id ? { ...emp, ...updatedData } : emp));
-    setNotification('Edit Successfully');
-    setSelectedEmployee(null);
+  const handleUpdateEmployee = async (id, updatedData) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: updatedData
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotification('Edit Successfully');
+        setSelectedEmployee(null);
+        fetchEmployees();
+      } else {
+        alert(data.message || 'Error updating employee');
+      }
+    } catch (error) {
+      console.error('Error updating employee:', error);
+    }
   }
 
   const handleDeleteClick = (id) => {
@@ -664,11 +756,27 @@ const Employees = () => {
     setIsDeleteModalOpen(true);
   }
 
-  const handleConfirmDelete = () => {
-    setEmployees(prev => prev.filter(emp => emp.id !== deleteId));
-    setNotification('Employee Deleted successfully');
-    setIsDeleteModalOpen(false);
-    setDeleteId(null);
+  const handleConfirmDelete = async (newTrainerId) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees/${deleteId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ newTrainerId })
+      });
+      if (res.ok) {
+        setNotification('Employee Deleted successfully');
+        setIsDeleteModalOpen(false);
+        setDeleteId(null);
+        fetchEmployees();
+      }
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+    }
   }
 
   const actionRef = useRef({});
@@ -690,11 +798,23 @@ const Employees = () => {
     };
   }, [activeActionRow]);
 
-  const toggleStatus = (id) => {
-    setEmployees(employees.map(emp =>
-      emp.id === id ? { ...emp, active: !emp.active } : emp
-    ));
-    setNotification('Employee Status Updated Successfully.');
+  const toggleStatus = async (id) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees/${id}/toggle`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setNotification('Employee Status Updated Successfully.');
+        fetchEmployees();
+      }
+    } catch (error) {
+      console.error('Error toggling status:', error);
+    }
   };
 
   return (
@@ -712,7 +832,10 @@ const Employees = () => {
       <div className="flex justify-between items-center transition-none">
         <h1 className="text-[28px] font-black tracking-tight">Employee Management</h1>
         <button
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => {
+            setSelectedEmployee(null);
+            setIsAddModalOpen(true);
+          }}
           className="bg-[#f97316] text-white px-6 py-2.5 rounded-lg flex items-center gap-2 text-[15px] font-bold shadow-md active:scale-95 transition-none"
         >
           <Plus size={20} />
@@ -762,17 +885,32 @@ const Employees = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-[rgba(0,0,0,0.8)]'}`}>
-              {employees.slice(0, rowsPerPage).map((emp, idx) => (
-                <tr key={emp.id} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-8">{emp.id}</td>
-                  <td className="px-6 py-8 uppercase">{emp.name}</td>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="7" className="px-6 py-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-gray-400 font-medium">Loading employees...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : employees.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="px-6 py-20 text-center text-gray-400 font-medium">
+                    No employees found
+                  </td>
+                </tr>
+              ) : employees.map((emp, idx) => (
+                <tr key={emp._id} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                  <td className="px-6 py-8">{emp.employeeId}</td>
+                  <td className="px-6 py-8 uppercase">{emp.firstName} {emp.lastName}</td>
                   <td className="px-6 py-8">{emp.mobile}</td>
-                  <td className="px-6 py-8">{emp.activities}</td>
-                  <td className="px-6 py-8">{emp.role}</td>
+                  <td className="px-6 py-8">{emp.gymActivities?.join(', ')}</td>
+                  <td className="px-6 py-8">{emp.gymRole?.join(', ')}</td>
                   <td className="px-6 py-8">
                     <div className="flex items-center">
                       <div
-                        onClick={() => toggleStatus(emp.id)}
+                        onClick={() => toggleStatus(emp._id)}
                         className={`relative w-[50px] h-[24px] rounded-full flex items-center px-1 border cursor-pointer transition-colors ${emp.active
                           ? 'bg-[#10b981] border-black/10'
                           : 'bg-[#64748b] border-black/10'
@@ -794,17 +932,17 @@ const Employees = () => {
                     {/* Action Menu Popup */}
                     {activeActionRow === idx && (
                       <div className={`absolute right-0 w-[180px] rounded-xl shadow-2xl border z-[100] overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'
-                        } ${idx >= employees.slice(0, rowsPerPage).length - 2 ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
+                        } ${idx >= employees.length - 2 ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
                         <div className="py-2">
-                          {['Edit', 'Delete', 'Add to Essl', 'UnBlock from Essl'].map((action, i) => (
+                          {['Edit', 'Delete'].map((action, i) => (
                             <div
                               key={i}
                               onClick={() => {
                                 if (action === 'Edit') {
                                   setSelectedEmployee(emp);
-                                  setIsAddModalOpen(true); // Open Add Modal in Edit Mode
+                                  setIsAddModalOpen(true);
                                 } else if (action === 'Delete') {
-                                  handleDeleteClick(emp.id);
+                                  handleDeleteClick(emp._id);
                                 }
                                 setActiveActionRow(null);
                               }}
@@ -829,9 +967,31 @@ const Employees = () => {
         {/* Pagination */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100'}`}>
           <div className="flex flex-wrap items-center gap-2">
-            <button className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[12px] font-bold bg-[#f97316] text-white shadow-md transition-none">1</button>
-            <button className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>Next »</button>
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
+            >
+              « Previous
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`w-10 h-10 border rounded-lg text-[12px] font-bold transition-none ${p === page ? 'bg-[#f97316] text-white shadow-md' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm')}`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">
@@ -863,6 +1023,8 @@ const Employees = () => {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDelete}
         isDarkMode={isDarkMode}
+        employees={employees}
+        selectedEmployeeId={deleteId}
       />
     </div>
   );

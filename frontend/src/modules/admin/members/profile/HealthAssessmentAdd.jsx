@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useOutletContext, useNavigate, useSearchParams } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Info } from 'lucide-react';
 
 const RadioGroup = ({ label, options, name, value, onChange, isDarkMode }) => (
@@ -36,10 +36,8 @@ const RadioGroup = ({ label, options, name, value, onChange, isDarkMode }) => (
 );
 
 const HealthAssessmentAdd = () => {
-    const { isDarkMode, memberName, memberId } = useOutletContext();
+    const { isDarkMode, memberName, id } = useOutletContext();
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const id = searchParams.get('id');
 
     const [formData, setFormData] = useState({
         overallHealth: '',

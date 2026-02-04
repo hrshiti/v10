@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { useOutletContext } from 'react-router-dom';
+import { Calendar, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 
 const CustomDatePicker = ({ value, onChange, placeholder, isDarkMode }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -106,29 +107,117 @@ const CustomDatePicker = ({ value, onChange, placeholder, isDarkMode }) => {
 const EditProfile = () => {
     const context = useOutletContext();
     const isDarkMode = context?.isDarkMode || false;
-    const { memberData, memberName, memberId, memberMobile } = context || {};
-    const [searchParams] = useSearchParams();
-    const id = searchParams.get('id');
+    const { memberData, memberName, id, memberMobile, isLoading, refreshProfile } = context || {};
 
-    // Form State
+    const [isSaving, setIsSaving] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
     const [formData, setFormData] = useState({
-        name: memberName || '',
-        mobile: memberMobile || '',
-        email: memberData?.email || '',
-        clientId: memberId || '',
-        emergencyName: memberData?.emergency_contact_name || '-',
-        emergencyNumber: memberData?.emergency_contact_number || '-',
-        gender: memberData?.gender || 'Male',
-        maritalStatus: memberData?.marital_status || 'Single',
-        birthDate: memberData?.dob || '',
-        anniversaryDate: memberData?.anniversary_date || '',
-        address: memberData?.address || ''
+        name: '',
+        mobile: '',
+        email: '',
+        clientId: '',
+        emergencyName: '',
+        emergencyNumber: '',
+        gender: 'Male',
+        maritalStatus: 'Single',
+        birthDate: '',
+        anniversaryDate: '',
+        address: ''
     });
+
+    useEffect(() => {
+        if (memberData) {
+            setFormData({
+                name: `${memberData.firstName || ''} ${memberData.lastName || ''}`.trim(),
+                mobile: memberData.mobile || '',
+                email: memberData.email || '',
+                clientId: memberData.memberId || id || '',
+                emergencyName: memberData.emergencyContact?.name || '',
+                emergencyNumber: memberData.emergencyContact?.number || '',
+                gender: memberData.gender || 'Male',
+                maritalStatus: memberData.maritalStatus || 'Single',
+                birthDate: memberData.dob ? new Date(memberData.dob).toLocaleDateString('en-GB').replace(/\//g, '-') : '',
+                anniversaryDate: memberData.anniversaryDate ? new Date(memberData.anniversaryDate).toLocaleDateString('en-GB').replace(/\//g, '-') : '',
+                address: memberData.address || ''
+            });
+        }
+    }, [memberData, id]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
+
+    const handleSubmit = async () => {
+        if (!formData.name || !formData.mobile) {
+            alert('Name and Mobile Number are required');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            if (!token) return;
+
+            const nameParts = formData.name.split(' ');
+            const firstName = nameParts[0];
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            // Handle Birth Date Parsing
+            let dob = null;
+            if (formData.birthDate) {
+                const parts = formData.birthDate.split('-');
+                dob = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            }
+
+            const payload = {
+                firstName,
+                lastName,
+                mobile: formData.mobile,
+                email: formData.email,
+                gender: formData.gender,
+                dob: dob,
+                address: formData.address,
+                emergencyContact: {
+                    name: formData.emergencyName,
+                    number: formData.emergencyNumber
+                }
+            };
+
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                setShowSuccess(true);
+                refreshProfile(); // Trigger re-fetch in layout
+                setTimeout(() => setShowSuccess(false), 3000);
+            } else {
+                const err = await res.json();
+                alert(err.message || 'Failed to update profile');
+            }
+        } catch (error) {
+            console.error('Error updating member:', error);
+            alert('Error updating member');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                <div className="w-12 h-12 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin"></div>
+                <p className={`text-lg font-bold animate-pulse ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading Profile Data...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-in fade-in zoom-in duration-300">
@@ -314,7 +403,40 @@ const EditProfile = () => {
                     </div>
 
                 </div>
+
+                {/* Submit Button */}
+                <div className="mt-10 flex justify-end">
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isSaving}
+                        className={`px-10 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-xl shadow-lg shadow-orange-500/30 transition-all active:scale-95 flex items-center gap-3 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                        {isSaving ? (
+                            <>
+                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Saving Changes...
+                            </>
+                        ) : (
+                            'Save Changes'
+                        )}
+                    </button>
+                </div>
             </div>
+
+            {/* Success Notification */}
+            {showSuccess && (
+                <div className="fixed bottom-10 right-10 z-[100] animate-in slide-in-from-bottom-5 duration-300">
+                    <div className="bg-green-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border-2 border-green-400/50 backdrop-blur-md">
+                        <div className="bg-white/20 p-2 rounded-full">
+                            <CheckCircle2 size={24} />
+                        </div>
+                        <div>
+                            <p className="font-black text-[15px]">Profile Updated!</p>
+                            <p className="text-white/80 text-xs font-bold uppercase tracking-wider">Member details saved successfully</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

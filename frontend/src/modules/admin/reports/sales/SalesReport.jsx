@@ -11,6 +11,7 @@ import {
   Banknote,
   DollarSign
 } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 import { useOutletContext } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
@@ -75,6 +76,44 @@ const SalesReport = () => {
   const [isRowsPerPageOpen, setIsRowsPerPageOpen] = useState(false);
   const rowsPerPageRef = useRef(null);
 
+  const [trainers, setTrainers] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const token = adminInfo?.token;
+        if (!token) return;
+
+        const [trainerRes, empRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch(`${API_BASE_URL}/api/admin/employees`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+
+        if (trainerRes.ok) {
+          const data = await trainerRes.json();
+          setTrainers(data.map(t => `${t.firstName} ${t.lastName}`));
+        }
+
+        if (empRes.ok) {
+          const data = await empRes.json();
+          // Assuming employees api returns { employees: [...] } or [...]
+          const empList = Array.isArray(data) ? data : (data.employees || []);
+          setEmployees(empList.map(e => `${e.firstName} ${e.lastName}`));
+        }
+
+      } catch (error) {
+        console.error("Error fetching filter data:", error);
+      }
+    };
+    fetchDropdownData();
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (rowsPerPageRef.current && !rowsPerPageRef.current.contains(event.target)) {
@@ -89,58 +128,99 @@ const SalesReport = () => {
     'Select Tax Type': ['Without GST', 'With GST'],
     'Select Membership Type': ['General Training', 'Personal Training', 'Group Ex'],
     'Select Sale Type': ['New Sale', 'Renewal', 'Upgrade'],
-    'Select Trainer': ['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'],
-    'Select Closed By': ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'],
-    'Select Handled By': ['Abdulla Pathan', 'Admin'],
+    'Select Trainer': trainers.length > 0 ? trainers : ['No Trainers Found'],
+    'Select Closed By': employees.length > 0 ? employees : ['No Employees Found'],
+    'Select Handled By': employees.length > 0 ? employees : ['No Employees Found'],
     'Payment Mode': ['Cash', 'UPI', 'Google Pay', 'Card', 'Cheque'],
   };
 
-  const stats = [
-    { label: 'Invoice Generated', value: '1' },
-    { label: 'Total Amount', value: '5000.00' },
-    { label: 'Paid Amount', value: '5000.00' },
-    { label: 'Paid Balance Amount', value: '0.00' },
-    { label: 'Tax Amount', value: '0.00' },
-    { label: 'Online', value: '5000.00' },
-    { label: 'Wallet', value: '0.00' },
-    { label: 'Cash', value: '0.00' },
-    { label: 'Cheque', value: '0.00' },
-    { label: 'Other', value: '0.00' },
-  ];
+  const [salesData, setSalesData] = useState([]);
+  const [stats, setStats] = useState({
+    invoiceCount: 0,
+    totalAmount: 0,
+    onlineTotal: 0,
+    cashTotal: 0,
+    taxAmount: 0
+  });
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const salesData = [
-    {
-      cId: '550',
-      name: 'Adititya singh',
-      number: '9558110436',
-      mType: 'General Training',
-      pName: 'GYM WORKOUT',
-      sDate: '18-05-2002',
-      duration: '12 Months',
-      invNo: 'V10FL/2025-26/512',
-      paid: '5000.00',
-      sgst: '0.00',
-      cgst: '0.00',
-      pMode: 'Google Pay',
-      invAmt: '5000.00',
-      discount: '4000.00',
-      bal: '0.00',
-      closedBy: 'Abdulla Pathan',
-      handledBy: 'Abdulla Pathan',
-      closeDate: '01-02-2026',
-      pDate: '01-02-2026',
-      trainer: 'Abdulla Pathan',
-      saleType: 'Resale Payment'
+  // Fetch Sales Data
+  const fetchSalesData = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const queryParams = new URLSearchParams({
+        pageNumber: currentPage,
+        pageSize: rowsPerPage,
+        fromDate: fromDate?.split('-').reverse().join('-') || '', // Convert DD-MM-YYYY to YYYY-MM-DD
+        toDate: toDate?.split('-').reverse().join('-') || '',
+        search: searchQuery,
+      });
+
+      // Add dynamic filters
+      if (filterValues['Select Sale Type']) queryParams.append('type', filterValues['Select Sale Type']);
+      if (filterValues['Payment Mode']) queryParams.append('paymentMode', filterValues['Payment Mode']);
+
+      // Handle ID based filters if we had IDs, currently using names so might need adjustment or rely on backend search
+      // Ideally UI should store ID in filterValues, here assuming filterValues stores name strings as per current UI
+      // TODO: Update Filter Dropdowns to store IDs to pass to backend for more accuracy
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/sales?${queryParams.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      setSalesData(data.sales || []);
+      setStats(data.stats || {});
+      setTotalPages(data.pages || 1);
+
+    } catch (error) {
+      console.error("Error fetching sales report:", error);
+    } finally {
+      setIsLoading(false);
     }
-  ];
-
-  const toggleFilter = (label) => {
-    setActiveFilter(activeFilter === label ? null : label);
   };
 
-  const handleFilterSelect = (label, val) => {
-    setFilterValues({ ...filterValues, [label]: val });
-    setActiveFilter(null);
+  useEffect(() => {
+    fetchSalesData();
+  }, [currentPage, rowsPerPage]); // Fetch on page change
+
+  const handleApplyFilters = () => {
+    setCurrentPage(1);
+    fetchSalesData();
+  };
+
+  const handleClearFilters = () => {
+    setFilterValues({});
+    setSearchQuery('');
+    setFromDate('01-02-2026'); // Reset to default or today
+    setToDate('01-02-2026');
+    setCurrentPage(1);
+    setTimeout(fetchSalesData, 100);
+  };
+
+  const statCards = [
+    { label: 'Invoice Generated', value: stats.invoiceCount || 0 },
+    { label: 'Total Amount', value: `₹${stats.totalAmount?.toFixed(2) || '0.00'}` },
+    { label: 'Paid Amount', value: `₹${stats.totalAmount?.toFixed(2) || '0.00'}` }, // Assuming totalAmount is paid amount for now
+    { label: 'Tax Amount', value: `₹${stats.taxAmount?.toFixed(2) || '0.00'}` },
+    { label: 'Online', value: `₹${stats.onlineTotal?.toFixed(2) || '0.00'}` },
+    { label: 'Cash', value: `₹${stats.cashTotal?.toFixed(2) || '0.00'}` },
+  ];
+
+  const salesTypeRender = (type) => {
+    let color = 'text-gray-600';
+    if (type === 'New Membership' || type === 'New Sale') color = 'text-green-600';
+    if (type === 'Renewal') color = 'text-blue-600';
+    if (type === 'Upgrade') color = 'text-purple-600';
+    return <span className={color}>{type}</span>;
   };
 
   return (
@@ -149,8 +229,8 @@ const SalesReport = () => {
       <h1 className="text-[28px] font-black tracking-tight">Sales Report</h1>
 
       {/* Stats Cards Grid - Matching Image 1 */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 transition-none">
-        {stats.map((stat, idx) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 transition-none">
+        {statCards.map((stat, idx) => (
           <div key={idx} className={`p-4 rounded-lg flex items-center gap-4 border transition-none min-h-[90px] ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-[#fcfcfc] border-gray-100 shadow-sm'}`}>
             <div className={`p-3 rounded-lg bg-gray-100/50 dark:bg-white/5`}>
               <Wallet size={24} className="text-gray-300" />
@@ -194,8 +274,8 @@ const SalesReport = () => {
             />
           ))}
 
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Apply</button>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Clear</button>
+          <button onClick={handleApplyFilters} className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Apply</button>
+          <button onClick={handleClearFilters} className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Clear</button>
         </div>
 
         <div className="flex justify-between items-center pt-2 transition-none">
@@ -203,7 +283,7 @@ const SalesReport = () => {
             <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search"
+              placeholder="Search Invoice or Name"
               className={`w-full pl-12 pr-4 py-3 border rounded-lg text-[15px] font-bold shadow-sm outline-none transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#fcfcfc] border-gray-200 text-black placeholder:text-gray-400'}`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -226,8 +306,8 @@ const SalesReport = () => {
             Sales Report
           </span>
           <div className="flex items-center gap-3">
-            <ChevronLeft size={20} className="text-gray-400 cursor-pointer hover:text-gray-800" />
-            <ChevronRight size={20} className="text-gray-400 cursor-pointer hover:text-gray-800" />
+            {/* Pagination Arrows */}
+            {totalPages > 1 && <span className="text-xs text-gray-400">Page {currentPage} of {totalPages}</span>}
           </div>
         </div>
 
@@ -259,47 +339,55 @@ const SalesReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {salesData.slice(0, rowsPerPage).map((row, idx) => (
-                <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-8">{row.cId}</td>
-                  <td className="px-6 py-8">
-                    <div className="flex flex-col">
-                      <span className="text-[#3b82f6] uppercase font-black cursor-pointer hover:underline">{row.name}</span>
-                      <span className="text-[#3b82f6] text-[12px] mt-0.5">{row.number}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-8">
-                    <div className="px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-orange-600 text-[13px] font-black inline-block">
-                      {row.mType}
-                    </div>
-                  </td>
-                  <td className="px-6 py-8">
-                    <div className="px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-orange-600 text-[13px] font-black inline-block">
-                      {row.pName}
-                    </div>
-                  </td>
-                  <td className="px-6 py-8">{row.sDate}</td>
-                  <td className="px-6 py-8 text-center">{row.duration}</td>
-                  <td className="px-6 py-8 text-blue-500 font-black cursor-pointer hover:underline">{row.invNo}</td>
-                  <td className="px-6 py-8 font-black">₹{row.paid}</td>
-                  <td className="px-6 py-8 font-black">₹{row.sgst}</td>
-                  <td className="px-6 py-8 font-black">₹{row.cgst}</td>
-                  <td className="px-6 py-8 text-center">{row.pMode}</td>
-                  <td className="px-6 py-8 font-black">₹{row.invAmt}</td>
-                  <td className="px-6 py-8 font-black">₹{row.discount}</td>
-                  <td className="px-6 py-8 font-black text-red-500">₹{row.bal}</td>
-                  <td className="px-6 py-8">
-                    <div className="flex flex-col">
-                      <span>{row.closedBy}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-8 text-center">{row.handledBy}</td>
-                  <td className="px-6 py-8">{row.closeDate}</td>
-                  <td className="px-6 py-8">{row.pDate}</td>
-                  <td className="px-6 py-8">{row.trainer}</td>
-                  <td className="px-6 py-8 text-gray-500">{row.saleType}</td>
-                </tr>
-              ))}
+              {isLoading ? (
+                <tr><td colSpan="20" className="text-center py-10">Loading...</td></tr>
+              ) : salesData.length === 0 ? (
+                <tr><td colSpan="20" className="text-center py-10">No sales records found</td></tr>
+              ) : (
+                salesData.map((row, idx) => (
+                  <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                    <td className="px-6 py-8">{row.memberId?.memberId || 'N/A'}</td>
+                    <td className="px-6 py-8">
+                      <div className="flex flex-col">
+                        <span className="text-[#3b82f6] uppercase font-black cursor-pointer hover:underline">
+                          {row.memberId?.firstName} {row.memberId?.lastName}
+                        </span>
+                        <span className="text-[#3b82f6] text-[12px] mt-0.5">{row.memberId?.mobile}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-8">
+                      <div className="px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-orange-600 text-[13px] font-black inline-block">
+                        {row.type?.includes('PT') ? 'Personal Training' : 'General Training'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-8">
+                      <div className="px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-orange-600 text-[13px] font-black inline-block">
+                        {row.memberId?.packageName || row.description}
+                      </div>
+                    </td>
+                    <td className="px-6 py-8">{row.memberId?.startDate ? new Date(row.memberId.startDate).toLocaleDateString() : '-'}</td>
+                    <td className="px-6 py-8 text-center">{row.memberId?.durationMonths || 0} Months</td>
+                    <td className="px-6 py-8 text-blue-500 font-black cursor-pointer hover:underline">{row.invoiceNumber}</td>
+                    <td className="px-6 py-8 font-black">₹{row.amount}</td>
+                    <td className="px-6 py-8 font-black">₹{(row.taxAmount / 2).toFixed(2)}</td>
+                    <td className="px-6 py-8 font-black">₹{(row.taxAmount / 2).toFixed(2)}</td>
+                    <td className="px-6 py-8 text-center">{row.paymentMode}</td>
+                    <td className="px-6 py-8 font-black">₹{row.subTotal || row.amount}</td>
+                    <td className="px-6 py-8 font-black">₹{row.discountAmount || 0}</td>
+                    <td className="px-6 py-8 font-black text-red-500">₹0</td> {/* Assuming balance handled in dues report */}
+                    <td className="px-6 py-8">
+                      <div className="flex flex-col">
+                        <span>{row.closedBy?.firstName} {row.closedBy?.lastName}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-8 text-center">{row.trainerId?.firstName} {row.trainerId?.lastName}</td>
+                    <td className="px-6 py-8">{new Date(row.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-8">{new Date(row.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-8">{row.trainerId?.firstName} {row.trainerId?.lastName}</td>
+                    <td className="px-6 py-8 text-gray-500">{salesTypeRender(row.type)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

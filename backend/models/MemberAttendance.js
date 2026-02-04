@@ -6,6 +6,7 @@ const memberAttendanceSchema = new mongoose.Schema({
     checkIn: { type: Date, default: Date.now },
     checkOut: { type: Date },
     status: { type: String, enum: ['Present', 'Absent'], default: 'Present' },
+    trainingType: { type: String, enum: ['General', 'Personal'], default: 'General' },
     method: { type: String, enum: ['QR', 'Manual'], default: 'QR' }
 }, { timestamps: true });
 

@@ -8,11 +8,13 @@ const {
     getMyFeedbacks
 } = require('../../controllers/admin/feedbackController');
 
+const { protect } = require('../../middlewares/authMiddleware');
+
 // Admin Routes
-router.get('/', getFeedbacks);
-router.get('/stats', getFeedbackStats);
-router.put('/:id/reply', replyToFeedback);
-router.get('/user/:userId', getMyFeedbacks);
+router.get('/', protect, getFeedbacks);
+router.get('/stats', protect, getFeedbackStats);
+router.put('/:id/reply', protect, replyToFeedback);
+router.get('/user/:userId', protect, getMyFeedbacks);
 
 // Public/User Route (To submit)
 router.post('/submit', createFeedback);

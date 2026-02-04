@@ -69,6 +69,7 @@ const scanQRCode = asyncHandler(async (req, res) => {
         date: new Date(),
         checkIn: new Date(),
         status: 'Present',
+        trainingType: 'General', // Default to general via scan
         method: 'QR'
     });
 
@@ -86,11 +87,23 @@ const scanQRCode = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/members/attendance
 // @access  Private/Admin
 const getMemberAttendanceLogs = asyncHandler(async (req, res) => {
-    const { startDate, endDate, memberId } = req.query;
+    const { startDate, endDate, memberId, trainingType } = req.query;
     let query = {};
 
     if (memberId) {
         query.memberId = memberId;
+    }
+
+    if (trainingType) {
+        if (trainingType === 'General') {
+            // Include logs that explicitly have 'General' or have NO trainingType (legacy logs)
+            query.$or = [
+                { trainingType: 'General' },
+                { trainingType: { $exists: false } }
+            ];
+        } else {
+            query.trainingType = trainingType;
+        }
     }
 
     if (startDate && endDate) {
@@ -99,6 +112,7 @@ const getMemberAttendanceLogs = asyncHandler(async (req, res) => {
             $lte: new Date(endDate)
         };
     }
+
 
     const logs = await MemberAttendance.find(query)
         .populate('memberId', 'firstName lastName memberId mobile')

@@ -21,6 +21,7 @@ import {
   Check
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import { API_BASE_URL } from '../../../config/api';
 import AddEnquiryModal from './AddEnquiryModal';
 import CloseEnquiryModal from './CloseEnquiryModal';
 import CallNotConnectedModal from './CallNotConnectedModal';
@@ -82,7 +83,7 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
 
 const Enquiries = () => {
   const { isDarkMode } = useOutletContext();
-  const [currentPage, setCurrentPage] = useState(2);
+  const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -107,32 +108,77 @@ const Enquiries = () => {
   // States for filter dropdowns logic
   const [activeFilter, setActiveFilter] = useState(null);
   const [filterValues, setFilterValues] = useState({});
+  // API States
+  const [employeesList, setEmployeesList] = useState([]);
+  const [trainersList, setTrainersList] = useState([]);
+
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const token = adminInfo?.token;
+        if (!token) return;
+
+        const [empRes, trainerRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/admin/employees`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+
+        if (empRes.ok) {
+          const data = await empRes.json();
+          // specific check for employees array structure if needed, usually it returns { employees: [...] } or [...]
+          const list = Array.isArray(data) ? data : (data.employees || []);
+          setEmployeesList(list.map(e => `${e.firstName} ${e.lastName}`));
+        }
+
+        if (trainerRes.ok) {
+          const data = await trainerRes.json();
+          setTrainersList(data.map(t => `${t.firstName} ${t.lastName}`));
+        }
+      } catch (error) {
+        console.error("Error fetching dropdown data:", error);
+      }
+    };
+    fetchDropdownData();
+  }, []);
+
   const filterOptions = {
-    'Handle by': ['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'],
+    'Handle by': employeesList.length > 0 ? employeesList : ['No Employees Found'],
     'Lead Type': ['Hot', 'Warm', 'Cold'],
     'Trial Booked': ['Yes', 'No', 'Clear'],
     'Select gender': ['Male', 'Female'],
     'Follow up': ['Yes', 'No']
   };
 
-  // State for active stat card
+  // API States
+  const [enquiryStats, setEnquiryStats] = useState([]);
+  const [enquiries, setEnquiries] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalEnquiries, setTotalEnquiries] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedStat, setSelectedStat] = useState('');
 
-  const stats = [
-    { label: 'Open Enquiry', value: '743', icon: Users, color: 'bg-blue-600', hover: 'hover:bg-blue-700', active: 'bg-blue-700', ring: 'ring-blue-400' },
-    { label: 'Close Enquiry', value: '477', icon: UserMinus, color: 'bg-purple-600', hover: 'hover:bg-purple-600', active: 'bg-purple-700', ring: 'ring-purple-400' },
-    { label: 'Not Interested', value: '5', icon: UserMinus, color: 'bg-red-500', hover: 'hover:bg-red-500', active: 'bg-red-600', ring: 'ring-red-400' },
-    { label: 'Call Done', value: '1', icon: CheckCircle2, color: 'bg-emerald-500', hover: 'hover:bg-emerald-500', active: 'bg-emerald-600', ring: 'ring-emerald-400' },
-    { label: 'Call Not Connected', value: '0', icon: PhoneOff, color: 'bg-slate-600', hover: 'hover:bg-slate-600', active: 'bg-slate-700', ring: 'ring-slate-400' },
-  ];
-
-  const enquiryData = [
-    { id: '806642', date: '12 Jan, 2026', name: 'DHRUV SHIRESHIYA', mobile: '+918487833955', trial: 'No', handle: 'Abdulla Pathan', type: 'Cold', created: 'Abdulla Pathan' },
-    { id: '806636', date: '12 Jan, 2026', name: 'MAGDUM SHAIKH', mobile: '+918200686685', trial: 'No', handle: 'Abdulla Pathan', type: 'Cold', created: 'Abdulla Pathan' },
-    { id: '806632', date: '12 Jan, 2026', name: 'JAYESH BHAI', mobile: '+919022927826', trial: 'No', handle: 'Abdulla Pathan', type: 'Cold', created: 'Abdulla Pathan' },
-    { id: '806630', date: '12 Jan, 2026', name: 'ATHARV BHAI', mobile: '+919875181649', trial: 'No', handle: 'Abdulla Pathan', type: 'Cold', created: 'Abdulla Pathan' },
-    { id: '806629', date: '12 Jan, 2026', name: 'PAVAN BHAI', mobile: '+919079894819', trial: 'No', handle: 'Abdulla Pathan', type: 'Cold', created: 'Abdulla Pathan' },
-  ];
+  const stats = (enquiryStats.length > 0 ? enquiryStats : [
+    { label: 'Open Enquiry', value: '0' },
+    { label: 'Close Enquiry', value: '0' },
+    { label: 'Not Interested', value: '0' },
+    { label: 'Call Done', value: '0' },
+    { label: 'Call Not Connected', value: '0' },
+  ]).map(s => {
+    const config = {
+      'Open Enquiry': { icon: Users, color: 'bg-blue-600', hover: 'hover:bg-blue-700', active: 'bg-blue-700', ring: 'ring-blue-400' },
+      'Close Enquiry': { icon: UserMinus, color: 'bg-purple-600', hover: 'hover:bg-purple-600', active: 'bg-purple-700', ring: 'ring-purple-400' },
+      'Not Interested': { icon: UserMinus, color: 'bg-red-500', hover: 'hover:bg-red-500', active: 'bg-red-600', ring: 'ring-red-400' },
+      'Call Done': { icon: CheckCircle2, color: 'bg-emerald-500', hover: 'hover:bg-emerald-500', active: 'bg-emerald-600', ring: 'ring-emerald-400' },
+      'Call Not Connected': { icon: PhoneOff, color: 'bg-slate-600', hover: 'hover:bg-slate-600', active: 'bg-slate-700', ring: 'ring-slate-400' }
+    };
+    return { ...s, ...(config[s.label] || config['Open Enquiry']) };
+  });
 
   const toggleFilter = (label) => {
     if (activeFilter === label) {
@@ -144,14 +190,14 @@ const Enquiries = () => {
 
   const [isAssignTrainerOpen, setIsAssignTrainerOpen] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState('');
-  const trainerOptions = ['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'];
+  // Use fetched trainers list or fallback
+  const trainerOptions = trainersList.length > 0 ? trainersList : ['No Trainers Found'];
   const assignTrainerRef = useRef(null);
 
   const handleFilterSelect = (label, value) => {
     setFilterValues(prev => ({ ...prev, [label]: value }));
     setActiveFilter(null);
   };
-
   // Close dropdowns on click outside logic
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -178,7 +224,67 @@ const Enquiries = () => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [activeActionRow]); // Re-bind when activeActionRow changes to ensure closure is correct if needed, though ref should be stable
+  }, [activeActionRow]);
+
+
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      // Fetch Stats
+      const statsRes = await fetch(`${API_BASE_URL}/api/admin/enquiries/stats`, { headers });
+      const sData = await statsRes.json();
+      setEnquiryStats(sData);
+
+      // Fetch Enquiries
+      const query = new URLSearchParams({
+        pageNumber: currentPage,
+        pageSize: rowsPerPage,
+        keyword: searchQuery || ''
+      });
+
+      // Map stat label to DB status
+      if (selectedStat) {
+        let status = selectedStat;
+        if (selectedStat === 'Open Enquiry') status = 'Open';
+        if (selectedStat === 'Close Enquiry') status = 'Closed';
+        query.append('status', status);
+      }
+
+      // Add dropdown filters
+      if (filterValues['Lead Type']) query.append('leadType', filterValues['Lead Type']);
+      if (filterValues['Select gender']) query.append('gender', filterValues['Select gender']);
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/enquiries?${query.toString()}`, { headers });
+      const mData = await res.json();
+      setEnquiries(mData.enquiries);
+      setTotalPages(mData.pages);
+      setTotalEnquiries(mData.total);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [currentPage, rowsPerPage, selectedStat, filterValues]);
+
+
+  const handleSearch = () => {
+    if (currentPage === 1) {
+      fetchData();
+    } else {
+      setCurrentPage(1);
+    }
+  };
 
   // Handle Action Row Toggle
   const toggleActionRow = (idx) => {
@@ -186,23 +292,127 @@ const Enquiries = () => {
     else setActiveActionRow(idx);
   }
 
+  const updateEnquiryStatus = async (id, status) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/enquiries/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (response.ok) {
+        setToastMessage(`Status updated to ${status}`);
+        setShowToast(true);
+        fetchData();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Error updating status');
+    }
+  };
+
+  const handleAddFollowUp = async (followUpData) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      if (!followUpData.type) {
+        alert("Please select follow-up type");
+        return;
+      }
+
+      if (!followUpData.convertibility) {
+        alert("Please select convertibility");
+        return;
+      }
+
+      const dateStr = followUpData.followUpDate;
+      let followUpDate;
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        followUpDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      } else if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts[0].length === 4) {
+          followUpDate = new Date(dateStr);
+        } else {
+          followUpDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        }
+      } else {
+        followUpDate = new Date(dateStr);
+      }
+
+      if (isNaN(followUpDate.getTime())) {
+        alert("Invalid follow-up date format. Please use dd/mm/yyyy");
+        return;
+      }
+
+      const payload = {
+        name: `${selectedEnquiry.firstName} ${selectedEnquiry.lastName}`,
+        number: selectedEnquiry.mobile,
+        type: followUpData.type,
+        dateTime: followUpDate,
+        status: followUpData.convertibility,
+        comment: followUpData.comments,
+        enquiryId: selectedEnquiry._id,
+        handledBy: followUpData.trainerId || undefined, // Use undefined instead of empty string
+        createdBy: 'Admin'
+      };
+
+      console.log('Follow-up Payload:', payload);
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/follow-ups`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        setToastMessage("Follow up added successfully");
+        setShowToast(true);
+        setIsFollowUpModalOpen(false);
+        fetchData();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to add follow up');
+      }
+    } catch (error) {
+      console.error('Error adding follow up:', error);
+      alert('Error adding follow up');
+    }
+  };
+
   // Auto-Close Action Menu on Selection
   const handleActionSelect = (action, row) => {
     setSelectedEnquiry(row);
-    setActiveActionRow(null);
-
     if (action === "Sale Enquiry") {
-      setIsCloseEnquiryModalOpen(true);
+      setIsModalOpen(true);
     } else if (action === "Edit Enquiry") {
       setIsModalOpen(true);
     } else if (action === "Call Not Connected") {
-      setIsCallNotConnectedModalOpen(true);
+      updateEnquiryStatus(row._id, "Call Not Connected");
     } else if (action === "Schedule Follow Up") {
       setIsFollowUpModalOpen(true);
     } else if (action === "Call Done") {
-      setToastMessage("Status Updated.");
-      setShowToast(true);
+      updateEnquiryStatus(row._id, "Call Done");
+    } else if (action === "Not Interested") {
+      updateEnquiryStatus(row._id, "Not Interested");
     }
+    setActiveActionRow(null); // Close the menu
   };
 
 
@@ -325,9 +535,18 @@ const Enquiries = () => {
           <input
             type="text"
             placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             className={`w-full pl-12 pr-4 py-2.5 border rounded-lg text-[15px] font-bold outline-none transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 text-black placeholder:text-gray-400'}`}
           />
         </div>
+        <button
+          onClick={handleSearch}
+          className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none"
+        >
+          Search
+        </button>
         <button
           onClick={() => setIsReportModalOpen(true)}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-[14px] font-bold border transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 shadow-sm'}`}
@@ -431,65 +650,77 @@ const Enquiries = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-[rgba(0,0,0,0.8)]'}`}>
-              {enquiryData.slice(0, rowsPerPage).map((row, idx) => (
-                <tr key={idx} className={`border-b transition-none relative ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-5"><input type="checkbox" className="w-4 h-4 rounded accent-[#f97316]" /></td>
-                  <td className="px-6 py-5">{row.id}</td>
-                  <td className="px-6 py-5">{row.date}</td>
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col">
-                      <span className="uppercase">{row.name}</span>
-                      <span className="text-gray-500">{row.mobile}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className="bg-[#ef4444] text-white px-3 py-1 rounded text-[11px] font-black uppercase">No</span>
-                  </td>
-                  <td className="px-6 py-5">{row.handle}</td>
-                  <td className="px-6 py-5">
-                    <span className="bg-[#0ea5e9] text-white px-3 py-1 rounded text-[11px] font-black uppercase">Cold</span>
-                  </td>
-                  <td className="px-6 py-5"></td>
-                  <td className="px-6 py-5">{row.created}</td>
-                  <td className="px-6 py-5 relative" ref={el => actionContainerRefs.current[idx] = el}>
-                    <button
-                      onClick={() => toggleActionRow(idx)}
-                      className={`transition-none ${activeActionRow === idx ? 'text-black dark:text-white' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}
-                    >
-                      <MoreVertical size={20} />
-                    </button>
-                    {/* Action Menu attached to this specific row */}
-                    {activeActionRow === idx && (
-                      <div
-                        className={`absolute right-10 top-0 mt-2 w-56 rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}
-                      >
-                        {["Sale Enquiry", "Edit Enquiry", "Not Interested", "Call Done", "Call Not Connected"].map((action, i) => (
-                          <div
-                            key={i}
-                            className={`px-4 py-3 text-[14px] font-medium border-b last:border-0 cursor-pointer ${isDarkMode
-                              ? 'text-gray-300 border-white/5 hover:bg-white/5'
-                              : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
-                              }`}
-                            onClick={() => handleActionSelect(action, row)}
-                          >
-                            {action}
-                          </div>
-                        ))}
-                        <div
-                          className={`px-4 py-3 text-[14px] font-medium cursor-pointer flex items-center gap-2 ${isDarkMode
-                            ? 'text-gray-300 hover:bg-white/5'
-                            : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
-                            }`}
-                          onClick={() => handleActionSelect("Schedule Follow Up", row)}
-                        >
-                          <RefreshCcw size={14} className="" />
-                          Schedule Follow Up
-                        </div>
+              {enquiries.length > 0 ? (
+                enquiries.map((row, idx) => (
+                  <tr key={idx} className={`border-b transition-none relative ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                    <td className="px-6 py-5"><input type="checkbox" className="w-4 h-4 rounded accent-[#f97316]" /></td>
+                    <td className="px-6 py-5">{row.enquiryId}</td>
+                    <td className="px-6 py-5">{new Date(row.createdAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col">
+                        <span className="uppercase">{row.firstName} {row.lastName}</span>
+                        <span className="text-gray-500">{row.mobile}</span>
                       </div>
-                    )}
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className={`${row.trialBooked === 'Yes' ? 'bg-[#10b981]' : 'bg-[#ef4444]'} text-white px-3 py-1 rounded text-[11px] font-black uppercase`}>
+                        {row.trialBooked || 'No'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">{row.handleBy?.firstName || 'Not Assigned'}</td>
+                    <td className="px-6 py-5">
+                      <span className={`${row.leadType === 'Hot' ? 'bg-[#ef4444]' : row.leadType === 'Warm' ? 'bg-[#f97316]' : 'bg-[#0ea5e9]'} text-white px-3 py-1 rounded text-[11px] font-black uppercase`}>
+                        {row.leadType}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">{row.remark || '-'}</td>
+                    <td className="px-6 py-5">{row.createdBy || 'Admin'}</td>
+                    <td className="px-6 py-5 relative" ref={el => actionContainerRefs.current[idx] = el}>
+                      <button
+                        onClick={() => toggleActionRow(idx)}
+                        className={`transition-none ${activeActionRow === idx ? 'text-black dark:text-white' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}
+                      >
+                        <MoreVertical size={20} />
+                      </button>
+                      {/* Action Menu attached to this specific row */}
+                      {activeActionRow === idx && (
+                        <div
+                          className={`absolute right-10 top-0 mt-2 w-56 rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}
+                        >
+                          {["Sale Enquiry", "Edit Enquiry", "Not Interested", "Call Done", "Call Not Connected"].map((action, i) => (
+                            <div
+                              key={i}
+                              className={`px-4 py-3 text-[14px] font-medium border-b last:border-0 cursor-pointer ${isDarkMode
+                                ? 'text-gray-300 border-white/5 hover:bg-white/5'
+                                : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
+                                }`}
+                              onClick={() => handleActionSelect(action, row)}
+                            >
+                              {action}
+                            </div>
+                          ))}
+                          <div
+                            className={`px-4 py-3 text-[14px] font-medium cursor-pointer flex items-center gap-2 ${isDarkMode
+                              ? 'text-gray-300 hover:bg-white/5'
+                              : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                              }`}
+                            onClick={() => handleActionSelect("Schedule Follow Up", row)}
+                          >
+                            <RefreshCcw size={14} className="" />
+                            Schedule Follow Up
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="10" className="px-6 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">
+                    {isLoading ? 'Loading Enquiries...' : 'No Enquiries Found'}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -497,19 +728,29 @@ const Enquiries = () => {
         {/* Pagination */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2">
-            <button className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300'}`}>« Previous</button>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-              <button key={num} className={`w-10 h-10 rounded-lg text-[13px] font-bold transition-none ${num === 2 ? 'bg-[#f97316] text-white shadow-md' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600')}`}>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 disabled:opacity-50'}`}
+            >
+              « Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
+              <button
+                key={num}
+                onClick={() => setCurrentPage(num)}
+                className={`w-10 h-10 rounded-lg text-[13px] font-bold transition-none ${num === currentPage ? 'bg-[#f97316] text-white shadow-md' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600')}`}
+              >
                 {num}
               </button>
             ))}
-            <span className="px-2 text-gray-400">...</span>
-            {[148, 149].map(num => (
-              <button key={num} className={`w-10 h-10 border rounded-lg text-[13px] font-bold shadow-sm transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600'}`}>
-                {num}
-              </button>
-            ))}
-            <button className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300'}`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 disabled:opacity-50'}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-3 transition-none">
@@ -551,6 +792,11 @@ const Enquiries = () => {
           setIsModalOpen(false);
           setSelectedEnquiry(null);
         }}
+        onSuccess={() => {
+          fetchData();
+          setIsModalOpen(false);
+          setSelectedEnquiry(null);
+        }}
         isDarkMode={isDarkMode}
         initialData={selectedEnquiry}
       />
@@ -564,7 +810,10 @@ const Enquiries = () => {
       <CloseEnquiryModal
         isOpen={isCloseEnquiryModalOpen}
         onClose={() => setIsCloseEnquiryModalOpen(false)}
-        onConfirm={() => setIsCloseEnquiryModalOpen(false)}
+        onConfirm={() => {
+          updateEnquiryStatus(selectedEnquiry?._id, "Closed");
+          setIsCloseEnquiryModalOpen(false);
+        }}
         isDarkMode={isDarkMode}
       />
 
@@ -579,7 +828,7 @@ const Enquiries = () => {
       <AddFollowUpModal
         isOpen={isFollowUpModalOpen}
         onClose={() => setIsFollowUpModalOpen(false)}
-        onSubmit={() => setIsFollowUpModalOpen(false)}
+        onSubmit={handleAddFollowUp}
         enquiryData={selectedEnquiry}
         isDarkMode={isDarkMode}
       />

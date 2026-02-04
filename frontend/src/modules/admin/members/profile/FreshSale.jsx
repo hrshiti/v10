@@ -1,28 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useOutletContext, useLocation } from 'react-router-dom';
 import { ChevronDown, Upload, Trash2, Plus } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 
 const FreshSale = () => {
     const context = useOutletContext();
     const isDarkMode = context?.isDarkMode || false;
-    const { memberName, memberId, memberMobile, memberEmail } = context || {};
+    const { memberName, id, memberId, memberMobile, memberEmail } = context || {};
 
     const [activeTab, setActiveTab] = useState('General Training');
     const tabs = ['General Training', 'Personal Training', 'Complete Fitness', 'Group EX'];
 
+    const [packages, setPackages] = useState([]);
+    const [trainers, setTrainers] = useState([]);
+    const [isLoadingData, setIsLoadingData] = useState(true);
+    const [selectedPlans, setSelectedPlans] = useState([]); // Array of { packageId, trainerId, cost, startDate }
+
     const [form, setForm] = useState({
-        clientId: memberId || '23456',
-        mobile: memberMobile || '9081815118',
-        email: memberEmail !== '-' ? memberEmail : '',
+        clientId: memberId || '',
+        mobile: memberMobile || '',
+        email: (memberEmail && memberEmail !== '-') ? memberEmail : '',
         emergencyName: '',
         emergencyNumber: '',
-        adharNo: '',
+        aadharNo: '',
         gstin: '',
         firmName: '',
         firmEmployeeName: '',
         firmAddress: '',
         invoiceDate: new Date().toISOString().split('T')[0],
-        paymentDate: '',
+        paymentDate: new Date().toISOString().split('T')[0],
         vaccination: 'No',
         adharCard: 'No',
         paymentMethod: 'Online',
@@ -36,56 +42,110 @@ const FreshSale = () => {
         totalAmount: 0,
         comment: '',
         applyTaxes: false,
-        taxPercentage: 0, // 0, 5, 18
-        paymentSubMethod: 'NEFT', // NEFT, RTGS, IMPS, Google Pay, PhonePe, others
+        taxPercentage: 0,
+        paymentSubMethod: 'Google Pay',
         bankName: '',
         chequeNumber: '',
     });
 
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoadingData(true);
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
+                if (!token) return;
+
+                const [pkgRes, trainerRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/admin/packages`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+
+                const pkgData = await pkgRes.json();
+                const trainerData = await trainerRes.json();
+
+                setPackages(Array.isArray(pkgData) ? pkgData : []);
+                setTrainers(Array.isArray(trainerData) ? trainerData : []);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            } finally {
+                setIsLoadingData(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const filteredPackages = packages.filter(pkg => {
+        if (!pkg.active) return false;
+        const tabLower = activeTab.toLowerCase();
+        if (tabLower.includes('general')) return pkg.type === 'general' || pkg.activity === 'gym';
+        if (tabLower.includes('personal')) return pkg.type === 'pt';
+        if (tabLower.includes('complete')) return pkg.type === 'general';
+        if (tabLower.includes('group')) return ['zumba', 'yoga', 'crossfit'].includes(pkg.activity);
+        return false;
+    });
+
     const [showTaxDropdown, setShowTaxDropdown] = useState(false);
     const [showPaymentSubDropdown, setShowPaymentSubDropdown] = useState(false);
+    const [trainerDropdownRowIdx, setTrainerDropdownRowIdx] = useState(null);
     const taxDropdownRef = useRef(null);
     const paymentDropdownRef = useRef(null);
     const fileInputRef1 = useRef(null);
     const fileInputRef2 = useRef(null);
 
-    const trainingPlans = [
-        { name: 'GYM WORKOUT', duration: '1 Month', cost: 2500 },
-        { name: 'GYM WORKOUT', duration: '3 Month', cost: 5000 },
-        { name: 'GYM WORKOUT', duration: '6 Month', cost: 7000 },
-        { name: 'GYM WORKOUT', duration: '12 Month', cost: 9000 },
-        { name: 'Complementary', duration: '12 Month', cost: 0 },
-    ];
+    const handleTogglePlan = (pkg) => {
+        const index = selectedPlans.findIndex(item => item.packageId === pkg._id);
+        if (index > -1) {
+            const newPlans = selectedPlans.filter(item => item.packageId !== pkg._id);
+            setSelectedPlans(newPlans);
+        } else {
+            setSelectedPlans([...selectedPlans, {
+                packageId: pkg._id,
+                name: pkg.name,
+                durationValue: pkg.durationValue,
+                durationType: pkg.durationType,
+                cost: pkg.baseRate,
+                trainerId: '',
+                startDate: new Date().toISOString().split('T')[0]
+            }]);
+        }
+    };
 
+    const handleTrainerSelect = (pkgId, trainerId) => {
+        const newPlans = selectedPlans.map(item =>
+            item.packageId === pkgId ? { ...item, trainerId } : item
+        );
+        setSelectedPlans(newPlans);
+        setTrainerDropdownRowIdx(null);
+    };
+
+    const handlePlanStartDateChange = (pkgId, date) => {
+        const newPlans = selectedPlans.map(item =>
+            item.packageId === pkgId ? { ...item, startDate: date } : item
+        );
+        setSelectedPlans(newPlans);
+    };
+
+    // Recalculate totals whenever selectedPlans or form fields change
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (taxDropdownRef.current && !taxDropdownRef.current.contains(event.target)) setShowTaxDropdown(false);
-            if (paymentDropdownRef.current && !paymentDropdownRef.current.contains(event.target)) setShowPaymentSubDropdown(false);
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+        const plansTotal = selectedPlans.reduce((sum, item) => sum + (parseFloat(item.cost) || 0), 0);
+        const subtotal = plansTotal + (parseFloat(form.surcharges) || 0) - (parseFloat(form.totalDiscount) || 0);
 
-    const InputField = ({ label, value, placeholder, type = "text", required = false, onChange }) => (
-        <div className="space-y-1.5 flex-1 min-w-[200px]">
-            <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                {label}{required && <span className="text-red-500 ml-1">*</span>}
-            </label>
-            <input
-                type={type}
-                placeholder={placeholder}
-                value={value}
-                onChange={onChange}
-                className={`w-full px-4 py-2.5 rounded-lg border text-sm outline-none transition-all ${isDarkMode
-                    ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-600 focus:border-orange-500/50'
-                    : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-orange-500'
-                    }`}
-            />
-        </div>
-    );
+        const taxAmount = form.applyTaxes ? (subtotal * form.taxPercentage / 100) : 0;
+        const total = subtotal + taxAmount;
+
+        setForm(prev => ({
+            ...prev,
+            selectedPlansTotal: plansTotal,
+            subtotal: subtotal,
+            payableAmount: total,
+            totalAmount: total,
+            remainingAmount: Math.max(0, total - parseFloat(prev.amountPaid || 0))
+        }));
+    }, [selectedPlans, form.totalDiscount, form.surcharges, form.applyTaxes, form.taxPercentage, form.amountPaid]);
 
     const calculateTaxes = () => {
-        const base = (parseFloat(form.selectedPlansTotal || 0) + parseFloat(form.subtotal || 0) + parseFloat(form.surcharges || 0)) - parseFloat(form.totalDiscount || 0);
+        const base = form.subtotal;
         const taxAmount = (base * form.taxPercentage) / 100;
         const cgst = taxAmount / 2;
         const sgst = taxAmount / 2;
@@ -99,6 +159,86 @@ const FreshSale = () => {
     };
 
     const taxes = calculateTaxes();
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (taxDropdownRef.current && !taxDropdownRef.current.contains(event.target)) setShowTaxDropdown(false);
+            if (paymentDropdownRef.current && !paymentDropdownRef.current.contains(event.target)) setShowPaymentSubDropdown(false);
+            if (trainerDropdownRowIdx !== null) setTrainerDropdownRowIdx(null);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [trainerDropdownRowIdx]);
+
+    const InputField = ({ label, value, placeholder, type = "text", required = false, onChange, readonly = false }) => (
+        <div className="space-y-1.5 flex-1 min-w-[200px]">
+            <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                {label}{required && <span className="text-red-500 ml-1">*</span>}
+            </label>
+            <input
+                type={type}
+                placeholder={placeholder}
+                value={value}
+                onChange={onChange}
+                readOnly={readonly}
+                className={`w-full px-4 py-2.5 rounded-lg border text-sm outline-none transition-all ${isDarkMode
+                    ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-600 focus:border-orange-500/50'
+                    : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-orange-500'
+                    } ${readonly ? 'opacity-70 cursor-not-allowed' : ''}`}
+            />
+        </div>
+    );
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async () => {
+        if (selectedPlans.length === 0) {
+            alert('Please select at least one plan');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            if (!token) return;
+
+            const payload = {
+                memberId: id,
+                selectedPlans: selectedPlans,
+                totalAmount: form.payableAmount,
+                subTotal: form.subtotal,
+                taxAmount: form.applyTaxes ? (form.subtotal * form.taxPercentage / 100) : 0,
+                paidAmount: form.amountPaid,
+                discount: form.totalDiscount,
+                paymentMethod: form.paymentMethod,
+                comment: form.comment,
+                closedBy: adminInfo?._id
+            };
+
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/sale`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert('Sale processed successfully!');
+                window.history.back();
+            } else {
+                alert(data.message || 'Error processing sale');
+            }
+        } catch (error) {
+            console.error('Error submitting sale:', error);
+            alert('An error occurred. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in zoom-in duration-300">
@@ -115,12 +255,12 @@ const FreshSale = () => {
 
             {/* Basic Info Form */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                <InputField label="Client ID" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} />
-                <InputField label="Mobile Number" value={form.mobile} required onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
-                <InputField label="Email Address" placeholder="Ex : abc@gmail.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                <InputField label="Client ID" value={form.clientId} readonly />
+                <InputField label="Mobile Number" value={form.mobile} readonly />
+                <InputField label="Email Address" value={form.email} readonly />
                 <InputField label="Emergency Contact Name" placeholder="Name" value={form.emergencyName} onChange={(e) => setForm({ ...form, emergencyName: e.target.value })} />
                 <InputField label="Emergency Contact Number" placeholder="0987654321" value={form.emergencyNumber} onChange={(e) => setForm({ ...form, emergencyNumber: e.target.value })} />
-                <InputField label="Adhar No." placeholder="0987654321" value={form.adharNo} onChange={(e) => setForm({ ...form, adharNo: e.target.value })} />
+                <InputField label="Adhar No." placeholder="0987654321" value={form.aadharNo} onChange={(e) => setForm({ ...form, aadharNo: e.target.value })} />
                 <InputField label="GSTIN No." placeholder="0987654321" value={form.gstin} onChange={(e) => setForm({ ...form, gstin: e.target.value })} />
                 <InputField label="Firm Name" placeholder="Contact Name" value={form.firmName} onChange={(e) => setForm({ ...form, firmName: e.target.value })} />
                 <InputField label="Firm Employee Name" placeholder="Name" value={form.firmEmployeeName} onChange={(e) => setForm({ ...form, firmEmployeeName: e.target.value })} />
@@ -133,11 +273,12 @@ const FreshSale = () => {
                     value={form.firmAddress}
                     onChange={(e) => setForm({ ...form, firmAddress: e.target.value })}
                     className={`w-full px-4 py-3 rounded-lg border text-sm outline-none transition-all h-24 resize-none ${isDarkMode
-                        ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-600 focus:border-orange-500/50'
-                        : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-orange-500'
+                        ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-orange-500/50'
+                        : 'bg-white border-gray-200 text-gray-900 focus:border-orange-500'
                         }`}
                 />
             </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <InputField label="Invoice Date" value={form.invoiceDate} type="date" onChange={(e) => setForm({ ...form, invoiceDate: e.target.value })} />
@@ -233,25 +374,71 @@ const FreshSale = () => {
                             </tr>
                         </thead>
                         <tbody className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
-                            {trainingPlans.map((plan, idx) => (
-                                <tr key={idx} className={`border-b last:border-0 ${isDarkMode ? 'border-white/5' : 'border-gray-50'}`}>
-                                    <td className="px-6 py-4 flex items-center gap-4">
-                                        <div className={`w-4 h-4 rounded-full border-2 border-gray-300 cursor-pointer`} />
-                                        {plan.name}
-                                    </td>
-                                    <td className="px-6 py-4">{plan.duration}</td>
-                                    <td className="px-6 py-4">
-                                        <div className={`flex items-center justify-between px-3 py-1.5 border rounded-lg w-40 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-white'}`}>
-                                            <span className="text-gray-400">Select Trainer</span>
-                                            <ChevronDown size={14} />
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">{plan.cost}</td>
-                                    <td className="px-6 py-4 text-center">
-                                        <input type="date" className={`px-2 py-1 rounded border outline-none text-[11px] ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`} />
-                                    </td>
+                            {isLoadingData ? (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-10 text-center text-gray-400">Loading plans...</td>
                                 </tr>
-                            ))}
+                            ) : filteredPackages.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-10 text-center text-gray-400">No plans found for this category</td>
+                                </tr>
+                            ) : filteredPackages.map((pkg, idx) => {
+                                const selectedPlan = selectedPlans.find(p => p.packageId === pkg._id);
+                                const isSelected = !!selectedPlan;
+                                const selectedTrainer = trainers.find(t => t._id === selectedPlan?.trainerId);
+
+                                return (
+                                    <tr key={pkg._id} className={`border-b last:border-0 ${isDarkMode ? 'border-white/5' : 'border-gray-50'} ${isSelected ? (isDarkMode ? 'bg-orange-500/5' : 'bg-orange-50') : ''}`}>
+                                        <td className="px-6 py-4 flex items-center gap-4">
+                                            <div
+                                                onClick={() => handleTogglePlan(pkg)}
+                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer ${isSelected ? 'border-orange-500' : 'border-gray-300'}`}
+                                            >
+                                                {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
+                                            </div>
+                                            <span className={isSelected ? 'text-orange-500 font-black' : ''}>{pkg.name}</span>
+                                        </td>
+                                        <td className="px-6 py-4">{pkg.durationValue} {pkg.durationType}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="relative">
+                                                <button
+                                                    disabled={!isSelected}
+                                                    onClick={(e) => { e.stopPropagation(); setTrainerDropdownRowIdx(idx); }}
+                                                    className={`flex items-center justify-between px-3 py-1.5 border rounded-lg w-44 transition-all ${!isSelected ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-white'}`}
+                                                >
+                                                    <span className={selectedPlan?.trainerId ? (isDarkMode ? 'text-white' : 'text-gray-900') : 'text-gray-400'}>
+                                                        {selectedPlan?.trainerId ? `${selectedTrainer?.firstName} ${selectedTrainer?.lastName}` : 'Select Trainer'}
+                                                    </span>
+                                                    <ChevronDown size={14} className="text-gray-400" />
+                                                </button>
+                                                {trainerDropdownRowIdx === idx && (
+                                                    <div className={`absolute left-0 top-full mt-1 w-52 rounded-xl shadow-2xl border z-[70] py-1 overflow-y-auto max-h-48 animate-in fade-in zoom-in duration-200 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+                                                        {trainers.map(trainer => (
+                                                            <div
+                                                                key={trainer._id}
+                                                                onClick={(e) => { e.stopPropagation(); handleTrainerSelect(pkg._id, trainer._id); }}
+                                                                className={`px-4 py-2.5 text-xs font-bold cursor-pointer transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-gray-50'}`}
+                                                            >
+                                                                {trainer.firstName} {trainer.lastName}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">₹{pkg.baseRate}</td>
+                                        <td className="px-6 py-4 text-center">
+                                            <input
+                                                type="date"
+                                                disabled={!isSelected}
+                                                value={selectedPlan?.startDate || ''}
+                                                onChange={(e) => handlePlanStartDateChange(pkg._id, e.target.value)}
+                                                className={`px-2 py-1 rounded border outline-none text-[11px] w-32 ${!isSelected ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}
+                                            />
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -320,31 +507,49 @@ const FreshSale = () => {
                 </div>
 
                 <div className="space-y-4">
-                    {[
-                        { label: 'Selected Plans Total', value: '₹0.00' },
-                        { label: 'Total Discount', value: '₹0.00', editable: true },
-                        { label: 'Subtotal', value: '₹0.00', editable: true },
-                        { label: 'Surcharges', value: '₹0.00', editable: true },
-                    ].map((row, i) => (
-                        <div key={i} className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-gray-500 uppercase">{row.label}</span>
-                            {row.editable ? (
-                                <div className="flex items-center gap-2">
-                                    <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
-                                        <span className="px-3 text-gray-400 font-bold border-r dark:border-white/10 border-gray-200">₹</span>
-                                        <input type="text" value="0.00" className="w-24 px-3 py-1.5 bg-transparent outline-none text-sm font-bold" readOnly />
-                                    </div>
-                                    <div className={`p-2 rounded-lg bg-[#6b7280] text-white`}>₹</div>
-                                </div>
-                            ) : (
-                                <span className="text-lg font-bold">₹0.00</span>
-                            )}
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-500 uppercase">Selected Plans Total</span>
+                        <span className="text-lg font-bold text-orange-500">₹{parseFloat(form.selectedPlansTotal).toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-500 uppercase">Total Discount</span>
+                        <div className="flex items-center gap-2">
+                            <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
+                                <span className="px-3 text-gray-400 font-bold border-r dark:border-white/10 border-gray-200">₹</span>
+                                <input
+                                    type="number"
+                                    value={form.totalDiscount}
+                                    onChange={(e) => setForm({ ...form, totalDiscount: e.target.value })}
+                                    className="w-24 px-3 py-1.5 bg-transparent outline-none text-sm font-bold"
+                                />
+                            </div>
                         </div>
-                    ))}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-500 uppercase">Surcharges</span>
+                        <div className="flex items-center gap-2">
+                            <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
+                                <span className="px-3 text-gray-400 font-bold border-r dark:border-white/10 border-gray-200">₹</span>
+                                <input
+                                    type="number"
+                                    value={form.surcharges}
+                                    onChange={(e) => setForm({ ...form, surcharges: e.target.value })}
+                                    className="w-24 px-3 py-1.5 bg-transparent outline-none text-sm font-bold"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-500 uppercase">Subtotal</span>
+                        <span className="text-lg font-bold">₹{parseFloat(form.subtotal).toFixed(2)}</span>
+                    </div>
 
                     <div className="flex items-center justify-between">
                         <span className="text-sm font-bold text-gray-500 uppercase">Payable Amount</span>
-                        <span className="text-lg font-bold">₹0.00</span>
+                        <span className="text-lg font-bold text-orange-600">₹{parseFloat(form.payableAmount).toFixed(2)}</span>
                     </div>
 
                     <div className={`border rounded-xl p-5 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-100'}`}>
@@ -399,32 +604,46 @@ const FreshSale = () => {
 
                     <div className="flex items-center justify-between">
                         <span className="text-sm font-bold text-gray-500 uppercase">Amount Paid (₹)</span>
-                        <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
-                            <span className="px-3 text-gray-400 font-bold border-r dark:border-white/10 border-gray-200">₹</span>
-                            <input type="text" value="0.00" className="w-24 px-3 py-1.5 bg-transparent outline-none text-sm font-bold" readOnly />
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setForm(prev => ({ ...prev, amountPaid: prev.totalAmount }))}
+                                className="text-[10px] uppercase font-black px-2 py-1 rounded bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+                            >
+                                Pay Full
+                            </button>
+                            <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
+                                <span className="px-3 text-gray-400 font-bold border-r dark:border-white/10 border-gray-200">₹</span>
+                                <input
+                                    type="number"
+                                    value={form.amountPaid}
+                                    onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
+                                    className="w-24 px-3 py-1.5 bg-transparent outline-none text-sm font-bold"
+                                />
+                            </div>
                         </div>
                     </div>
 
                     <div className="flex items-center justify-between">
                         <span className="text-sm font-bold text-gray-500 uppercase">Remaining Amount</span>
-                        <span className="text-lg font-bold">₹0.00</span>
+                        <span className="text-lg font-bold">₹{parseFloat(form.remainingAmount).toFixed(2)}</span>
                     </div>
 
                     <div className={`border rounded-xl p-6 flex flex-col items-start gap-2 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
                         <span className="text-xs font-bold text-gray-400">Total Amount</span>
-                        <span className="text-4xl font-bold">₹0</span>
+                        <span className="text-4xl font-bold">₹{parseFloat(form.totalAmount).toFixed(2)}</span>
                     </div>
                 </div>
             </div>
 
-            {/* Submit Section - Now inside the form flow */}
+            {/* Submit Section */}
             <div className={`mt-10 p-6 rounded-2xl border flex flex-col items-center justify-center gap-3 transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
                 <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">I want to make payment and generate invoice</p>
                 <button
-                    onClick={() => window.history.back()}
-                    className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black uppercase text-[15px] py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 tracking-wider"
+                    disabled={isSubmitting || selectedPlans.length === 0}
+                    onClick={handleSubmit}
+                    className="w-full bg-[#f97316] hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black uppercase text-[15px] py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 tracking-wider"
                 >
-                    ₹0 Submit
+                    {isSubmitting ? 'Processing...' : `₹${parseFloat(form.payableAmount).toFixed(2)} Submit`}
                 </button>
             </div>
         </div>

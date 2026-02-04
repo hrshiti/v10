@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, RotateCcw, Info, ChevronDown, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Check } from 'lucide-react';
+import { API_BASE_URL } from '../../../config/api';
 
 // --- Shared Components (Copied from AddEnquiryModal for consistency) ---
 
@@ -228,7 +229,29 @@ const AddFollowUpModal = ({ isOpen, onClose, onSubmit, enquiryData, isDarkMode }
         comments: ''
     });
 
-    const trainerOptions = ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'];
+    const [trainers, setTrainers] = useState([]);
+
+    useEffect(() => {
+        const fetchTrainers = async () => {
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
+                if (!token) return;
+
+                const res = await fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                setTrainers(data || []);
+            } catch (error) {
+                console.error('Error fetching trainers:', error);
+            }
+        };
+        if (isOpen) fetchTrainers();
+    }, [isOpen]);
+
+    const trainerList = trainers.map(t => ({ label: `${t.firstName} ${t.lastName}`, id: t._id }));
+    const trainerLabels = trainerList.map(t => t.label);
     const typeOptions = ['Call', 'Visit', 'Message'];
     const convertibilityOptions = ['Hot', 'Warm', 'Cold'];
 
@@ -265,29 +288,29 @@ const AddFollowUpModal = ({ isOpen, onClose, onSubmit, enquiryData, isDarkMode }
 
                         <div className={`border rounded-xl overflow-hidden ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
                             <div className="p-4 border-b dark:border-white/5">
-                                <p className="font-black text-[16px] dark:text-white uppercase">{enquiryData?.name}</p>
-                                <p className="text-[14px] text-gray-500 font-bold mt-1">Enquiry ID: {enquiryData?.id}</p>
+                                <p className="font-black text-[16px] dark:text-white uppercase">{enquiryData?.firstName} {enquiryData?.lastName}</p>
+                                <p className="text-[14px] text-gray-500 font-bold mt-1">Enquiry ID: {enquiryData?.enquiryId}</p>
                             </div>
                             <div className="divide-y dark:divide-white/5 font-bold text-[14px]">
                                 <div className="p-4 flex justify-between">
-                                    <span className="text-gray-700 dark:text-gray-400">Enquiry Date : {enquiryData?.date}</span>
+                                    <span className="text-gray-700 dark:text-gray-400">Enquiry Date : {enquiryData?.createdAt ? new Date(enquiryData.createdAt).toLocaleDateString() : ''}</span>
                                 </div>
                                 <div className="p-4">
-                                    <span className="text-gray-700 dark:text-gray-400">Remarks/Summary:</span>
+                                    <span className="text-gray-700 dark:text-gray-400">Remarks/Summary: {enquiryData?.remark || '-'}</span>
                                 </div>
                                 <div className="p-4 flex gap-2">
                                     <span className="text-gray-700 dark:text-gray-400 min-w-[100px]">Handle by :</span>
-                                    <span className="dark:text-white">{enquiryData?.handle}</span>
+                                    <span className="dark:text-white">{enquiryData?.handleBy?.firstName} {enquiryData?.handleBy?.lastName}</span>
                                 </div>
                                 <div className="p-4 flex gap-2">
                                     <span className="text-gray-700 dark:text-gray-400 min-w-[100px]">Created by :</span>
-                                    <span className="dark:text-white">489291</span>
+                                    <span className="dark:text-white">{enquiryData?.createdBy || 'Admin'}</span>
                                 </div>
                                 <div className="p-4 flex items-center gap-2">
                                     <span className="text-gray-700 dark:text-gray-400 min-w-[100px]">Lead Type :</span>
-                                    <span className={`px-3 py-1 rounded text-[11px] font-black uppercase text-white ${enquiryData?.type === 'Hot' ? 'bg-red-500' : 'bg-orange-500'
+                                    <span className={`px-3 py-1 rounded text-[11px] font-black uppercase text-white ${enquiryData?.leadType === 'Hot' ? 'bg-red-500' : 'bg-orange-500'
                                         }`}>
-                                        {enquiryData?.type || 'Cold'}
+                                        {enquiryData?.leadType || 'Cold'}
                                     </span>
                                 </div>
                             </div>
@@ -311,8 +334,8 @@ const AddFollowUpModal = ({ isOpen, onClose, onSubmit, enquiryData, isDarkMode }
 
                             <CustomDropdown
                                 label="Assign To"
-                                placeholder="Select Member"
-                                options={trainerOptions}
+                                placeholder="Select Trainer"
+                                options={trainerLabels}
                                 value={formData.assignTo}
                                 onChange={(val) => handleInputChange('assignTo', val)}
                                 isDarkMode={isDarkMode}
@@ -356,11 +379,18 @@ const AddFollowUpModal = ({ isOpen, onClose, onSubmit, enquiryData, isDarkMode }
                 <div className={`sticky bottom-0 left-0 right-0 p-4 border-t flex justify-between items-center transition-none z-10 ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-white border-gray-100'
                     }`}>
                     <div>
-                        <p className="font-black text-[15px] dark:text-white">Abdulla Pathan</p>
+                        <p className="font-black text-[15px] dark:text-white">Admin</p>
                         <p className="text-[12px] text-gray-500 font-bold">Follow up Schedule by</p>
                     </div>
                     <button
-                        onClick={() => onSubmit(formData)}
+                        onClick={() => {
+                            const selectedTrainer = trainerList.find(t => t.label === formData.assignTo);
+                            const submissionData = {
+                                ...formData,
+                                trainerId: selectedTrainer?.id
+                            };
+                            onSubmit(submissionData);
+                        }}
                         className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-black shadow-md active:scale-95 transition-all"
                     >
                         Submit

@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
@@ -73,6 +74,43 @@ const ExpiredMemberReport = () => {
   const [isRowsPerPageOpen, setIsRowsPerPageOpen] = useState(false);
   const rowsPerPageRef = useRef(null);
 
+  const [trainers, setTrainers] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const token = adminInfo?.token;
+        if (!token) return;
+
+        const [trainerRes, empRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch(`${API_BASE_URL}/api/admin/employees`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+
+        if (trainerRes.ok) {
+          const data = await trainerRes.json();
+          setTrainers(data.map(t => `${t.firstName} ${t.lastName}`));
+        }
+
+        if (empRes.ok) {
+          const data = await empRes.json();
+          const empList = Array.isArray(data) ? data : (data.employees || []);
+          setEmployees(empList.map(e => `${e.firstName} ${e.lastName}`));
+        }
+
+      } catch (error) {
+        console.error("Error fetching filter data:", error);
+      }
+    };
+    fetchDropdownData();
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (rowsPerPageRef.current && !rowsPerPageRef.current.contains(event.target)) {
@@ -85,31 +123,68 @@ const ExpiredMemberReport = () => {
 
   const filterOptions = {
     'Select Membership Type': ['General Training', 'Personal Training', 'Group Ex'],
-    'Select Trainer': ['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'],
-    'Select Closed By': ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'],
+    'Select Trainer': trainers.length > 0 ? trainers : ['No Trainers Found'],
+    'Select Closed By': employees.length > 0 ? employees : ['No Employees Found'],
   };
 
-  const expiredData = [
-    { id: '530', name: 'Sanjay panchal', number: '7405235029', mType: 'General Training', pName: 'GYM WORKOUT', sDate: '01-01-2025', eDate: '01-01-2026', trainer: 'Abdulla Pathan', cBy: 'Abdulla Pathan', price: '6000.00', discount: '0.00', paid: '6000.00', balance: '0' },
-    { id: '512', name: 'SOHIL SHAIKH', number: '8487820716', mType: 'General Training', pName: 'GYM WORKOUT', sDate: '01-01-2025', eDate: '01-01-2026', trainer: 'Abdulla Pathan', cBy: 'Abdulla Pathan', price: '6500.00', discount: '0.00', paid: '6500.00', balance: '0' },
-  ];
+  const [memberData, setMemberData] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isExpiredReport, setIsExpiredReport] = useState(false); // Checkbox state
+  const [totalRecords, setTotalRecords] = useState(0);
 
-  const filteredData = expiredData.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.number.includes(searchQuery) ||
-    item.id.includes(searchQuery)
-  );
+  const fetchExpiringMembers = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
 
-  const stats = [
-    { label: 'Members', value: filteredData.length.toString(), icon: User, theme: 'blue' },
-    { label: 'Balance Amount', value: '0', icon: User, theme: 'red' },
-    { label: 'Business Opportunity Missed', value: '255835', icon: User, theme: 'purple' },
-  ];
+      const queryParams = new URLSearchParams({
+        pageNumber: currentPage,
+        pageSize: rowsPerPage,
+        search: searchQuery,
+        status: isExpiredReport ? 'Expired' : 'ExpiringSoon',
+        fromDate: fromDate?.split('-').reverse().join('-') || '',
+        toDate: toDate?.split('-').reverse().join('-') || ''
+      });
 
-  const themeConfig = {
-    blue: { bg: 'bg-blue-600', shadow: 'shadow-blue-500/20' },
-    red: { bg: 'bg-red-500', shadow: 'shadow-red-500/20' },
-    purple: { bg: 'bg-purple-600', shadow: 'shadow-purple-500/20' },
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/membership-expiry?${queryParams.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      setMemberData(data.members || []);
+      setTotalPages(data.pages || 1);
+      setTotalRecords(data.total || 0);
+
+    } catch (error) {
+      console.error("Error fetching expiry report:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchExpiringMembers();
+  }, [currentPage, rowsPerPage, isExpiredReport]); // Fetch on dependency change
+
+  const handleApply = () => {
+    setCurrentPage(1);
+    fetchExpiringMembers();
+  };
+
+  const handleClear = () => {
+    setSearchQuery('');
+    setFromDate('01-01-2026');
+    setToDate('30-01-2026');
+    setIsExpiredReport(false);
+    setFilterValues({});
+    setCurrentPage(1);
+    setTimeout(fetchExpiringMembers, 100);
   };
 
   const toggleFilter = (label) => {
@@ -121,16 +196,26 @@ const ExpiredMemberReport = () => {
     setActiveFilter(null);
   };
 
+  const statsRender = [
+    { label: 'Members', value: totalRecords.toString(), icon: User, theme: 'blue' },
+    { label: 'Balance Amount', value: '0', icon: User, theme: 'red' },
+    { label: 'Business Opportunity Missed', value: '0', icon: User, theme: 'purple' },
+  ];
+
+  const themeConfig = {
+    blue: { bg: 'bg-blue-600', shadow: 'shadow-blue-500/20' },
+    red: { bg: 'bg-red-500', shadow: 'shadow-red-500/20' },
+    purple: { bg: 'bg-purple-600', shadow: 'shadow-purple-500/20' },
+  };
+
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'} max-w-full overflow-x-hidden`}>
       {/* Header */}
-      <div className="flex justify-between items-center transition-none">
-        <h1 className="text-[28px] font-black tracking-tight">Expired Member Report</h1>
-      </div>
+      <h1 className="text-[28px] font-black tracking-tight">{isExpiredReport ? 'Expired Member Report' : 'Expiring Soon Report'}</h1>
 
       {/* Stats Cards */}
       <div className="flex gap-4 transition-none">
-        {stats.map((stat, idx) => {
+        {statsRender.map((stat, idx) => {
           const config = themeConfig[stat.theme];
           return (
             <div
@@ -169,7 +254,12 @@ const ExpiredMemberReport = () => {
 
           <div className="flex items-center gap-6 ml-2">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="w-5 h-5 accent-[#f97316] border-gray-300 rounded" />
+              <input
+                type="checkbox"
+                checked={isExpiredReport}
+                onChange={(e) => setIsExpiredReport(e.target.checked)}
+                className="w-5 h-5 accent-[#f97316] border-gray-300 rounded"
+              />
               <span className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Expired Report</span>
             </label>
           </div>
@@ -189,8 +279,8 @@ const ExpiredMemberReport = () => {
             />
           ))}
 
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Apply</button>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Clear</button>
+          <button onClick={handleApply} className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Apply</button>
+          <button onClick={handleClear} className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">Clear</button>
 
           <div className="relative flex-1 max-w-[400px]">
             <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
@@ -219,11 +309,10 @@ const ExpiredMemberReport = () => {
       <div className={`mt-4 border rounded-lg overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
         <div className="px-5 py-5 border-b bg-white dark:bg-white/5 flex items-center gap-4 transition-none">
           <span className="text-[14px] font-black text-gray-800 dark:text-gray-200 tracking-tight">
-            Expired Member Report
+            {isExpiredReport ? 'Expired Member List' : 'Expiring Soon List'}
           </span>
           <div className="flex items-center gap-3">
-            <ChevronLeft size={20} className="text-gray-400 cursor-pointer hover:text-gray-800" />
-            <ChevronRight size={20} className="text-gray-400 cursor-pointer hover:text-gray-800" />
+            {totalPages > 1 && <span className="text-xs text-gray-400">Page {currentPage} of {totalPages}</span>}
           </div>
         </div>
         <div className="overflow-x-auto transition-none">
@@ -245,30 +334,36 @@ const ExpiredMemberReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {filteredData.slice(0, rowsPerPage).map((row, idx) => (
-                <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-8">{row.id}</td>
-                  <td className="px-6 py-8">
-                    <div
-                      onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
-                      className="flex flex-col transition-none cursor-pointer group"
-                    >
-                      <span className="text-[#3b82f6] uppercase group-hover:underline font-black">{row.name}</span>
-                      <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.number}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-8">{row.mType}</td>
-                  <td className="px-6 py-8">{row.pName}</td>
-                  <td className="px-6 py-8 text-center">{row.sDate}</td>
-                  <td className="px-6 py-8 text-center">{row.eDate}</td>
-                  <td className="px-6 py-8">{row.trainer}</td>
-                  <td className="px-6 py-8">{row.cBy}</td>
-                  <td className="px-6 py-8 font-black">₹{row.price}</td>
-                  <td className="px-6 py-8 font-black">₹{row.discount}</td>
-                  <td className="px-6 py-8 font-black text-green-600">₹{row.paid}</td>
-                  <td className="px-6 py-8 font-black text-red-500">₹{row.balance}</td>
-                </tr>
-              ))}
+              {isLoading ? (
+                <tr><td colSpan="12" className="text-center py-10">Loading...</td></tr>
+              ) : memberData.length === 0 ? (
+                <tr><td colSpan="12" className="text-center py-10">No records found</td></tr>
+              ) : (
+                memberData.map((row, idx) => (
+                  <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                    <td className="px-6 py-8">{row.memberId}</td>
+                    <td className="px-6 py-8">
+                      <div
+                        onClick={() => navigate(`/admin/members/profile/${row._id}/edit`, { state: { member: row } })}
+                        className="flex flex-col transition-none cursor-pointer group"
+                      >
+                        <span className="text-[#3b82f6] uppercase group-hover:underline font-black">{row.firstName} {row.lastName}</span>
+                        <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.mobile}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-8">General Training</td> {/* Placeholder, need field if exists */}
+                    <td className="px-6 py-8">{row.packageName}</td>
+                    <td className="px-6 py-8 text-center">{new Date(row.startDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-8 text-center">{new Date(row.endDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-8">{row.assignedTrainer?.firstName || '-'}</td>
+                    <td className="px-6 py-8">{row.closedBy?.firstName || '-'}</td>
+                    <td className="px-6 py-8 font-black">₹{row.totalAmount}</td>
+                    <td className="px-6 py-8 font-black">₹{row.discount || 0}</td>
+                    <td className="px-6 py-8 font-black text-green-600">₹{row.paidAmount}</td>
+                    <td className="px-6 py-8 font-black text-red-500">₹{row.dueAmount}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

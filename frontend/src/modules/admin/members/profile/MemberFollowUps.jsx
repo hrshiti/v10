@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { MoreVertical, X, Maximize2, History, Edit3, Info, ChevronDown } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 
 const Dropdown = ({ options, value, onChange, isDarkMode, placeholder }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -55,10 +56,20 @@ const Dropdown = ({ options, value, onChange, isDarkMode, placeholder }) => {
 const FollowUpModal = ({ isOpen, onClose, followUp, memberName, memberMobile, isDarkMode }) => {
     const [activeTab, setActiveTab] = useState('Edit Response');
     const [followUpData, setFollowUpData] = useState({
-        convertibility: '',
+        convertibility: followUp?.status || '',
         response: '',
-        remarks: ''
+        remarks: followUp?.comment || ''
     });
+
+    useEffect(() => {
+        if (followUp) {
+            setFollowUpData({
+                convertibility: followUp.status || '',
+                response: '',
+                remarks: followUp.comment || ''
+            });
+        }
+    }, [followUp]);
 
     if (!isOpen) return null;
 
@@ -134,39 +145,41 @@ const FollowUpModal = ({ isOpen, onClose, followUp, memberName, memberMobile, is
                             <div className={`rounded-xl border divide-y overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 divide-white/10' : 'bg-white border-gray-200 divide-gray-100'}`}>
                                 <div className="p-3 grid grid-cols-[140px_1fr] items-center">
                                     <span className="text-sm font-medium text-gray-500">Follow Up ID :</span>
-                                    <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>{followUp?.id}</span>
+                                    <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>{followUp?._id?.slice(-8).toUpperCase()}</span>
                                 </div>
                                 <div className="p-3 grid grid-cols-[140px_1fr] items-center">
                                     <span className="text-sm font-medium text-gray-500">Follow Up On :</span>
                                     <div>
-                                        <span className={`px-2 py-1 rounded text-[10px] font-black text-white ${statusColorsEdit[followUp?.status] || 'bg-gray-400'}`}>
-                                            {followUp?.status}
+                                        <span className={`px-2 py-1 rounded text-[10px] font-black text-white ${followUp?.isDone ? 'bg-emerald-500' : 'bg-amber-500'}`}>
+                                            {followUp?.isDone ? 'DONE' : 'PENDING'}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="p-3 grid grid-cols-[140px_1fr] items-center">
                                     <span className="text-sm font-medium text-gray-500">Remarks/Summary:</span>
-                                    <span className="text-sm font-bold">-</span>
+                                    <span className="text-sm font-bold">{followUp?.comment || '-'}</span>
                                 </div>
                                 <div className="p-3 grid grid-cols-[140px_1fr] items-center">
                                     <span className="text-sm font-medium text-gray-500">Assign to :</span>
-                                    <span className="text-sm font-bold">-</span>
+                                    <span className="text-sm font-bold">{followUp?.handledBy ? `${followUp.handledBy.firstName} ${followUp.handledBy.lastName}` : '-'}</span>
                                 </div>
                                 <div className="p-3 grid grid-cols-[140px_1fr] items-center">
                                     <span className="text-sm font-medium text-gray-500">Schedule by :</span>
-                                    <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>{followUp?.scheduleBy}</span>
+                                    <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>{followUp?.createdBy || 'Admin'}</span>
                                 </div>
                                 <div className="p-3 grid grid-cols-[140px_1fr] items-center">
                                     <span className="text-sm font-medium text-gray-500">Follow Up Type :</span>
                                     <div>
                                         <span className={`px-3 py-1.5 rounded-lg border text-[11px] font-bold ${isDarkMode ? 'bg-orange-500/10 border-orange-500/30 text-orange-500' : 'bg-[#fff7ed] border-[#fdba74] text-[#9a3412]'}`}>
-                                            {followUp?.membershipType}
+                                            {followUp?.type}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="p-3 grid grid-cols-[140px_1fr] items-center">
                                     <span className="text-sm font-medium text-gray-500">Convertibility :</span>
-                                    <div className="w-4 h-7 rounded-sm bg-red-500" />
+                                    <div className={`px-2 py-0.5 rounded text-[10px] font-black text-white ${followUp?.status === 'Hot' ? 'bg-red-500' : followUp?.status === 'Warm' ? 'bg-orange-500' : 'bg-blue-500'}`}>
+                                        {followUp?.status || 'Hot'}
+                                    </div>
                                 </div>
                             </div>
 
@@ -329,7 +342,33 @@ const FollowUpModal = ({ isOpen, onClose, followUp, memberName, memberMobile, is
                         <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>{memberName}</p>
                         <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Enquiry Created by</p>
                     </div>
-                    <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg font-bold shadow-lg shadow-orange-500/30 transition-all active:scale-95">
+                    <button
+                        onClick={() => {
+                            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                            const token = adminInfo?.token;
+                            if (!token || !followUp?._id) return;
+
+                            fetch(`${API_BASE_URL}/api/admin/follow-ups/${followUp._id}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                    status: followUpData.convertibility,
+                                    comment: followUpData.remarks
+                                })
+                            }).then(res => {
+                                if (res.ok) {
+                                    onClose();
+                                    window.location.reload(); // Refresh to show changes
+                                } else {
+                                    alert('Failed to update follow-up');
+                                }
+                            });
+                        }}
+                        className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg font-bold shadow-lg shadow-orange-500/30 transition-all active:scale-95"
+                    >
                         Submit
                     </button>
                 </div>
@@ -367,25 +406,32 @@ const MemberFollowUps = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [activeActionRow]);
 
-    // Dummy Follow Ups Data
-    const followUps = [
-        {
-            id: '1402447',
-            scheduleBy: 'Abdulla Pathan',
-            membershipType: 'Balance Due',
-            scheduleOn: '05 Mar, 2025 11:50 PM',
-            assignedTrainer: 'Abdulla Pathan',
-            status: 'DONE'
-        },
-        {
-            id: '2109694',
-            scheduleBy: 'Abdulla Pathan',
-            membershipType: 'Membership Renewal',
-            scheduleOn: '03 Feb, 2026 11:50 PM',
-            assignedTrainer: 'Abdulla Pathan',
-            status: 'PENDING'
+    const [followUps, setFollowUps] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const fetchFollowUps = async () => {
+        if (!context?.memberData?._id) return;
+        setIsLoading(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            if (!token) return;
+
+            const res = await fetch(`${API_BASE_URL}/api/admin/follow-ups?memberId=${context.memberData._id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            setFollowUps(data.followUps || []);
+        } catch (error) {
+            console.error('Error fetching member follow-ups:', error);
+        } finally {
+            setIsLoading(false);
         }
-    ];
+    };
+
+    useEffect(() => {
+        fetchFollowUps();
+    }, [context?.memberData?._id]);
 
     return (
         <div className="space-y-6 animate-in fade-in zoom-in duration-300">
@@ -442,46 +488,64 @@ const MemberFollowUps = () => {
                             </tr>
                         </thead>
                         <tbody className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
-                            {followUps.map((item, idx) => (
-                                <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50'}`}>
-                                    <td className="px-6 py-5">{item.id}</td>
-                                    <td className="px-6 py-5">{item.scheduleBy}</td>
-                                    <td className="px-6 py-5">{item.membershipType}</td>
-                                    <td className="px-6 py-5">
-                                        <div className="flex flex-col">
-                                            <span>{item.scheduleOn.split(' ')[0]} {item.scheduleOn.split(' ')[1]} {item.scheduleOn.split(' ')[2]}</span>
-                                            <span className="text-gray-400 text-[10px]">{item.scheduleOn.split(' ').slice(3).join(' ')}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5">{item.assignedTrainer}</td>
-                                    <td className="px-6 py-5">{item.status}</td>
-                                    <td className="px-6 py-5 text-right relative" ref={el => actionRef.current[idx] = el}>
-                                        <button
-                                            onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
-                                            className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
-                                        >
-                                            <MoreVertical size={16} className="text-gray-500" />
-                                        </button>
-
-                                        {activeActionRow === idx && (
-                                            <div className={`absolute right-12 top-2 w-[120px] rounded-lg shadow-xl border z-50 overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
-                                                <div className="py-1">
-                                                    <div
-                                                        onClick={() => {
-                                                            setActiveActionRow(null);
-                                                            setSelectedFollowUp(item);
-                                                            setIsFollowUpModalOpen(true);
-                                                        }}
-                                                        className={`px-4 py-2 text-[13px] font-bold cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-                                                    >
-                                                        View
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan="7" className="px-6 py-10 text-center text-gray-400 font-bold animate-pulse">
+                                        Loading Follow Ups...
                                     </td>
                                 </tr>
-                            ))}
+                            ) : followUps.length > 0 ? (
+                                followUps.map((item, idx) => (
+                                    <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50'}`}>
+                                        <td className="px-6 py-5">{item._id.slice(-6).toUpperCase()}</td>
+                                        <td className="px-6 py-5">{item.createdBy}</td>
+                                        <td className="px-6 py-5">{item.type}</td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex flex-col">
+                                                <span>{new Date(item.dateTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                                <span className="text-gray-400 text-[10px]">{new Date(item.dateTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">{item.handledBy ? `${item.handledBy.firstName} ${item.handledBy.lastName}` : 'Not Allocated'}</td>
+                                        <td className="px-6 py-5">
+                                            <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase border ${item.isDone ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500' : 'bg-amber-500/10 border-amber-500/50 text-amber-500'}`}>
+                                                {item.isDone ? 'DONE' : 'PENDING'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5 text-right relative" ref={el => actionRef.current[idx] = el}>
+                                            <button
+                                                onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
+                                                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
+                                            >
+                                                <MoreVertical size={16} className="text-gray-500" />
+                                            </button>
+
+                                            {activeActionRow === idx && (
+                                                <div className={`absolute right-12 top-2 w-[120px] rounded-lg shadow-xl border z-50 overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                                                    <div className="py-1">
+                                                        <div
+                                                            onClick={() => {
+                                                                setActiveActionRow(null);
+                                                                setSelectedFollowUp(item);
+                                                                setIsFollowUpModalOpen(true);
+                                                            }}
+                                                            className={`px-4 py-2 text-[13px] font-bold cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                                                        >
+                                                            View
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="7" className="px-6 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">
+                                        No Follow Ups Found
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

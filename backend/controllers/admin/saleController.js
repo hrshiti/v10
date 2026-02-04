@@ -34,4 +34,20 @@ const getSalesByMember = asyncHandler(async (req, res) => {
     res.json(sales);
 });
 
-module.exports = { getSales, getSalesByMember };
+// @desc    Get Sale by Invoice Number
+// @route   GET /api/admin/sales/invoice/:invoiceNumber
+// @access  Private/Admin
+const getSaleByInvoiceNumber = asyncHandler(async (req, res) => {
+    const sale = await Sale.findOne({ invoiceNumber: req.params.invoiceNumber })
+        .populate('memberId')
+        .populate('closedBy', 'firstName lastName');
+
+    if (sale) {
+        res.json(sale);
+    } else {
+        res.status(404);
+        throw new Error('Invoice not found');
+    }
+});
+
+module.exports = { getSales, getSalesByMember, getSaleByInvoiceNumber };

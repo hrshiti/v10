@@ -14,6 +14,7 @@ import {
 import { useOutletContext } from 'react-router-dom';
 import AddPackageModal from './AddPackageModal';
 import EditPackageModal from './EditPackageModal';
+import { API_BASE_URL } from '../../../../config/api';
 
 // --- Reusable Components ---
 
@@ -121,7 +122,7 @@ const DeletePlanModal = ({ isOpen, onClose, isDarkMode, onConfirm, packageName }
             Delete Plan?
           </h2>
           <p className={`text-[15px] mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Do you really want to delete?
+            Do you really want to delete "{packageName}"?
           </p>
           <p className={`text-[15px] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             This process cannot be undone.
@@ -159,20 +160,59 @@ const MembershipPackages = () => {
   const [selectedPackageId, setSelectedPackageId] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [packages, setPackages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [packages, setPackages] = useState([
-    { id: 13590, name: 'Complementary', duration: '12 Months', sessions: 360, price: '0.00', status: true },
-    { id: 13576, name: 'Anniversary Package But 1 and get 1 Free', duration: '12 Months', sessions: 360, price: '9000.00', status: false },
-    { id: 13575, name: 'GYM WORKOUT', duration: '45 Days', sessions: 45, price: '4000.00', status: false },
-    { id: 13574, name: 'GYM WORKOUT', duration: '15 Months', sessions: 450, price: '12000.00', status: false },
-    { id: 13573, name: 'GYM WORKOUT', duration: '13 Months', sessions: 390, price: '10500.00', status: false },
-  ]);
+  // Fetch packages from backend
+  useEffect(() => {
+    fetchPackages();
+  }, []);
 
+  const fetchPackages = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/packages`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setPackages(data);
+    } catch (error) {
+      console.error('Error fetching packages:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Calculate stats from real data
   const stats = [
-    { label: 'General Training', value: 9, icon: User, theme: 'blue' },
-    { label: 'Personal Training', value: 9, icon: User, theme: 'emerald' },
-    { label: 'Complete Fitness', value: 0, icon: User, theme: 'red' },
-    { label: 'Group Ex', value: 0, icon: User, theme: 'purple' },
+    {
+      label: 'General Training',
+      value: packages.filter(p => p.type === 'general').length,
+      icon: User,
+      theme: 'blue'
+    },
+    {
+      label: 'Personal Training',
+      value: packages.filter(p => p.type === 'pt').length,
+      icon: User,
+      theme: 'emerald'
+    },
+    {
+      label: 'Active Packages',
+      value: packages.filter(p => p.active).length,
+      icon: User,
+      theme: 'purple'
+    },
+    {
+      label: 'Total Packages',
+      value: packages.length,
+      icon: User,
+      theme: 'red'
+    },
   ];
 
   const themeConfig = {
@@ -197,7 +237,7 @@ const MembershipPackages = () => {
   // Filtering and Pagination
   const filteredPackages = packages.filter(pkg =>
     pkg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    pkg.id.toString().includes(searchQuery)
+    (pkg._id && pkg._id.toString().includes(searchQuery))
   );
 
   const totalPages = Math.ceil(filteredPackages.length / rowsPerPage);
@@ -211,21 +251,56 @@ const MembershipPackages = () => {
     setCurrentPage(1);
   }, [searchQuery, rowsPerPage]);
 
-  const toggleStatus = (id) => {
-    setPackages(packages.map(pkg =>
-      pkg.id === id ? { ...pkg, status: !pkg.status } : pkg
-    ));
-    setNotificationMessage('Plan Status Updated.');
-    setShowNotification(true);
-    setTimeout(() => setShowNotification(false), 3000);
+  const toggleStatus = async (id) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const pkg = packages.find(p => p._id === id);
+      const res = await fetch(`${API_BASE_URL}/api/admin/packages/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ active: !pkg.active })
+      });
+
+      if (res.ok) {
+        setPackages(packages.map(pkg =>
+          pkg._id === id ? { ...pkg, active: !pkg.active } : pkg
+        ));
+        setNotificationMessage('Plan Status Updated.');
+        setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 3000);
+      }
+    } catch (error) {
+      console.error('Error toggling status:', error);
+    }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedPackageId !== null) {
-      setPackages(packages.filter(pkg => pkg.id !== selectedPackageId));
-      setNotificationMessage('Plan Deleted Successfully.');
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 3000);
+      try {
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const token = adminInfo?.token;
+        if (!token) return;
+
+        const res = await fetch(`${API_BASE_URL}/api/admin/packages/${selectedPackageId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+          setPackages(packages.filter(pkg => pkg._id !== selectedPackageId));
+          setNotificationMessage('Plan Deleted Successfully.');
+          setShowNotification(true);
+          setTimeout(() => setShowNotification(false), 3000);
+        }
+      } catch (error) {
+        console.error('Error deleting package:', error);
+      }
     }
     setIsDeleteModalOpen(false);
     setActiveActionRow(null);
@@ -310,65 +385,82 @@ const MembershipPackages = () => {
               </tr>
             </thead>
             <tbody className={`text-[14px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {currentPackages.map((row, idx) => (
-                <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-8 py-8">{row.id}</td>
-                  <td className="px-8 py-8 uppercase">
-                    <div className="border border-[#f97316]/30 bg-[#fff7ed] dark:bg-[#f97316]/10 text-[#f97316] px-5 py-2.5 rounded-lg text-[13px] font-black inline-block tracking-tight leading-snug max-w-[300px]">
-                      {row.name}
+              {isLoading ? (
+                <tr>
+                  <td colSpan="7" className="px-8 py-12 text-center">
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-gray-500">Loading packages...</span>
                     </div>
-                  </td>
-                  <td className="px-8 py-8">{row.duration}</td>
-                  <td className="px-8 py-8 text-center">{row.sessions}</td>
-                  <td className="px-8 py-8 font-black tracking-tight">₹{row.price}</td>
-                  <td className="px-8 py-8">
-                    <div className="flex justify-center">
-                      <div
-                        onClick={() => toggleStatus(row.id)}
-                        className={`relative w-24 h-12 rounded-lg cursor-pointer transition-all p-1 flex items-center shadow-inner ${row.status ? 'bg-[#059669]' : 'bg-[#64748b]'}`}
-                      >
-                        <span className={`absolute ${row.status ? 'left-4' : 'right-4'} text-[13px] font-black text-white pointer-events-none uppercase tracking-widest`}>
-                          {row.status ? 'On' : 'Off'}
-                        </span>
-                        <div className={`w-8 h-8 rounded bg-white shadow-lg transform transition-transform duration-200 ${row.status ? 'translate-x-[52px]' : 'translate-x-0'}`} />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-8 text-center relative" ref={el => actionRef.current[idx] = el}>
-                    <button
-                      onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
-                      className="text-gray-400 hover:text-black dark:hover:text-white transition-none"
-                    >
-                      <MoreVertical size={24} />
-                    </button>
-
-                    {activeActionRow === idx && (
-                      <div className={`absolute right-12 top-12 w-[220px] rounded-xl shadow-2xl border z-50 overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 font-bold'}`}>
-                        <div className="py-2">
-                          <div
-                            onClick={() => {
-                              setSelectedPackage(row);
-                              setIsEditModalOpen(true);
-                            }}
-                            className={`px-6 py-4 text-[15px] font-black border-b cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'}`}
-                          >
-                            Edit Package
-                          </div>
-                          <div
-                            onClick={() => {
-                              setSelectedPackageId(row.id);
-                              setIsDeleteModalOpen(true);
-                            }}
-                            className={`px-6 py-4 text-[15px] font-black cursor-pointer hover:pl-8 transition-all text-[#ff4d4d] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
-                          >
-                            Delete
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </td>
                 </tr>
-              ))}
+              ) : currentPackages.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="px-8 py-12 text-center text-gray-500">
+                    No packages found
+                  </td>
+                </tr>
+              ) : (
+                currentPackages.map((row, idx) => (
+                  <tr key={row._id} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                    <td className="px-8 py-8">{row._id?.slice(-6).toUpperCase()}</td>
+                    <td className="px-8 py-8 uppercase">
+                      <div className="border border-[#f97316]/30 bg-[#fff7ed] dark:bg-[#f97316]/10 text-[#f97316] px-5 py-2.5 rounded-lg text-[13px] font-black inline-block tracking-tight leading-snug max-w-[300px]">
+                        {row.name}
+                      </div>
+                    </td>
+                    <td className="px-8 py-8">{row.durationValue} {row.durationType}</td>
+                    <td className="px-8 py-8 text-center">{row.sessions}</td>
+                    <td className="px-8 py-8 font-black tracking-tight">₹{row.baseRate?.toFixed(2) || '0.00'}</td>
+                    <td className="px-8 py-8">
+                      <div className="flex justify-center">
+                        <div
+                          onClick={() => toggleStatus(row._id)}
+                          className={`relative w-24 h-12 rounded-lg cursor-pointer transition-all p-1 flex items-center shadow-inner ${row.active ? 'bg-[#059669]' : 'bg-[#64748b]'}`}
+                        >
+                          <span className={`absolute ${row.active ? 'left-4' : 'right-4'} text-[13px] font-black text-white pointer-events-none uppercase tracking-widest`}>
+                            {row.active ? 'On' : 'Off'}
+                          </span>
+                          <div className={`w-8 h-8 rounded bg-white shadow-lg transform transition-transform duration-200 ${row.active ? 'translate-x-[52px]' : 'translate-x-0'}`} />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-8 text-center relative" ref={el => actionRef.current[idx] = el}>
+                      <button
+                        onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
+                        className="text-gray-400 hover:text-black dark:hover:text-white transition-none"
+                      >
+                        <MoreVertical size={24} />
+                      </button>
+
+                      {activeActionRow === idx && (
+                        <div className={`absolute right-12 top-12 w-[220px] rounded-xl shadow-2xl border z-50 overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 font-bold'}`}>
+                          <div className="py-2">
+                            <div
+                              onClick={() => {
+                                setSelectedPackage(row);
+                                setIsEditModalOpen(true);
+                              }}
+                              className={`px-6 py-4 text-[15px] font-black border-b cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'}`}
+                            >
+                              Edit Package
+                            </div>
+                            <div
+                              onClick={() => {
+                                setSelectedPackageId(row._id);
+                                setIsDeleteModalOpen(true);
+                              }}
+                              className={`px-6 py-4 text-[15px] font-black cursor-pointer hover:pl-8 transition-all text-[#ff4d4d] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                            >
+                              Delete
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -415,6 +507,7 @@ const MembershipPackages = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         isDarkMode={isDarkMode}
+        onSuccess={fetchPackages}
       />
 
       <DeletePlanModal
@@ -425,7 +518,7 @@ const MembershipPackages = () => {
         }}
         isDarkMode={isDarkMode}
         onConfirm={handleDeleteConfirm}
-        packageName={packages.find(pkg => pkg.id === selectedPackageId)?.name}
+        packageName={packages.find(pkg => pkg._id === selectedPackageId)?.name}
       />
 
       <EditPackageModal
@@ -436,6 +529,7 @@ const MembershipPackages = () => {
         }}
         isDarkMode={isDarkMode}
         packageData={selectedPackage}
+        onSuccess={fetchPackages}
       />
     </div>
   );

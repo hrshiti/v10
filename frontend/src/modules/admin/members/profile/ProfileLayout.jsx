@@ -1,5 +1,6 @@
-import React from 'react';
-import { NavLink, Outlet, useSearchParams, useNavigate, useOutletContext, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, Outlet, useParams, useNavigate, useOutletContext, useLocation } from 'react-router-dom';
+import { API_BASE_URL } from '../../../../config/api';
 import {
     User,
     CreditCard,
@@ -18,8 +19,7 @@ import {
 
 
 const ProfileLayout = () => {
-    const [searchParams] = useSearchParams();
-    const id = searchParams.get('id');
+    const { id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
     const { isDarkMode, setSidebarOpen } = useOutletContext();
@@ -49,20 +49,47 @@ const ProfileLayout = () => {
     ];
 
     const memberDataFromState = location.state?.member;
-    const currentId = id || memberDataFromState?.id || '489890';
+    const [memberData, setMemberData] = useState(memberDataFromState || null);
+    const [isLoading, setIsLoading] = useState(!memberData);
 
-    // Find member in dummy list if not in state
-    const foundMember = dummyMembers.find(m => m.id === currentId);
-    const memberData = memberDataFromState || foundMember || { id: currentId, name: 'Member' };
+    const fetchMember = async () => {
+        if (!id) return;
+        setIsLoading(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            if (!token) return;
 
-    const memberName = memberData?.name || (foundMember ? foundMember.name : 'Member');
-    const memberId = memberData?.id || currentId;
-    const memberMobile = memberData?.mobile || memberData?.number || (foundMember ? (foundMember.mobile || foundMember.number) : '9081815118');
-    const memberEmail = memberData?.email || (foundMember ? foundMember.email : '-');
-    const memberDOB = memberData?.dob || (foundMember ? foundMember.dob : '-');
-    const memberAnniversary = memberData?.anniversary_date || (foundMember ? foundMember.anniversary_date : '-');
-    const memberEmergencyName = memberData?.emergency_contact_name || (foundMember ? foundMember.emergency_contact_name : '-');
-    const memberEmergencyNo = memberData?.emergency_contact_number || (foundMember ? foundMember.emergency_contact_number : '-');
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            setMemberData(data);
+        } catch (error) {
+            console.error('Error fetching member profile:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!memberDataFromState) {
+            fetchMember();
+        }
+    }, [id]);
+
+    const refreshProfile = () => {
+        fetchMember();
+    };
+
+    const memberName = memberData ? `${memberData.firstName} ${memberData.lastName}` : 'Loading...';
+    const memberMobile = memberData?.mobile || '-';
+    const memberEmail = memberData?.email || '-';
+    const memberDOB = memberData?.dob ? new Date(memberData.dob).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+    const memberAnniversary = memberData?.anniversaryDate ? new Date(memberData.anniversaryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+    const memberEmergencyName = memberData?.emergencyContact?.name || '-';
+    const memberEmergencyNo = memberData?.emergencyContact?.number || '-';
+    const displayId = memberData?.memberId || id || '-';
 
     // Collapse main sidebar when viewing profile to give more space
     React.useEffect(() => {
@@ -91,7 +118,7 @@ const ProfileLayout = () => {
     ];
 
     return (
-        <div className="flex flex-col gap-6 p-6 h-[calc(100vh-128px)] bg-transparent text-gray-800 dark:text-gray-100 transition-colors duration-300 overflow-hidden">
+        <div className={`flex flex-col gap-6 p-8 min-h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#f8f9fa] text-gray-800'}`}>
             {/* Back Button */}
             {/* Back Button - Now sticky or fixed if needed, but keeping it at top of content for now */}
             <div
@@ -102,67 +129,68 @@ const ProfileLayout = () => {
                 <span>Members Profile</span>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6 items-start flex-1 min-h-0 relative">
-                {/* Left Sidebar - Stationary */}
-                <div className="w-full lg:w-[300px] flex-shrink-0 h-full overflow-y-auto lg:pr-1 custom-scrollbar">
-                    <div className="flex flex-col gap-4 pb-10">
-                        {/* User Card */}
-                        <div className="bg-white dark:bg-[#1e1e1e] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-yellow-400 overflow-hidden flex items-center justify-center text-xl font-bold text-black border-2 border-white shadow-sm">
-                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(memberName)}&background=random`} alt="User" />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold dark:text-white text-gray-900">{memberName}</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Client ID : {memberId}</p>
-                            </div>
-                        </div>
+            <div className="flex flex-col lg:flex-row gap-6 items-start relative">
+                {/* Left Sidebar */}
+                <div className="w-full lg:w-[300px] flex-shrink-0 space-y-4 lg:sticky lg:top-[100px] self-start z-10">
 
-                        {/* Add Sale Button */}
-                        <button
-                            onClick={() => navigate(`sale/fresh?id=${memberId}`, { state: { member: memberData } })}
-                            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2 text-sm shrink-0"
-                        >
-                            <Plus size={18} />
-                            Add to New Sale
-                        </button>
-
-                        {/* Navigation Menu */}
-                        <div className="bg-white dark:bg-[#1e1e1e] rounded-xl shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden py-2">
-                            {sidebarItems.map((item) => (
-                                <NavLink
-                                    key={item.path}
-                                    to={`${item.path}?id=${id}`}
-                                    state={{ member: memberData }}
-                                    className={({ isActive }) => `
-                      flex items-center gap-3 px-6 py-3.5 text-sm font-bold transition-all
-                      ${isActive
-                                            ? 'text-orange-500 bg-orange-50 dark:bg-orange-500/10 border-l-4 border-orange-500'
-                                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 border-l-4 border-transparent'}
-                    `}
-                                >
-                                    <item.icon size={18} />
-                                    {item.label}
-                                </NavLink>
-                            ))}
+                    {/* User Card */}
+                    <div className="bg-white dark:bg-[#1e1e1e] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-yellow-400 overflow-hidden flex items-center justify-center text-xl font-bold text-black border-2 border-white shadow-sm">
+                            <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(memberName)}&background=random`} alt="User" />
                         </div>
+                        <div>
+                            <h3 className="text-sm font-bold dark:text-white text-gray-900 uppercase">{memberName}</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Client ID : {displayId}</p>
+                        </div>
+                    </div>
+
+                    {/* Add Sale Button */}
+                    <button
+                        onClick={() => navigate(`/admin/members/profile/${id}/sale/fresh`, { state: { member: memberData } })}
+                        className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black py-4 rounded-xl shadow-lg shadow-orange-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 text-[13px] uppercase tracking-wider"
+                    >
+                        <Plus size={18} />
+                        Add to New Sale
+                    </button>
+
+                    {/* Navigation Menu */}
+                    <div className="bg-white dark:bg-[#1e1e1e] rounded-xl shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden py-2">
+                        {sidebarItems.map((item) => (
+                            <NavLink
+                                key={item.path}
+                                to={`${item.path}`}
+                                state={{ member: memberData }}
+                                className={({ isActive }) => `
+                  flex items-center gap-3 px-6 py-3.5 text-sm font-bold transition-all
+                  ${isActive
+                                        ? 'text-orange-500 bg-orange-50 dark:bg-orange-500/10 border-l-4 border-orange-500'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 border-l-4 border-transparent'}
+                `}
+                            >
+                                <item.icon size={18} />
+                                {item.label}
+                            </NavLink>
+                        ))}
                     </div>
                 </div>
 
-                {/* Right Content - Scrollable */}
-                <div className="flex-1 w-full min-w-0 h-full overflow-y-auto scroll-smooth custom-scrollbar pr-1">
+                {/* Right Content */}
+                <div className="flex-1 w-full min-w-0">
                     {/* Pass parent context (isDarkMode) + current id + member details */}
                     <Outlet context={{
                         isDarkMode,
                         id,
                         memberData,
                         memberName,
-                        memberId,
+                        memberId: displayId,
                         memberMobile,
                         memberEmail,
                         memberDOB,
                         memberAnniversary,
                         memberEmergencyName,
-                        memberEmergencyNo
+                        memberEmergencyNo,
+                        isLoading,
+                        refreshProfile
                     }} />
                 </div>
             </div>

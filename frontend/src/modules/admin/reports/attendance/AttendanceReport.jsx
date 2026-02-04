@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ChevronDown,
   Calendar,
@@ -11,6 +11,7 @@ import {
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
+import { API_BASE_URL } from '../../../../config/api';
 
 const AttendanceReport = () => {
   const { isDarkMode } = useOutletContext();
@@ -24,47 +25,75 @@ const AttendanceReport = () => {
   const [selectedMembership, setSelectedMembership] = useState('Membership Type');
   const [isMembershipDropdownOpen, setIsMembershipDropdownOpen] = useState(false);
 
-  const [attendanceData, setAttendanceData] = useState([
-    {
-      id: '523425',
-      name: 'Evenjleena CHRISTIAN',
-      number: '8980209491',
-      plan: 'GYM WORKOUT',
-      type: 'General Training',
-      attended: '88',
-      total: '360',
-      endDate: '27-04-2026',
-      trainer: 'Abdulla Pathan',
-      lastMarked: '03-02-2026 09:00 AM'
+  const [reportData, setReportData] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  const fetchAttendanceData = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const queryParams = new URLSearchParams({
+        pageNumber: currentPage,
+        pageSize: rowsPerPage,
+        search: searchQuery,
+        view: view,
+        fromDate: fromDate?.split('-').reverse().join('-') || '',
+        toDate: toDate?.split('-').reverse().join('-') || ''
+      });
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/attendance?${queryParams.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      setReportData(data.members || []);
+      setTotalPages(data.pages || 1);
+      setTotalRecords(data.total || 0);
+
+    } catch (error) {
+      console.error("Error fetching attendance report:", error);
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
 
-  const [absentData, setAbsentData] = useState([
-    { id: '1226', name: 'PATEL DHRUV', mobile: '7179010403' },
-    { id: '1227', name: 'SANDEEP PATEL', mobile: '7043484769' },
-    { id: '1228', name: 'MODI PRATHAM', mobile: '6352560220' },
-    { id: '1229', name: 'HEMIL MODI', mobile: '9512585046' },
-    { id: '1233', name: 'DRUV RAVAL', mobile: '9428053837' },
-  ]);
+  useEffect(() => {
+    fetchAttendanceData();
+  }, [view, currentPage, rowsPerPage]);
 
-  const filteredAttendance = attendanceData.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.number.includes(searchQuery) ||
-    item.id.includes(searchQuery)
-  );
+  const handleApply = () => {
+    setCurrentPage(1);
+    fetchAttendanceData();
+  };
 
-  const filteredAbsent = absentData.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.mobile.includes(searchQuery) ||
-    item.id.includes(searchQuery)
-  );
+  const handleClear = () => {
+    setSearchQuery('');
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    const todayStr = `${dd}-${mm}-${yyyy}`;
+
+    setFromDate(todayStr);
+    setToDate(todayStr);
+    setCurrentPage(1);
+    setTimeout(fetchAttendanceData, 100);
+  };
 
   const stats = view === 'attendance' ? [
-    { label: 'Total Attendance', value: filteredAttendance.length.toString(), icon: UserCheck, theme: 'blue' },
-    { label: 'Absent', value: 'Absent', icon: UserCheck, theme: 'red' },
+    { label: 'Total Attendance', value: totalRecords.toString(), icon: UserCheck, theme: 'blue' },
+    { label: 'Absent', value: 'Switch to view', icon: UserCheck, theme: 'red' },
   ] : [
-    { label: 'Total Absent', value: '413', icon: UserCheck, theme: 'blue' },
-    { label: 'Days Absent', value: '', icon: UserCheck, theme: 'red' },
+    { label: 'Total Absent', value: totalRecords.toString(), icon: UserCheck, theme: 'blue' },
+    { label: 'Days Absent', value: 'N/A', icon: UserCheck, theme: 'red' },
   ];
 
   const themeConfig = {
@@ -157,10 +186,10 @@ const AttendanceReport = () => {
             </div>
           )}
 
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Apply</button>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Weekly</button>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Monthly</button>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Clear</button>
+          <button onClick={handleApply} className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Apply</button>
+          <button onClick={() => { }} className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Weekly</button>
+          <button onClick={() => { }} className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Monthly</button>
+          <button onClick={handleClear} className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Clear</button>
         </div>
 
         <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 transition-none">
@@ -190,12 +219,7 @@ const AttendanceReport = () => {
           <div className="flex items-center gap-4">
             <span className="text-[14px] font-black text-gray-800 dark:text-gray-200 tracking-tight uppercase">{view === 'attendance' ? 'Attendance Report' : 'Absent Report'}</span>
             <div className="flex items-center gap-3">
-              <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-none text-gray-400">
-                <ChevronLeft size={20} />
-              </button>
-              <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-none text-gray-400">
-                <ChevronRight size={20} />
-              </button>
+              {totalPages > 1 && <span className="text-xs text-gray-400">Page {currentPage} of {totalPages}</span>}
             </div>
           </div>
         </div>
@@ -216,26 +240,31 @@ const AttendanceReport = () => {
                   </tr>
                 </thead>
                 <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                  {filteredAttendance.slice(0, rowsPerPage).map((row, idx) => (
-                    <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                      <td className="px-6 py-8">
-                        <div
-                          className="flex flex-col cursor-pointer"
-                          onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
-                        >
-                          <span className="text-[#3b82f6] uppercase font-black hover:underline">{row.name}</span>
-                          <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5 hover:underline">{row.number}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-8">{row.plan}</td>
-                      <td className="px-6 py-8">{row.type}</td>
-                      <td className="px-6 py-8 text-center font-black">{row.attended}</td>
-                      <td className="px-6 py-8 text-center font-black">{row.total}</td>
-                      <td className="px-6 py-8">{row.endDate}</td>
-                      <td className="px-6 py-8">{row.trainer}</td>
-                      <td className="px-6 py-8">{row.lastMarked}</td>
-                    </tr>
-                  ))}
+                  {isLoading ? (
+                    <tr><td colSpan="8" className="text-center py-10">Loading...</td></tr>
+                  ) : reportData.length === 0 ? (
+                    <tr><td colSpan="8" className="text-center py-10">No attendance records found</td></tr>
+                  ) : (
+                    reportData.map((row, idx) => (
+                      <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                        <td className="px-6 py-8">
+                          <div
+                            className="flex flex-col cursor-pointer"
+                            onClick={() => navigate(`/admin/members/profile/${row._id}/edit`, { state: { member: row } })}
+                          >
+                            <span className="text-[#3b82f6] uppercase font-black hover:underline">{row.firstName} {row.lastName}</span>
+                            <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5 hover:underline">{row.mobile}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-8">{row.packageName || '-'}</td>
+                        <td className="px-6 py-8">General Training</td>
+                        <td className="px-6 py-8 text-center font-black">{row.attended}</td>
+                        <td className="px-6 py-8 text-center font-black">-</td>
+                        <td className="px-6 py-8">{row.endDate ? new Date(row.endDate).toLocaleDateString() : '-'}</td>
+                        <td className="px-6 py-8">{row.assignedTrainer || '-'}</td>
+                        <td className="px-6 py-8">{row.lastMarked ? new Date(row.lastMarked).toLocaleString() : '-'}</td>
+                      </tr>
+                    )))}
                 </tbody>
               </>
             ) : (
@@ -247,36 +276,40 @@ const AttendanceReport = () => {
                   </tr>
                 </thead>
                 <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                  {filteredAbsent.slice(0, rowsPerPage).map((row, idx) => (
-                    <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                      <td
-                        onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
-                        className="px-6 py-8 text-[#3b82f6] uppercase font-black cursor-pointer hover:underline"
-                      >
-                        {row.name}
-                      </td>
-                      <td className="px-6 py-8 font-black">{row.mobile}</td>
-                    </tr>
-                  ))}
+                  {isLoading ? (
+                    <tr><td colSpan="2" className="text-center py-10">Loading...</td></tr>
+                  ) : reportData.length === 0 ? (
+                    <tr><td colSpan="2" className="text-center py-10">No absent members found</td></tr>
+                  ) : (
+                    reportData.map((row, idx) => (
+                      <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                        <td
+                          onClick={() => navigate(`/admin/members/profile/${row._id}/edit`, { state: { member: row } })}
+                          className="px-6 py-8 text-[#3b82f6] uppercase font-black cursor-pointer hover:underline"
+                        >
+                          {row.firstName} {row.lastName}
+                        </td>
+                        <td className="px-6 py-8 font-black">{row.mobile}</td>
+                      </tr>
+                    )))}
                 </tbody>
               </>
             )}
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination Logic visual */}
         <div className={`p-5 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2">
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 shadow-sm text-gray-600'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
-            {view === 'absent' && [2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-              <button key={n} className={`w-10 h-10 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 text-gray-600'}`}>{n}</button>
-            ))}
-            {view === 'absent' && <span className="px-2 text-gray-400">...</span>}
-            {view === 'absent' && [82, 83].map(n => (
-              <button key={n} className={`w-10 h-10 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 text-gray-600'}`}>{n}</button>
-            ))}
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 shadow-sm text-gray-600'}`}>Next »</button>
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 shadow-sm text-gray-600'}`}>« Previous</button>
+            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
+            <button
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 shadow-sm text-gray-600'}`}>Next »</button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">

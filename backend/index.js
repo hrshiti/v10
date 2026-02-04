@@ -32,6 +32,8 @@ app.use('/api/admin/feedback', require('./routes/admin/feedbackRoutes'));
 app.use('/api/admin/reports', require('./routes/admin/reportRoutes'));
 app.use('/api/admin/employees', require('./routes/admin/employeeRoutes'));
 app.use('/api/admin/diet-plans', require('./routes/admin/dietRoutes'));
+app.use('/api/admin/follow-ups', require('./routes/admin/followUpRoutes'));
+app.use('/api/admin/expenses', require('./routes/admin/expenseRoutes'));
 
 // User Routes
 app.use('/api/user/auth', require('./routes/user/authRoutes'));
@@ -57,4 +59,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
- 
+

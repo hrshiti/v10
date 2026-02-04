@@ -13,9 +13,11 @@ const {
     markAttendance
 } = require('../../controllers/admin/employeeAttendanceController');
 
+const upload = require('../../middlewares/uploadMiddleware');
+
 router.route('/')
     .get(getEmployees)
-    .post(createEmployee);
+    .post(upload.single('photo'), createEmployee);
 
 router.get('/role/:role', getEmployeesByRole);
 
@@ -24,7 +26,7 @@ router.get('/attendance', getAttendanceLogs);
 router.post('/attendance/manual', markAttendance);
 
 router.route('/:id')
-    .put(updateEmployee)
+    .put(upload.single('photo'), updateEmployee)
     .delete(deleteEmployee);
 
 router.patch('/:id/toggle', toggleEmployeeStatus);

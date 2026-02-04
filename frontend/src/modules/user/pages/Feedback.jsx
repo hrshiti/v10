@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Star, Send, CheckCircle2, MessageCircle, Info, AlertTriangle, ThumbsUp, MessageSquare } from 'lucide-react';
+import { API_BASE_URL } from '../../../config/api';
 
 const Feedback = () => {
     const navigate = useNavigate();
@@ -19,12 +20,13 @@ const Feedback = () => {
     }, []);
 
     const fetchHistory = async () => {
-        try {
-            const stored = localStorage.getItem('userData');
-            if (!stored) return;
-            const userData = JSON.parse(stored);
+        const userToken = localStorage.getItem('userToken');
+        if (!userToken) return;
 
-            const response = await fetch(`http://localhost:5000/api/admin/feedback/user/${userData._id}`);
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/user/feedback`, {
+                headers: { 'Authorization': `Bearer ${userToken}` }
+            });
             const data = await response.json();
             if (response.ok && Array.isArray(data)) {
                 setHistory(data);
@@ -40,23 +42,23 @@ const Feedback = () => {
         e.preventDefault();
         if (!message.trim() || rating === 0) return;
 
+        const userToken = localStorage.getItem('userToken');
+        if (!userToken) {
+            alert('Please login first');
+            return;
+        }
+
         setIsSubmitting(true);
         setSuccessId(null);
 
         try {
-            const stored = localStorage.getItem('userData');
-            if (!stored) {
-                alert('Please login first');
-                return;
-            }
-            const userData = JSON.parse(stored);
-
-            const response = await fetch('http://localhost:5000/api/admin/feedback/submit', {
+            const response = await fetch(`${API_BASE_URL}/api/user/feedback`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userToken}`
+                },
                 body: JSON.stringify({
-                    userId: userData._id,
-                    userName: `${userData.firstName || ''} ${userData.lastName || ''}`,
                     type: feedbackType,
                     message,
                     rating
@@ -224,7 +226,6 @@ const Feedback = () => {
                         {Array.isArray(history) && history.length > 0 ? (
                             history.map((item) => (
                                 <div key={item._id} className="bg-white dark:bg-[#1A1F2B] rounded-[2rem] p-5 shadow-sm border border-gray-100 dark:border-white/5 transition-all">
-                                    {/* ... history item logic remains same ... */}
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-11 h-11 bg-gray-50 dark:bg-[#252A36] rounded-xl flex items-center justify-center shadow-inner">

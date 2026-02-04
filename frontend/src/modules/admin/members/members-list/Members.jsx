@@ -19,6 +19,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../../../../config/api';
 
 // --- Reusable Components ---
 
@@ -357,6 +358,82 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, isDarkMode, onSubmit }) => {
   );
 };
 
+const AssignTrainerModal = ({ isOpen, onClose, isDarkMode, onSubmit, trainers }) => {
+  const [selectedTrainer, setSelectedTrainer] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`w-full max-w-[450px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        <div className={`px-6 py-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+          <div className="flex items-center gap-3">
+            <UserPlus size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
+            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Assign Trainer</h2>
+          </div>
+          <button onClick={onClose} className={isDarkMode ? 'text-white hover:text-gray-300' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-8">
+          <label className={`block text-[14px] font-bold mb-3 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Select Trainer*</label>
+          <div className="relative" ref={dropdownRef}>
+            <div
+              onClick={() => setShowDropdown(!showDropdown)}
+              className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none cursor-pointer flex justify-between items-center ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : showDropdown ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 shadow-sm'}`}
+            >
+              <span>
+                {trainers.find(t => t._id === selectedTrainer) ? `${trainers.find(t => t._id === selectedTrainer).firstName} ${trainers.find(t => t._id === selectedTrainer).lastName}` : 'Select Trainer'}
+              </span>
+              <ChevronDown size={16} className={`transition-transform ${showDropdown ? 'rotate-180 text-[#f97316]' : 'text-[#f97316]'}`} />
+            </div>
+            {showDropdown && (
+              <div className={`absolute top-full left-0 right-0 mt-1 max-h-[200px] overflow-y-auto rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                {trainers.map((trainer) => (
+                  <div
+                    key={trainer._id}
+                    onClick={() => {
+                      setSelectedTrainer(trainer._id);
+                      setShowDropdown(false);
+                    }}
+                    className={`px-4 py-3 text-[14px] font-medium cursor-pointer ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'}`}
+                  >
+                    {trainer.firstName} {trainer.lastName} ({trainer.employeeId})
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button onClick={onClose} className={`px-6 py-2.5 rounded-lg text-[15px] font-bold transition-none ${isDarkMode ? 'bg-white/5 text-white' : 'bg-gray-100 text-gray-700'}`}>Cancel</button>
+          <button
+            onClick={() => onSubmit(selectedTrainer)}
+            className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600"
+            disabled={!selectedTrainer}
+          >
+            Assign
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -419,6 +496,23 @@ const Members = () => {
   const [selectedMemberIndex, setSelectedMemberIndex] = useState(null);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [isAssignTrainerModalOpen, setIsAssignTrainerModalOpen] = useState(false);
+  const [trainers, setTrainers] = useState([]);
+
+  const toggleSelectMember = (id) => {
+    setSelectedMembers(prev =>
+      prev.includes(id) ? prev.filter(mId => mId !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedMembers.length === members.length && members.length > 0) {
+      setSelectedMembers([]);
+    } else {
+      setSelectedMembers(members.map(m => m._id));
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -432,12 +526,87 @@ const Members = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activeActionRow]);
 
+  // API States
+  const [memberStats, setMemberStats] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalMembers, setTotalMembers] = useState(0);
+
+  const fetchMembers = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      // Fetch Stats
+      const statsRes = await fetch(`${API_BASE_URL}/api/admin/members/stats`, { headers });
+      const statsData = await statsRes.json();
+      setMemberStats(statsData);
+
+      // Fetch Members with pagination and search
+      const query = new URLSearchParams({
+        pageNumber: currentPage,
+        pageSize: rowsPerPage,
+        keyword: searchQuery,
+        gender: selectedGender === 'Gender' ? '' : selectedGender
+      });
+
+      const membersRes = await fetch(`${API_BASE_URL}/api/admin/members?${query.toString()}`, { headers });
+      const mData = await membersRes.json();
+
+      setMembers(mData.members);
+      setTotalPages(mData.pages);
+      setTotalMembers(mData.total);
+    } catch (error) {
+      console.error('Error fetching members:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchTrainers = async () => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setTrainers(data);
+    } catch (error) {
+      console.error('Error fetching trainers:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchMembers();
+    fetchTrainers();
+  }, [currentPage, rowsPerPage, selectedGender]);
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchMembers();
+  };
+
+  const handleClear = () => {
+    setSelectedGender('');
+    setSearchQuery('');
+    setCurrentPage(1);
+    // fetchData is called via effects
+  };
+
   const stats = [
-    { label: 'All Members', value: '1080', icon: User, theme: 'blue' },
-    { label: 'Active Members', value: '413', icon: Activity, theme: 'emerald' },
-    { label: 'Upcoming Members', value: '4', icon: UserPlus, theme: 'purple' },
-    { label: 'Past Members', value: '547', icon: User, theme: 'slate' },
-    { label: 'Today Attendance', value: '0', icon: Users, theme: 'orange' },
+    { label: 'All Members', value: memberStats?.total || '0', icon: User, theme: 'blue' },
+    { label: 'Active Members', value: memberStats?.active || '0', icon: Activity, theme: 'emerald' },
+    { label: 'Expiring Soon', value: memberStats?.expiringSoon || '0', icon: UserPlus, theme: 'purple' },
+    { label: 'Expired Members', value: memberStats?.expired || '0', icon: User, theme: 'slate' },
+    { label: 'Today Attendance', value: memberStats?.todayAttendance || '0', icon: Users, theme: 'orange' },
   ];
 
   const themeConfig = {
@@ -448,19 +617,13 @@ const Members = () => {
     orange: { bg: 'bg-orange-600', shadow: 'shadow-orange-500/20', ring: 'ring-orange-400' },
   };
 
-  const [membersData, setMembersData] = useState([
-    { id: '1232', name: 'NIRAJ GUPTA', mobile: '+917778877207', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
-    { id: '1231', name: 'CHANDAN SINGH', mobile: '+91919998596909', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
-    { id: '1230', name: 'DEV LODHA', mobile: '+917698523069', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
-    { id: '5/1229', name: 'KHETRAM KUMAWAT', mobile: '+916376566316', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
-    { id: '99/22', name: 'KUNAL CHAUHAN', mobile: '+919978145629', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
-  ]);
+
 
   const handleVaccinationConfirm = () => {
     if (selectedMemberIndex !== null) {
-      const updatedMembers = [...membersData];
+      const updatedMembers = [...members];
       updatedMembers[selectedMemberIndex].vaccination = 'YES';
-      setMembersData(updatedMembers);
+      setMembers(updatedMembers);
       setSuccessMessage('Vaccination status updated successfully!');
       setShowSuccessNotification(true);
       setTimeout(() => setShowSuccessNotification(false), 3000);
@@ -469,13 +632,135 @@ const Members = () => {
     setActiveActionRow(null);
   };
 
-  const handleScheduleFollowUpSubmit = (formData) => {
-    console.log('Follow up scheduled:', formData);
-    setSuccessMessage('Follow-up scheduled successfully!');
-    setShowSuccessNotification(true);
-    setTimeout(() => setShowSuccessNotification(false), 3000);
-    setIsScheduleFollowUpModalOpen(false);
-    setActiveActionRow(null);
+  const handleScheduleFollowUpSubmit = async (formData) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const member = members[selectedMemberIndex];
+      if (!member) return;
+
+      // Handle Date Parsing (Support DD/MM/YYYY and DD-MM-YYYY)
+      const dateStr = formData.followUpDate;
+      let followUpDate;
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        followUpDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      } else if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts[0].length === 4) { // YYYY-MM-DD
+          followUpDate = new Date(dateStr);
+        } else { // DD-MM-YYYY
+          followUpDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        }
+      } else {
+        followUpDate = new Date(dateStr);
+      }
+
+      if (isNaN(followUpDate.getTime())) {
+        alert("Invalid follow-up date format. Please use dd/mm/yyyy");
+        return;
+      }
+
+      const payload = {
+        name: `${member.firstName} ${member.lastName}`,
+        number: member.mobile,
+        type: formData.type || 'Enquiry',
+        dateTime: followUpDate,
+        status: formData.convertibility || 'Hot',
+        comment: formData.toDo,
+        memberId: member._id,
+        createdBy: 'Admin'
+      };
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/follow-ups`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setSuccessMessage('Follow-up scheduled successfully!');
+        setShowSuccessNotification(true);
+        setTimeout(() => setShowSuccessNotification(false), 3000);
+        setIsScheduleFollowUpModalOpen(false);
+        setActiveActionRow(null);
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to schedule follow-up');
+      }
+    } catch (error) {
+      console.error('Error scheduling follow-up:', error);
+      alert('Error scheduling follow-up');
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    if (selectedMembers.length === 0) return;
+    if (!window.confirm(`Are you sure you want to deactivate ${selectedMembers.length} members?`)) return;
+
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/bulk-deactivate`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ memberIds: selectedMembers })
+      });
+
+      if (res.ok) {
+        setSuccessMessage('Members deactivated successfully!');
+        setShowSuccessNotification(true);
+        setTimeout(() => setShowSuccessNotification(false), 3000);
+        setSelectedMembers([]);
+        fetchMembers();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to deactivate members');
+      }
+    } catch (error) {
+      console.error('Error deactivating members:', error);
+    }
+  };
+
+  const handleBulkAssignTrainer = async (trainerId) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/bulk-assign-trainer`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ memberIds: selectedMembers, trainerId })
+      });
+
+      if (res.ok) {
+        setSuccessMessage('Trainer assigned successfully!');
+        setShowSuccessNotification(true);
+        setTimeout(() => setShowSuccessNotification(false), 3000);
+        setSelectedMembers([]);
+        setIsAssignTrainerModalOpen(false);
+        fetchMembers();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to assign trainer');
+      }
+    } catch (error) {
+      console.error('Error assigning trainer:', error);
+    }
   };
 
   return (
@@ -514,20 +799,57 @@ const Members = () => {
         })}
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedMembers.length > 0 && (
+        <div className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-300 ${isDarkMode ? 'bg-[#f97316]/10 border-[#f97316]/20' : 'bg-orange-50 border-orange-100'}`}>
+          <div className="flex items-center gap-4">
+            <span className={`text-[15px] font-black ${isDarkMode ? 'text-[#f97316]' : 'text-orange-700'}`}>{selectedMembers.length} Members Selected</span>
+            <button
+              onClick={() => setSelectedMembers([])}
+              className={`text-[13px] font-bold hover:underline ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            >
+              Deselect All
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsAssignTrainerModalOpen(true)}
+              className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-black shadow-md hover:bg-orange-600 active:scale-95 transition-all flex items-center gap-2"
+            >
+              Assign Trainer
+            </button>
+            <button className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-black shadow-md hover:bg-orange-600 active:scale-95 transition-all flex items-center gap-2">
+              Send SMS
+            </button>
+            <button
+              onClick={handleBulkDeactivate}
+              className="bg-red-500 text-white px-6 py-2 rounded-lg text-[13px] font-black shadow-md hover:bg-red-600 active:scale-95 transition-all flex items-center gap-2"
+            >
+              Deactivate
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4 transition-none pt-4">
         <CustomDropdown
           placeholder="Gender"
-          options={['Male', 'FeMale']}
+          options={['Male', 'Female']}
           value={selectedGender}
           onChange={setSelectedGender}
           isDarkMode={isDarkMode}
           minWidth="130px"
         />
 
-        <button className="bg-[#f97316] text-white px-10 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600">Apply</button>
         <button
-          onClick={() => { setSelectedGender(''); setSearchQuery(''); }}
+          onClick={handleSearch}
+          className="bg-[#f97316] text-white px-10 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600"
+        >
+          Apply
+        </button>
+        <button
+          onClick={handleClear}
           className="bg-[#f97316] text-white px-10 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600"
         >
           Clear
@@ -576,105 +898,129 @@ const Members = () => {
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-[#fcfcfc] border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
-                <th className="px-6 py-6 w-10"><input type="checkbox" className="w-5 h-5 rounded accent-[#f97316] cursor-pointer" /></th>
-                <th className="px-6 py-6 uppercase tracking-wider">Client ID</th>
+                <th className="px-6 py-6 w-10">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 rounded accent-[#f97316] cursor-pointer"
+                    checked={members.length > 0 && selectedMembers.length === members.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
+                <th className="px-6 py-6 uppercase tracking-wider">Member ID</th>
                 <th className="px-6 py-6 uppercase tracking-wider">Name & Mob. No.</th>
                 <th className="px-6 py-6 uppercase tracking-wider text-center">Gender</th>
                 <th className="px-6 py-6 uppercase tracking-wider text-center">Status</th>
-                <th className="px-6 py-6 uppercase tracking-wider">Customer Service Executive</th>
-                <th className="px-6 py-6 uppercase tracking-wider text-center">Vaccination(Coivid-19)</th>
+                <th className="px-6 py-6 uppercase tracking-wider">Package</th>
+                <th className="px-6 py-6 uppercase tracking-wider text-center">Expiry Date</th>
                 <th className="px-6 py-6 border-l dark:border-white/5 w-[80px] text-center">Action</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {membersData.map((row, idx) => (
-                <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-8"><input type="checkbox" className="w-5 h-5 rounded accent-[#f97316] cursor-pointer" /></td>
-                  <td className="px-6 py-8">{row.id}</td>
-                  <td className="px-6 py-8">
-                    <div
-                      className="flex flex-col transition-none cursor-pointer"
-                      onClick={() => navigate(`/admin/members/profile/edit?id=${row.id}`, { state: { member: row } })}
-                    >
-                      <span className="text-[#3b82f6] text-[15px] font-black hover:underline uppercase">{row.name}</span>
-                      <span className="text-[#3b82f6] text-[13px] mt-0.5 font-bold">{row.mobile}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-8 text-center">{row.gender}</td>
-                  <td className="px-6 py-8 text-center">
-                    <div className="px-5 py-2 rounded-lg text-[13px] font-black border border-[#f97316]/30 bg-[#fff7ed] dark:bg-[#f97316]/10 text-[#f97316] inline-block uppercase tracking-wider">
-                      {row.status}
-                    </div>
-                  </td>
-                  <td className="px-6 py-8">{row.executive}</td>
-                  <td className="px-6 py-8 text-center">{row.vaccination}</td>
-                  <td className="px-6 py-8 text-center relative border-l dark:border-white/5" ref={el => actionRef.current[idx] = el}>
-                    <button
-                      onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
-                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-90"
-                    >
-                      <MoreVertical size={22} />
-                    </button>
-
-                    {activeActionRow === idx && (
-                      <div className={`absolute right-12 top-12 w-[220px] rounded-xl shadow-2xl border z-50 overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 font-bold'}`}>
-                        <div className="py-2">
-                          {[
-                            'View Profile',
-                            'Vaccination',
-                            'Schedule Followup'
-                          ].map((action, i) => (
-                            <div key={i}>
-                              {action === 'View Profile' ? (
-                                <div
-                                  onClick={() => {
-                                    setActiveActionRow(null);
-                                    navigate(`/admin/members/profile/edit?id=${row.id}`, { state: { member: row } });
-                                  }}
-                                  className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
-                                    }`}
-                                >
-                                  {action}
-                                </div>
-                              ) : action === 'Vaccination' ? (
-                                <div
-                                  onClick={() => {
-                                    setSelectedMemberIndex(idx);
-                                    setIsVaccinationModalOpen(true);
-                                  }}
-                                  className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
-                                    }`}
-                                >
-                                  {action}
-                                </div>
-                              ) : action === 'Schedule Followup' ? (
-                                <div
-                                  onClick={() => {
-                                    setSelectedMemberIndex(idx);
-                                    setIsScheduleFollowUpModalOpen(true);
-                                  }}
-                                  className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
-                                    }`}
-                                >
-                                  {action}
-                                </div>
-                              ) : (
-                                <div
-                                  onClick={() => setActiveActionRow(null)}
-                                  className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
-                                    }`}
-                                >
-                                  {action}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+              {members.length > 0 ? (
+                members.map((row, idx) => (
+                  <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                    <td className="px-6 py-8">
+                      <input
+                        type="checkbox"
+                        className="w-5 h-5 rounded accent-[#f97316] cursor-pointer"
+                        checked={selectedMembers.includes(row._id)}
+                        onChange={() => toggleSelectMember(row._id)}
+                      />
+                    </td>
+                    <td className="px-6 py-8">{row.memberId}</td>
+                    <td className="px-6 py-8">
+                      <div
+                        className="flex flex-col transition-none cursor-pointer"
+                        onClick={() => navigate(`/admin/members/profile/${row._id}/edit`, { state: { member: row } })}
+                      >
+                        <span className="text-[#3b82f6] text-[15px] font-black hover:underline uppercase">{row.firstName} {row.lastName}</span>
+                        <span className="text-[#3b82f6] text-[13px] mt-0.5 font-bold">{row.mobile}</span>
                       </div>
-                    )}
+                    </td>
+                    <td className="px-6 py-8 text-center">{row.gender}</td>
+                    <td className="px-6 py-8 text-center">
+                      <div className={`px-5 py-2 rounded-lg text-[13px] font-black border ${row.status === 'Active' ? 'border-[#10b981]/30 bg-[#10b981]/10 text-[#10b981]' : 'border-[#ef4444]/30 bg-[#ef4444]/10 text-[#ef4444]'} inline-block uppercase tracking-wider`}>
+                        {row.status}
+                      </div>
+                    </td>
+                    <td className="px-6 py-8">{row.packageName}</td>
+                    <td className="px-6 py-8 text-center">
+                      {new Date(row.endDate).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-8 text-center relative border-l dark:border-white/5" ref={el => actionRef.current[idx] = el}>
+                      <button
+                        onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
+                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-90"
+                      >
+                        <MoreVertical size={22} />
+                      </button>
+
+                      {activeActionRow === idx && (
+                        <div className={`absolute right-12 top-12 w-[220px] rounded-xl shadow-2xl border z-50 overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 font-bold'}`}>
+                          <div className="py-2">
+                            {[
+                              'View Profile',
+                              'Vaccination',
+                              'Schedule Followup'
+                            ].map((action, i) => (
+                              <div key={i}>
+                                {action === 'View Profile' ? (
+                                  <div
+                                    onClick={() => {
+                                      setActiveActionRow(null);
+                                      navigate(`/admin/members/profile/${row._id}/edit`, { state: { member: row } });
+                                    }}
+                                    className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
+                                      }`}
+                                  >
+                                    {action}
+                                  </div>
+                                ) : action === 'Vaccination' ? (
+                                  <div
+                                    onClick={() => {
+                                      setSelectedMemberIndex(idx);
+                                      setIsVaccinationModalOpen(true);
+                                    }}
+                                    className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
+                                      }`}
+                                  >
+                                    {action}
+                                  </div>
+                                ) : action === 'Schedule Followup' ? (
+                                  <div
+                                    onClick={() => {
+                                      setSelectedMemberIndex(idx);
+                                      setIsScheduleFollowUpModalOpen(true);
+                                    }}
+                                    className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
+                                      }`}
+                                  >
+                                    {action}
+                                  </div>
+                                ) : (
+                                  <div
+                                    onClick={() => setActiveActionRow(null)}
+                                    className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
+                                      }`}
+                                  >
+                                    {action}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" className="px-6 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">
+                    {isLoading ? 'Loading Members...' : 'No Members Found'}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -682,20 +1028,29 @@ const Members = () => {
         {/* Pagination */}
         <div className={`p-8 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-[#f9f9f9]/30'}`}>
           <div className="flex flex-wrap items-center gap-3">
-            <button className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50`}>« Previous</button>
-            <button className="w-11 h-11 border rounded-xl text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
-            {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-              <button key={num} className={`w-11 h-11 border rounded-xl text-[13px] font-bold transition-none border-gray-300 text-gray-600 hover:bg-gray-50`}>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50`}
+            >
+              « Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
+              <button
+                key={num}
+                onClick={() => setCurrentPage(num)}
+                className={`w-11 h-11 border rounded-xl text-[13px] font-black transition-none ${currentPage === num ? 'bg-[#f97316] text-white shadow-lg' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              >
                 {num}
               </button>
             ))}
-            <span className="px-2 text-gray-400 font-black">...</span>
-            {[215, 216].map(num => (
-              <button key={num} className={`w-11 h-11 border rounded-xl text-[13px] font-bold transition-none border-gray-300 text-gray-600 hover:bg-gray-50`}>
-                {num}
-              </button>
-            ))}
-            <button className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-5 transition-none">
@@ -733,6 +1088,14 @@ const Members = () => {
         }}
         isDarkMode={isDarkMode}
         onSubmit={handleScheduleFollowUpSubmit}
+      />
+
+      <AssignTrainerModal
+        isOpen={isAssignTrainerModalOpen}
+        onClose={() => setIsAssignTrainerModalOpen(false)}
+        isDarkMode={isDarkMode}
+        onSubmit={handleBulkAssignTrainer}
+        trainers={trainers}
       />
 
       {/* Success Notification */}

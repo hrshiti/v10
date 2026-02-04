@@ -8,6 +8,7 @@ import {
   ChevronRight,
   User
 } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 import { useOutletContext } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
@@ -23,6 +24,29 @@ const PtReport = () => {
   const [isTrainerDropdownOpen, setIsTrainerDropdownOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const trainerRef = useRef(null);
+
+  const [trainers, setTrainers] = useState([]);
+
+  useEffect(() => {
+    const fetchTrainers = async () => {
+      try {
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const token = adminInfo?.token;
+        if (!token) return;
+
+        const res = await fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setTrainers(data.map(t => `${t.firstName} ${t.lastName}`));
+        }
+      } catch (error) {
+        console.error("Error fetching trainers:", error);
+      }
+    };
+    fetchTrainers();
+  }, []);
 
   const [ptData, setPtData] = useState([]);
 
@@ -107,7 +131,7 @@ const PtReport = () => {
 
             {isTrainerDropdownOpen && (
               <div className={`absolute top-full left-0 mt-1 w-full rounded-lg shadow-xl border z-50 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
-                {['Abdulla Pathan', 'ANJALI KANWAR', 'V10 FITNESS LAB'].map(trainer => (
+                {(trainers.length > 0 ? trainers : ['No Trainers Found']).map(trainer => (
                   <div
                     key={trainer}
                     onClick={() => { setSelectedTrainer(trainer); setIsTrainerDropdownOpen(false); }}

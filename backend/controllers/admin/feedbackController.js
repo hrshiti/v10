@@ -56,7 +56,7 @@ const replyToFeedback = asyncHandler(async (req, res) => {
     if (feedback) {
         feedback.replyMessage = replyMessage;
         feedback.replyDate = Date.now();
-        feedback.repliedBy = 'Admin'; // In real app, get from req.admin.name
+        feedback.repliedBy = req.admin?.name || 'Admin';
         feedback.status = 'Replied';
 
         const updatedFeedback = await feedback.save();

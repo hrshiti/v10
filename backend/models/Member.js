@@ -31,7 +31,7 @@ const memberSchema = new mongoose.Schema({
     // Status
     status: {
         type: String,
-        enum: ['Active', 'Expired', 'Frozen', 'Pending'],
+        enum: ['Active', 'Expired', 'Frozen', 'Pending', 'Inactive'],
         default: 'Active'
     },
 
@@ -39,6 +39,14 @@ const memberSchema = new mongoose.Schema({
     totalAmount: { type: Number, required: true },
     paidAmount: { type: Number, required: true },
     dueAmount: { type: Number, default: 0 },
+
+    // Documents
+    documents: [{
+        name: { type: String },
+        url: { type: String },
+        publicId: { type: String },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
 
     // System
     enquiryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Enquiry' }, // Link to original enquiry if any

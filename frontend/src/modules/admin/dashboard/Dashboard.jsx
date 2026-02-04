@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import DateRangeFilter from '../components/DateRangeFilter';
+import { API_BASE_URL } from '../../../config/api';
 
 const Dashboard = () => {
     const { isDarkMode } = useOutletContext();
@@ -55,6 +56,47 @@ const Dashboard = () => {
     const rowsPerPageRef = useRef(null);
     const yearFilterRef = useRef(null);
     const menuRefs = useRef({});
+
+    // API States
+    const [stats, setStats] = useState(null);
+    const [followUpsData, setFollowUpsData] = useState([]);
+    const [chartsData, setChartsData] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const fetchData = async () => {
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+
+            if (!token) return;
+
+            const headers = {
+                'Authorization': `Bearer ${token}`
+            };
+
+            const [statsRes, followUpsRes, chartsRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/admin/dashboard/stats`, { headers }),
+                fetch(`${API_BASE_URL}/api/admin/dashboard/follow-ups`, { headers }),
+                fetch(`${API_BASE_URL}/api/admin/dashboard/charts`, { headers })
+            ]);
+
+            const sData = await statsRes.json();
+            const fData = await followUpsRes.json();
+            const cData = await chartsRes.json();
+
+            setStats(sData);
+            setFollowUpsData(fData);
+            setChartsData(cData);
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -95,61 +137,13 @@ const Dashboard = () => {
     // Year filter options
     const yearFilterOptions = ['Today', 'Yesterday', 'This month'];
 
-    // Follow Ups Data
-    const followUps = [
-        {
-            id: '489890',
-            name: 'KUNAL CHAUHAN',
-            number: '9978145629',
-            type: 'Balance Due',
-            dateTime: '30 Jan, 2026 11:50 PM',
-            status: 'Hot',
-            comment: 'Follow up for balance payment of Rs. 4000 due on 31-01-2026 against invoice number V10FL/2025-26/554.'
-        },
-        {
-            id: '489891',
-            name: 'Riya patel',
-            number: '9099031248',
-            type: 'Membership Renewal',
-            dateTime: '30 Jan, 2026 11:50 PM',
-            status: 'Hot',
-            comment: 'GYM WORKOUT, 12 months, renewal due on 14-02-2026.'
-        },
-        {
-            id: '489892',
-            name: 'satish badgujar',
-            number: '8488800551',
-            type: 'Membership Renewal',
-            dateTime: '30 Jan, 2026 11:50 PM',
-            status: 'Hot',
-            comment: 'GYM WORKOUT, 12 months, renewal due on 14-02-2026.'
-        },
-        {
-            id: '489893',
-            name: 'KRISHNA PRAJAPATI',
-            number: '9726540860',
-            type: 'Membership Renewal',
-            dateTime: '30 Jan, 2026 11:50 PM',
-            status: 'Hot',
-            comment: 'GYM WORKOUT, 12 months, renewal due on 13-02-2026.'
-        },
-        {
-            id: '489894',
-            name: 'SHASTHA MUDOLIAR',
-            number: '9712244420',
-            type: 'Membership Renewal',
-            dateTime: '30 Jan, 2026 11:50 PM',
-            status: 'Hot',
-            comment: 'GYM WORKOUT, 12 months, renewal due on 13-02-2026.'
-        }
-    ];
-
     // Chart Data
     const leadTypesData = [
-        { name: 'Hot Leads', value: 10, color: '#ef4444' },
-        { name: 'Warm Leads', value: 33, color: '#f97316' },
-        { name: 'Cold Leads', value: 649, color: '#0ea5e9' },
+        { name: 'Hot', value: 0, color: '#ef4444' },
+        { name: 'Warm', value: 0, color: '#f97316' },
+        { name: 'Cold', value: 0, color: '#3b82f6' }
     ];
+    const leadTypes = chartsData?.leadTypes || leadTypesData;
 
     const membersTrendData = [
         { name: 'Jan', active: 58, inactive: 5, upcoming: 5 },
@@ -237,7 +231,7 @@ const Dashboard = () => {
 
             {/* Follow Ups Section */}
             <section className="space-y-3">
-                <p className={`text-[13px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Follow Ups (5)</p>
+                <p className={`text-[13px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Follow Ups ({followUpsData.length})</p>
                 <div className={`border rounded-lg ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
                     {/* Table Header */}
                     <div className={`px-5 py-3 border-b flex justify-between items-center ${isDarkMode ? 'border-white/5 bg-white/5' : 'border-gray-100 bg-white'}`}>
@@ -291,72 +285,80 @@ const Dashboard = () => {
                                 </tr>
                             </thead>
                             <tbody className={`text-[13px] ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>
-                                {followUps.slice(0, rowsPerPage).map((item, idx) => (
-                                    <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                                        <td className="px-5 py-4">
-                                            <div
-                                                onClick={() => navigate(`/admin/members/profile/edit?id=${item.id}`, { state: { member: item } })}
-                                                className="flex flex-col gap-0.5 cursor-pointer group"
-                                            >
-                                                <span className="text-blue-500 font-normal group-hover:underline">{item.name}</span>
-                                                <span className="text-blue-400 font-normal text-[12px]">{item.number}</span>
-                                            </div>
-                                        </td>
-                                        <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>{item.type}</td>
-                                        <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>{item.dateTime}</td>
-                                        <td className="px-5 py-4">
-                                            <span className="bg-[#ef4444] text-white px-2.5 py-1 rounded-md text-[11px] font-bold">
-                                                {item.status}
-                                            </span>
-                                        </td>
-                                        <td className={`px-5 py-4 text-[12px] font-normal max-w-md ${isDarkMode ? 'text-gray-400' : 'text-black'}`}>
-                                            {item.comment}
-                                        </td>
-                                        <td className="px-5 py-4 text-right">
-                                            <div className="relative inline-block" ref={(el) => menuRefs.current[idx] = el}>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setActiveMenu(activeMenu === idx ? null : idx);
-                                                    }}
-                                                    className={`p-1 rounded transition-colors ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-white/5' : 'text-gray-400 hover:text-black hover:bg-gray-100'}`}
+                                {followUpsData.length > 0 ? (
+                                    followUpsData.slice(0, rowsPerPage).map((item, idx) => (
+                                        <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                                            <td className="px-5 py-4">
+                                                <div
+                                                    onClick={() => navigate(`/admin/members/profile/edit?id=${item._id}`, { state: { member: item } })}
+                                                    className="flex flex-col gap-0.5 cursor-pointer group"
                                                 >
-                                                    <MoreVertical size={18} />
-                                                </button>
-
-                                                {/* Three Dot Menu */}
-                                                {activeMenu === idx && (
-                                                    <div
-                                                        className={`absolute right-0 ${idx >= (followUps.length - 2) ? 'bottom-full mb-2' : 'top-full mt-1'} w-48 rounded-lg shadow-2xl border z-[999] py-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
-                                                            }`}
+                                                    <span className="text-blue-500 font-normal group-hover:underline">{item.name}</span>
+                                                    <span className="text-blue-400 font-normal text-[12px]">{item.number}</span>
+                                                </div>
+                                            </td>
+                                            <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>{item.type}</td>
+                                            <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>
+                                                {new Date(item.dateTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span className={`${item.status === 'Hot' ? 'bg-[#ef4444]' : item.status === 'Warm' ? 'bg-[#f97316]' : 'bg-[#3b82f6]'} text-white px-2.5 py-1 rounded-md text-[11px] font-bold`}>
+                                                    {item.status}
+                                                </span>
+                                            </td>
+                                            <td className={`px-5 py-4 text-[12px] font-normal max-w-md ${isDarkMode ? 'text-gray-400' : 'text-black'}`}>
+                                                {item.comment}
+                                            </td>
+                                            <td className="px-5 py-4 text-right">
+                                                <div className="relative inline-block" ref={(el) => menuRefs.current[idx] = el}>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setActiveMenu(activeMenu === idx ? null : idx);
+                                                        }}
+                                                        className={`p-1 rounded transition-colors ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-white/5' : 'text-gray-400 hover:text-black hover:bg-gray-100'}`}
                                                     >
+                                                        <MoreVertical size={18} />
+                                                    </button>
+
+                                                    {/* Three Dot Menu */}
+                                                    {activeMenu === idx && (
                                                         <div
-                                                            onClick={() => {
-                                                                setSelectedFollowUp(item);
-                                                                setIsFollowUpModalOpen(true);
-                                                                setActiveMenu(null);
-                                                            }}
-                                                            className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
+                                                            className={`absolute right-0 ${idx >= (followUpsData.length - 2) ? 'bottom-full mb-2' : 'top-full mt-1'} w-48 rounded-lg shadow-xl border z-[999] py-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
                                                                 }`}
                                                         >
-                                                            Followup Response
+                                                            <div
+                                                                onClick={() => {
+                                                                    setSelectedFollowUp(item);
+                                                                    setIsFollowUpModalOpen(true);
+                                                                    setActiveMenu(null);
+                                                                }}
+                                                                className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
+                                                                    }`}
+                                                            >
+                                                                Followup Response
+                                                            </div>
+                                                            <div
+                                                                onClick={() => {
+                                                                    setIsDoneModalOpen(true);
+                                                                    setActiveMenu(null);
+                                                                }}
+                                                                className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
+                                                                    }`}
+                                                            >
+                                                                Done
+                                                            </div>
                                                         </div>
-                                                        <div
-                                                            onClick={() => {
-                                                                setIsDoneModalOpen(true);
-                                                                setActiveMenu(null);
-                                                            }}
-                                                            className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
-                                                                }`}
-                                                        >
-                                                            Done
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="6" className="px-5 py-10 text-center text-gray-500">No pending follow-ups</td>
                                     </tr>
-                                ))}
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -431,11 +433,11 @@ const Dashboard = () => {
                         </div>
                         <div className="grid grid-cols-2">
                             <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">413</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.members?.active || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Active</p>
                             </div>
                             <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">4</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.members?.upcoming || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Upcoming</p>
                             </div>
                         </div>
@@ -451,11 +453,11 @@ const Dashboard = () => {
                         </div>
                         <div className="grid grid-cols-2">
                             <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">18</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.followUps?.total || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Total</p>
                             </div>
                             <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.followUps?.done || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Done</p>
                             </div>
                         </div>
@@ -471,11 +473,11 @@ const Dashboard = () => {
                         </div>
                         <div className="grid grid-cols-2">
                             <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.enquiries?.new || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">New Enquiries</p>
                             </div>
                             <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.enquiries?.sales || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Sales</p>
                             </div>
                         </div>
@@ -487,22 +489,22 @@ const Dashboard = () => {
                             <div className="p-4 border-r border-white/10 flex flex-col">
                                 <p className="text-[11px] font-bold text-white/80">Attendance</p>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.present || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Attendance</p>
                                 </div>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">413</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.absent || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Absent</p>
                                 </div>
                             </div>
                             <div className="p-4 bg-white/10 flex flex-col">
                                 <p className="text-[11px] font-bold text-white/80">Date</p>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.birthday || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Birthday</p>
                                 </div>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.anniversary || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Anniversary</p>
                                 </div>
                             </div>
@@ -522,11 +524,11 @@ const Dashboard = () => {
                         </div>
                         <div className="grid grid-cols-2">
                             <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.financial?.totalSalesCount || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Number</p>
                             </div>
                             <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0</h3>
+                                <h3 className="text-[31px] font-bold text-white leading-none">₹{stats?.financial?.totalRevenue || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Amount</p>
                             </div>
                         </div>
@@ -541,22 +543,22 @@ const Dashboard = () => {
                             <div className="p-4 border-r border-white/10 flex flex-col">
                                 <p className="text-[11px] font-bold text-white/80">Fresh Sales</p>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.sales?.fresh?.number || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Number</p>
                                 </div>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.sales?.fresh?.amount || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Amount</p>
                                 </div>
                             </div>
                             <div className="p-4 bg-white/10 flex flex-col">
                                 <p className="text-[11px] font-bold text-white/80">Renewal Sales</p>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.sales?.renewal?.number || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Number</p>
                                 </div>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.sales?.renewal?.amount || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Amount</p>
                                 </div>
                             </div>
@@ -573,11 +575,11 @@ const Dashboard = () => {
                         </div>
                         <div className="grid grid-cols-2">
                             <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">₹{stats?.financial?.paidAmount || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Paid</p>
                             </div>
                             <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0</h3>
+                                <h3 className="text-[31px] font-bold text-white leading-none">₹{stats?.financial?.pendingPayment || 0}</h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Due</p>
                             </div>
                         </div>
@@ -592,22 +594,22 @@ const Dashboard = () => {
                             <div className="p-4 border-r border-white/10 flex flex-col">
                                 <p className="text-[11px] font-bold text-white/80">Fresh PT Sales</p>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.sales?.pt?.number || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Number</p>
                                 </div>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.sales?.pt?.amount || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Amount</p>
                                 </div>
                             </div>
                             <div className="p-4 bg-white/10 flex flex-col">
                                 <p className="text-[11px] font-bold text-white/80">PT Renewal Sales</p>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.sales?.ptRenewal?.number || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Number</p>
                                 </div>
                                 <div className="mt-3">
-                                    <h3 className="text-[24px] font-bold text-white leading-none">0</h3>
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.sales?.ptRenewal?.amount || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Amount</p>
                                 </div>
                             </div>
@@ -627,11 +629,15 @@ const Dashboard = () => {
                         </div>
                         <div className="grid grid-cols-2">
                             <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">
+                                    {(stats?.sales?.pt?.number || 0) + (stats?.sales?.ptRenewal?.number || 0)}
+                                </h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Number</p>
                             </div>
                             <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">
+                                    {(stats?.sales?.pt?.amount || 0) + (stats?.sales?.ptRenewal?.amount || 0)}
+                                </h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Amount</p>
                             </div>
                         </div>
@@ -647,11 +653,15 @@ const Dashboard = () => {
                         </div>
                         <div className="grid grid-cols-2">
                             <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0/0</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">
+                                    {stats?.sales?.upgrade?.number || 0}/{stats?.sales?.upgrade?.amount || 0}
+                                </h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Upgrade</p>
                             </div>
                             <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">0/0</h3>
+                                <h3 className="text-[32px] font-bold text-white leading-none">
+                                    {stats?.sales?.transfer?.number || 0}/{stats?.sales?.transfer?.amount || 0}
+                                </h3>
                                 <p className="text-[11px] font-normal text-white/80 mt-1">Transfer</p>
                             </div>
                         </div>
@@ -702,14 +712,14 @@ const Dashboard = () => {
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
-                                            data={leadTypesData}
+                                            data={leadTypes}
                                             innerRadius={70}
                                             outerRadius={100}
                                             paddingAngle={0}
                                             dataKey="value"
                                             stroke="none"
                                         >
-                                            {leadTypesData.map((entry, index) => (
+                                            {leadTypes.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
                                         </Pie>
@@ -717,11 +727,13 @@ const Dashboard = () => {
                                     </PieChart>
                                 </ResponsiveContainer>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <span className={`text-[40px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>692</span>
+                                    <span className={`text-[40px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                                        {leadTypes.reduce((acc, curr) => acc + curr.value, 0)}
+                                    </span>
                                 </div>
                             </div>
                             <div className="space-y-4 w-full md:w-auto">
-                                {leadTypesData.map((item, idx) => (
+                                {leadTypes.map((item, idx) => (
                                     <div key={idx} className="flex items-center justify-between gap-8">
                                         <div className="flex items-center gap-2">
                                             <div className="w-4 h-4 rounded" style={{ backgroundColor: item.color }} />

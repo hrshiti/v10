@@ -9,8 +9,9 @@ import {
   X,
   CheckCircle
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import Toast from './Toast';
+import { API_BASE_URL } from '../../../../../config/api';
 
 // --- Reusable Components ---
 
@@ -322,14 +323,18 @@ const GenerateMultipleLogModal = ({ isOpen, onClose, isDarkMode }) => {
 
 // --- Main Component ---
 
+
+// --- Reusable Components ---
+// ... (CustomDropdown, CustomDatePicker, RowsPerPageDropdown, GenerateReportModal, GenerateMultipleLogModal stay same or similar)
+
 const EmployeeAttendance = () => {
   const { isDarkMode } = useOutletContext();
   const [searchQuery, setSearchQuery] = useState('');
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filter States
-  const [selectedTrainer, setSelectedTrainer] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [selectedShift, setSelectedShift] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -344,50 +349,99 @@ const EmployeeAttendance = () => {
   // Toast State
   const [toast, setToast] = useState(null);
 
-  // Track punch status for each employee
-  const [punchStatus, setPunchStatus] = useState({});
+  // Real data states
+  const [employees, setEmployees] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Dummy employee data for Manual Attendance
-  const employeeData = [
-    { empId: '492360', empName: 'PARI PANDYA', mobile: '9586638773' },
-    { empId: '491419', empName: 'V10 FITNESS LAB', mobile: '8347008511' },
-    { empId: '489895', empName: 'ANJALI KANWAR', mobile: '9824060468' },
-    { empId: '489291', empName: 'Abdulla Pathan', mobile: '8320350506' },
-    { empId: '489292', empName: 'John Doe', mobile: '9876543210' },
-    { empId: '489293', empName: 'Jane Smith', mobile: '9876543211' },
-    { empId: '489294', empName: 'Mike Johnson', mobile: '9876543212' },
-    { empId: '489295', empName: 'Sarah Williams', mobile: '9876543213' },
-    { empId: '489296', empName: 'David Brown', mobile: '9876543214' },
-    { empId: '489297', empName: 'Emily Davis', mobile: '9876543215' },
-  ];
-
-  // Pagination logic
-  const totalPages = Math.ceil(employeeData.length / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const currentEmployees = employeeData.slice(startIndex, endIndex);
-
-  const handlePunchIn = (empId) => {
-    if (punchStatus[empId] === 'in') {
-      setToast({ message: 'Punch IN already exist.', type: 'error' });
-    } else {
-      setPunchStatus({ ...punchStatus, [empId]: 'in' });
-      setToast({ message: 'Punch in done.', type: 'success' });
+  // Fetch employees for dropdowns and manual attendance
+  const fetchEmployees = async () => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees?pageSize=1000`, {
+        headers: { 'Authorization': `Bearer ${adminInfo?.token}` }
+      });
+      const data = await res.json();
+      if (res.ok) setEmployees(data.employees);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
     }
   };
 
-  const handlePunchOut = (empId) => {
-    if (punchStatus[empId] !== 'in') {
-      setToast({ message: 'Please punch in first.', type: 'error' });
-    } else {
-      setPunchStatus({ ...punchStatus, [empId]: 'out' });
-      setToast({ message: 'Punch out done.', type: 'success' });
+  const fetchLogs = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      let url = `${API_BASE_URL}/api/admin/employees/attendance?pageNumber=${currentPage}&pageSize=${rowsPerPage}`;
+      if (selectedEmployeeId) url += `&employeeId=${selectedEmployeeId}`;
+      if (selectedShift) url += `&shift=${selectedShift}`;
+      if (startDate) url += `&fromDate=${startDate}`;
+      if (endDate) url += `&toDate=${endDate}`;
+      if (searchQuery) url += `&search=${searchQuery}`;
+
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${adminInfo?.token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLogs(data.logs);
+        setTotalPages(data.pages);
+        setTotalItems(data.total);
+      }
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    if (activeView === 'Attendance Log') {
+      fetchLogs();
+    }
+  }, [currentPage, rowsPerPage, activeView, selectedEmployeeId, selectedShift, startDate, endDate, searchQuery]);
+
+  const handlePunch = async (employeeId, type) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const emp = employees.find(e => e._id === employeeId);
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees/attendance/manual`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminInfo?.token}`
+        },
+        body: JSON.stringify({
+          employeeId,
+          date: new Date().toISOString().split('T')[0],
+          [type === 'in' ? 'inTime' : 'outTime']: new Date().toISOString(),
+          shift: emp?.employeeType || 'Full Time'
+        })
+      });
+
+      if (res.ok) {
+        setToast({ message: `Punch ${type.toUpperCase()} done.`, type: 'success' });
+        if (activeView === 'Attendance Log') fetchLogs();
+      } else {
+        const data = await res.json();
+        setToast({ message: data.message || `Error punching ${type}`, type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error marking attendance:', error);
+      setToast({ message: 'Error marking attendance', type: 'error' });
     }
   };
 
   const handleCardClick = (view) => {
     setActiveView(view);
-    setCurrentPage(1); // Reset to first page when switching views
+    setCurrentPage(1);
   };
 
   return (
@@ -396,7 +450,6 @@ const EmployeeAttendance = () => {
 
       {/* Stats Cards Row */}
       <div className="flex gap-6 transition-none">
-        {/* Attendance Log Card */}
         <div
           onClick={() => handleCardClick('Attendance Log')}
           className={`group p-6 rounded-xl flex items-center gap-6 transition-all duration-300 cursor-pointer min-w-[300px] border-2
@@ -426,12 +479,11 @@ const EmployeeAttendance = () => {
             </div>
           </div>
           <div>
-            <p className={`text-[32px] font-black leading-none transition-colors duration-300 ${activeView === 'Attendance Log' ? (isDarkMode ? 'text-white' : 'text-blue-600') : 'text-inherit'} group-hover:text-white`}>0</p>
+            <p className={`text-[32px] font-black leading-none transition-colors duration-300 ${activeView === 'Attendance Log' ? (isDarkMode ? 'text-white' : 'text-blue-600') : 'text-inherit'} group-hover:text-white`}>{totalItems}</p>
             <p className={`text-[14px] font-bold mt-1 uppercase tracking-tight opacity-70 transition-colors duration-300 ${activeView === 'Attendance Log' ? (isDarkMode ? 'text-gray-400' : 'text-blue-600/80') : 'text-inherit'} group-hover:text-white/80`}>Attendance Log</p>
           </div>
         </div>
 
-        {/* Manual Attendance Card */}
         <div
           onClick={() => handleCardClick('Manual Attendance')}
           className={`group p-6 rounded-xl flex items-center gap-6 transition-all duration-300 cursor-pointer min-w-[300px] border-2
@@ -456,22 +508,23 @@ const EmployeeAttendance = () => {
             <Users size={32} />
           </div>
           <div>
-            <p className={`text-[32px] font-black leading-none transition-colors duration-300 ${activeView === 'Manual Attendance' ? (isDarkMode ? 'text-white' : 'text-orange-600') : 'text-inherit'} group-hover:text-white`}>4</p>
-            <p className={`text-[14px] font-bold mt-1 uppercase tracking-tight opacity-70 transition-colors duration-300 ${activeView === 'Manual Attendance' ? (isDarkMode ? 'text-gray-400' : 'text-orange-600/80') : 'text-inherit'} group-hover:text-white/80`}>Manual Attendance</p>
+            <p className={`text-[32px] font-black leading-none transition-colors duration-300 ${activeView === 'Manual Attendance' ? (isDarkMode ? 'text-white' : 'text-orange-600') : 'text-inherit'} group-hover:text-white`}>{employees.length}</p>
+            <p className={`text-[14px] font-bold mt-1 uppercase tracking-tight opacity-70 transition-colors duration-300 ${activeView === 'Manual Attendance' ? (isDarkMode ? 'text-gray-400' : 'text-orange-600/80') : 'text-inherit'} group-hover:text-white/80`}>Employee Count</p>
           </div>
         </div>
       </div>
 
-      {/* Conditionally render filters and search only for Attendance Log view */}
       {activeView === 'Attendance Log' && (
         <>
-          {/* Filters Row 1 */}
           <div className="flex flex-wrap items-center gap-4 pt-4 transition-none">
             <CustomDropdown
-              placeholder="Select Trainer"
-              options={['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA']}
-              value={selectedTrainer}
-              onChange={setSelectedTrainer}
+              placeholder="Select Employee"
+              options={employees.map(e => `${e.firstName} ${e.lastName}`)}
+              value={employees.find(e => e._id === selectedEmployeeId) ? `${employees.find(e => e._id === selectedEmployeeId).firstName} ${employees.find(e => e._id === selectedEmployeeId).lastName}` : ''}
+              onChange={(val) => {
+                const emp = employees.find(e => `${e.firstName} ${e.lastName}` === val);
+                setSelectedEmployeeId(emp?._id || '');
+              }}
               isDarkMode={isDarkMode}
             />
 
@@ -483,26 +536,27 @@ const EmployeeAttendance = () => {
               isDarkMode={isDarkMode}
             />
 
-            <CustomDatePicker
+            <input
+              type="date"
+              className={`px-4 py-3 border rounded-xl text-[14px] font-bold transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
               value={startDate}
-              onChange={setStartDate}
-              isDarkMode={isDarkMode}
+              onChange={(e) => setStartDate(e.target.value)}
             />
 
-            <CustomDatePicker
+            <input
+              type="date"
+              className={`px-4 py-3 border rounded-xl text-[14px] font-bold transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
               value={endDate}
-              onChange={setEndDate}
-              isDarkMode={isDarkMode}
+              onChange={(e) => setEndDate(e.target.value)}
             />
 
-            <button className="bg-[#f97316] text-white px-8 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Apply</button>
+            <button onClick={() => setCurrentPage(1)} className="bg-[#f97316] text-white px-8 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Apply</button>
           </div>
 
-          {/* Filters Row 2 - Clear Button */}
           <div className="transition-none">
             <button
               onClick={() => {
-                setSelectedTrainer('');
+                setSelectedEmployeeId('');
                 setSelectedShift('');
                 setStartDate('');
                 setEndDate('');
@@ -513,7 +567,6 @@ const EmployeeAttendance = () => {
             </button>
           </div>
 
-          {/* Search & Actions Row */}
           <div className="flex justify-between items-center transition-none pt-4">
             <div className="relative flex-1 max-w-sm">
               <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
@@ -525,29 +578,11 @@ const EmployeeAttendance = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex gap-4">
-              <button
-                onClick={() => setIsReportModalOpen(true)}
-                className={`flex items-center gap-3 px-6 py-3 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f1f5f9] border-gray-100 shadow-sm text-gray-700'}`}
-              >
-                <Download size={20} className="text-gray-400" />
-                Generate XLS Report
-              </button>
-              <button
-                onClick={() => setIsMultipleLogModalOpen(true)}
-                className={`flex items-center gap-3 px-6 py-3 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f1f5f9] border-gray-100 shadow-sm text-gray-700'}`}
-              >
-                <Download size={20} className="text-gray-400" />
-                Generate Multiple Log
-              </button>
-            </div>
           </div>
         </>
       )}
 
-      {/* Conditional Rendering Based on Active View */}
       {activeView === 'Attendance Log' ? (
-        /* Attendance Log Table */
         <div className={`mt-4 border rounded-lg overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
           <div className="px-5 py-4 border-b bg-white dark:bg-white/5">
             <span className="text-[13px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Employee Attendance</span>
@@ -558,7 +593,7 @@ const EmployeeAttendance = () => {
                 <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-white border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
                   <th className="px-6 py-5">Name</th>
                   <th className="px-6 py-5">Mobile Number</th>
-                  <th className="px-6 py-5">Employee</th>
+                  <th className="px-6 py-5">Employee ID</th>
                   <th className="px-6 py-5">Shift</th>
                   <th className="px-6 py-5">In Time</th>
                   <th className="px-6 py-5">Out Time</th>
@@ -567,34 +602,64 @@ const EmployeeAttendance = () => {
                 </tr>
               </thead>
               <tbody className="transition-none">
-                {/* Empty state matches the screenshot */}
+                {isLoading ? (
+                  <tr><td colSpan="8" className="px-6 py-20 text-center text-gray-400">Loading...</td></tr>
+                ) : logs.length === 0 ? (
+                  <tr><td colSpan="8" className="px-6 py-20 text-center text-gray-400">No logs found</td></tr>
+                ) : (
+                  logs.map(log => (
+                    <tr key={log._id} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'}`}>
+                      <td className="px-6 py-5 font-bold uppercase">{log.employeeId?.firstName} {log.employeeId?.lastName}</td>
+                      <td className="px-6 py-5">{log.employeeId?.mobile}</td>
+                      <td className="px-6 py-5">{log.employeeId?.employeeId}</td>
+                      <td className="px-6 py-5">{log.shift}</td>
+                      <td className="px-6 py-5">{log.inTime ? new Date(log.inTime).toLocaleTimeString() : '-'}</td>
+                      <td className="px-6 py-5">{log.outTime ? new Date(log.outTime).toLocaleTimeString() : '-'}</td>
+                      <td className="px-6 py-5">{log.totalHours || '0.00'} hrs</td>
+                      <td className="px-6 py-5">{new Date(log.date).toLocaleDateString()}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
-          {/* Pagination Row */}
           <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
             <div className="flex flex-wrap items-center gap-2">
-              <button className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>« Previous</button>
-              <button className="w-10 h-10 border rounded-lg text-[12px] font-bold bg-[#f97316] text-white shadow-md transition-none">1</button>
-              <button className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>Next »</button>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
+              >
+                « Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPage(p)}
+                  className={`w-10 h-10 border rounded-lg text-[12px] font-bold transition-none ${p === currentPage ? 'bg-[#f97316] text-white' : (isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-300')}`}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
+              >
+                Next »
+              </button>
             </div>
-
             <div className="flex items-center gap-4 transition-none">
               <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
-              <RowsPerPageDropdown
-                rowsPerPage={rowsPerPage}
-                setRowsPerPage={setRowsPerPage}
-                isDarkMode={isDarkMode}
-              />
+              <RowsPerPageDropdown rowsPerPage={rowsPerPage} setRowsPerPage={setRowsPerPage} isDarkMode={isDarkMode} />
             </div>
           </div>
         </div>
       ) : (
-        /* Manual Attendance Table */
         <div className={`mt-4 border rounded-lg overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
           <div className="px-5 py-4 border-b bg-white dark:bg-white/5">
-            <span className="text-[13px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Employee Attendance</span>
+            <span className="text-[13px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Employee List</span>
           </div>
           <div className="overflow-x-auto min-h-[300px]">
             <table className="w-full text-left whitespace-nowrap">
@@ -607,34 +672,15 @@ const EmployeeAttendance = () => {
                 </tr>
               </thead>
               <tbody className="transition-none">
-                {currentEmployees.map((employee) => (
-                  <tr
-                    key={employee.empId}
-                    className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'}`}
-                  >
-                    <td className={`px-6 py-5 text-[14px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {employee.empId}
-                    </td>
-                    <td className={`px-6 py-5 text-[14px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {employee.empName}
-                    </td>
-                    <td className={`px-6 py-5 text-[14px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {employee.mobile}
-                    </td>
+                {employees.map((employee) => (
+                  <tr key={employee._id} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-gray-50'}`}>
+                    <td className="px-6 py-5 text-[14px] font-bold">{employee.employeeId}</td>
+                    <td className="px-6 py-5 text-[14px] font-bold uppercase">{employee.firstName} {employee.lastName}</td>
+                    <td className="px-6 py-5 text-[14px] font-bold">{employee.mobile}</td>
                     <td className="px-6 py-5">
                       <div className="flex items-center justify-center gap-3">
-                        <button
-                          onClick={() => handlePunchIn(employee.empId)}
-                          className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-bold shadow-md hover:bg-orange-600 active:scale-95 transition-all"
-                        >
-                          Punch In
-                        </button>
-                        <button
-                          onClick={() => handlePunchOut(employee.empId)}
-                          className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-bold shadow-md hover:bg-orange-600 active:scale-95 transition-all"
-                        >
-                          Punch Out
-                        </button>
+                        <button onClick={() => handlePunch(employee._id, 'in')} className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-bold shadow-md hover:bg-orange-600 active:scale-95">Punch In</button>
+                        <button onClick={() => handlePunch(employee._id, 'out')} className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-bold shadow-md hover:bg-orange-600 active:scale-95">Punch Out</button>
                       </div>
                     </td>
                   </tr>
@@ -642,75 +688,12 @@ const EmployeeAttendance = () => {
               </tbody>
             </table>
           </div>
-
-          {/* Pagination Row */}
-          <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
-              >
-                « Previous
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-10 h-10 border rounded-lg text-[12px] font-bold transition-none ${currentPage === page
-                    ? 'bg-[#f97316] text-white shadow-md'
-                    : isDarkMode
-                      ? 'bg-white/5 border-white/10 text-gray-400'
-                      : 'bg-white border-gray-300 shadow-sm'
-                    }`}
-                >
-                  {page}
-                </button>
-              ))}
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-                className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
-              >
-                Next »
-              </button>
-            </div>
-
-            <div className="flex items-center gap-4 transition-none">
-              <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
-              <RowsPerPageDropdown
-                rowsPerPage={rowsPerPage}
-                setRowsPerPage={(value) => {
-                  setRowsPerPage(value);
-                  setCurrentPage(1); // Reset to first page when changing rows per page
-                }}
-                isDarkMode={isDarkMode}
-              />
-            </div>
-          </div>
         </div>
       )}
 
-      <GenerateReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        isDarkMode={isDarkMode}
-      />
-
-      <GenerateMultipleLogModal
-        isOpen={isMultipleLogModalOpen}
-        onClose={() => setIsMultipleLogModalOpen(false)}
-        isDarkMode={isDarkMode}
-      />
-
-      {/* Toast Notification */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
+      <GenerateReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} isDarkMode={isDarkMode} />
+      <GenerateMultipleLogModal isOpen={isMultipleLogModalOpen} onClose={() => setIsMultipleLogModalOpen(false)} isDarkMode={isDarkMode} />
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 };

@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { ChevronDown, Dumbbell, User } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 
 const MemberAttendance = () => {
     const context = useOutletContext();
     const isDarkMode = context?.isDarkMode || false;
     const {
+        id,
         memberMobile,
         memberEmail,
         memberDOB,
@@ -13,12 +15,49 @@ const MemberAttendance = () => {
         memberEmergencyName,
         memberEmergencyNo
     } = context || {};
-    const [activeTab, setActiveTab] = useState('general');
-    const [month, setMonth] = useState('February');
-    const [year, setYear] = useState('2026');
 
-    const daysInMonth = 28; // February 2026
-    const startDay = 0; // Starts on Sunday for Feb 2026? Actually Feb 1, 2026 is Sunday.
+    const [activeTab, setActiveTab] = useState('General'); // 'General' or 'Personal'
+    const [month, setMonth] = useState(new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()));
+    const [year, setYear] = useState(new Date().getFullYear().toString());
+    const [attendanceLogs, setAttendanceLogs] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthIdx = months.indexOf(month);
+
+    useEffect(() => {
+        const fetchAttendance = async () => {
+            if (!id) return;
+            setIsLoading(true);
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
+                if (!token) return;
+
+                const start = new Date(parseInt(year), monthIdx, 1);
+                start.setHours(0, 0, 0, 0);
+
+                const end = new Date(parseInt(year), monthIdx + 1, 0);
+                end.setHours(23, 59, 59, 999);
+
+                const res = await fetch(`${API_BASE_URL}/api/admin/members/attendance?memberId=${id}&startDate=${start.toISOString()}&endDate=${end.toISOString()}&trainingType=${activeTab}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                setAttendanceLogs(Array.isArray(data) ? data : []);
+            } catch (error) {
+                console.error('Error fetching attendance:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchAttendance();
+    }, [id, month, year, activeTab]);
+
+    const daysInMonth = new Date(parseInt(year), monthIdx + 1, 0).getDate();
+    const startDay = new Date(parseInt(year), monthIdx, 1).getDay();
+
     const weeks = [];
     let week = Array(7).fill(null);
 
@@ -31,12 +70,27 @@ const MemberAttendance = () => {
         }
     }
 
+    const isPresent = (day) => {
+        return attendanceLogs.some(log => {
+            const logDate = new Date(log.date);
+            return logDate.getDate() === day && logDate.getMonth() === monthIdx && logDate.getFullYear() === parseInt(year);
+        });
+    };
+
+    const presentCount = attendanceLogs.length;
+    const today = new Date();
+    const isFutureMonth = new Date(parseInt(year), monthIdx) > today;
+    const isCurrentMonth = today.getFullYear() === parseInt(year) && today.getMonth() === monthIdx;
+
+    const daysToCount = isFutureMonth ? 0 : (isCurrentMonth ? today.getDate() : daysInMonth);
+    const absentCount = Math.max(0, daysToCount - presentCount);
+
     const CustomSelect = ({ value, onChange, options }) => (
         <div className="relative">
             <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className={`appearance-none pl-4 pr-10 py-2 rounded-lg border text-sm font-medium outline-none transition-all ${isDarkMode
+                className={`appearance-none pl-4 pr-10 py-2.5 rounded-xl border text-[13px] font-black outline-none transition-all ${isDarkMode
                     ? 'bg-[#1a1a1a] border-white/10 text-white'
                     : 'bg-white border-gray-200 text-gray-700'
                     }`}
@@ -48,135 +102,127 @@ const MemberAttendance = () => {
     );
 
     return (
-        <div className="space-y-6 animate-in fade-in zoom-in duration-300">
-            <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Attendance History</h2>
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-700">
+            <h2 className={`text-2xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Attendance History</h2>
 
-            {/* Info Card */}
-            <div className={`rounded-xl border ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x dark:divide-white/10 divide-gray-200">
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Mobile Number</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberMobile}</p>
+            {/* Premium Info Card */}
+            <div className={`rounded-2xl border overflow-hidden ${isDarkMode ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
+                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x dark:divide-white/5 divide-gray-50 uppercase tracking-tight">
+                    <div className="p-6 space-y-1">
+                        <p className="text-[10px] text-gray-500 font-black">Mobile Number</p>
+                        <p className={`text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{memberMobile}</p>
                     </div>
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Email ID</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberEmail}</p>
+                    <div className="p-6 space-y-1">
+                        <p className="text-[10px] text-gray-500 font-black">Email ID</p>
+                        <p className={`text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{memberEmail}</p>
                     </div>
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">DOB</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberDOB}</p>
+                    <div className="p-6 space-y-1">
+                        <p className="text-[10px] text-gray-500 font-black">DOB</p>
+                        <p className={`text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{memberDOB}</p>
                     </div>
                 </div>
-                <div className="border-t dark:border-white/10 border-gray-200 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x dark:divide-white/10 divide-gray-200">
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Anniversary Date</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberAnniversary}</p>
+                <div className="border-t dark:border-white/5 border-gray-50 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x dark:divide-white/5 divide-gray-50 uppercase tracking-tight">
+                    <div className="p-6 space-y-1">
+                        <p className="text-[10px] text-gray-500 font-black">Anniversary Date</p>
+                        <p className={`text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{memberAnniversary}</p>
                     </div>
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Emergency Contact Name</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberEmergencyName}</p>
+                    <div className="p-6 space-y-1">
+                        <p className="text-[10px] text-gray-500 font-black">Emergency Contact Name</p>
+                        <p className={`text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{memberEmergencyName}</p>
                     </div>
-                    <div className="p-4 space-y-1">
-                        <p className="text-xs text-gray-500 font-bold">Emergency Contact No</p>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{memberEmergencyNo}</p>
+                    <div className="p-6 space-y-1">
+                        <p className="text-[10px] text-gray-500 font-black">Emergency Contact No</p>
+                        <p className={`text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{memberEmergencyNo}</p>
                     </div>
                 </div>
             </div>
 
-            {/* Attendance Content */}
-            <div className={`rounded-xl border shadow-sm overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                {/* Card Header */}
-                <div className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{month}</h3>
-                    <div className="flex items-center gap-3">
-                        <CustomSelect
-                            value={month}
-                            onChange={setMonth}
-                            options={['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']}
-                        />
-                        <CustomSelect
-                            value={year}
-                            onChange={setYear}
-                            options={['2024', '2025', '2026', '2027']}
-                        />
+            {/* Attendance Main Container */}
+            <div className={`rounded-2xl border overflow-hidden ${isDarkMode ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
+                {/* Header with Selects */}
+                <div className="p-8 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+                    <h3 className={`text-xl font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{month}</h3>
+                    <div className="flex items-center gap-4">
+                        <CustomSelect value={month} onChange={setMonth} options={months} />
+                        <CustomSelect value={year} onChange={setYear} options={['2024', '2025', '2026', '2027']} />
                     </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="px-5 border-b dark:border-white/10 border-gray-100 flex gap-8">
+                {/* Training Tabs */}
+                <div className="px-8 flex gap-10 border-b dark:border-white/5 border-gray-50">
                     <button
-                        onClick={() => setActiveTab('general')}
-                        className={`pb-3 text-sm font-bold flex items-center gap-2 transition-all relative ${activeTab === 'general'
-                            ? 'text-[#f97316]'
-                            : 'text-gray-400 hover:text-gray-600'
-                            }`}
+                        onClick={() => setActiveTab('General')}
+                        className={`pb-5 text-[12px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'General' ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
                     >
-                        <Dumbbell size={16} />
-                        General Training
-                        {activeTab === 'general' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#f97316] rounded-full" />}
+                        <div className="flex items-center gap-2">
+                            <Dumbbell size={16} />
+                            General Training
+                        </div>
+                        {activeTab === 'General' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-orange-500 rounded-t-full shadow-[0_-4px_10px_rgba(249,115,22,0.4)]" />}
                     </button>
                     <button
-                        onClick={() => setActiveTab('personal')}
-                        className={`pb-3 text-sm font-bold flex items-center gap-2 transition-all relative ${activeTab === 'personal'
-                            ? 'text-[#f97316]'
-                            : 'text-gray-400 hover:text-gray-600'
-                            }`}
+                        onClick={() => setActiveTab('Personal')}
+                        className={`pb-5 text-[12px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'Personal' ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
                     >
-                        <User size={16} />
-                        Personal Training
-                        {activeTab === 'personal' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#f97316] rounded-full" />}
+                        <div className="flex items-center gap-2">
+                            <User size={16} />
+                            Personal Training
+                        </div>
+                        {activeTab === 'Personal' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-orange-500 rounded-t-full shadow-[0_-4px_10px_rgba(249,115,22,0.4)]" />}
                     </button>
                 </div>
 
-                {/* Summary */}
-                <div className="p-5 flex gap-4">
-                    <div className="flex items-center gap-2 bg-green-50 dark:bg-green-500/10 px-4 py-1.5 rounded-full border border-green-100 dark:border-green-500/20">
-                        <div className="w-3 h-3 rounded-full bg-green-500" />
-                        <span className="text-xs font-bold text-green-700 dark:text-green-400">Present Days (0)</span>
+                {/* Chips Summary */}
+                <div className="p-8 py-6 flex gap-4">
+                    <div className="flex items-center gap-3 bg-emerald-500/10 px-5 py-2 rounded-full border border-emerald-500/20">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                        <span className="text-[12px] font-black text-emerald-500 uppercase tracking-wider">Present Days ({presentCount})</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-red-50 dark:bg-red-500/10 px-4 py-1.5 rounded-full border border-red-100 dark:border-red-500/20">
-                        <div className="w-3 h-3 rounded-full bg-red-500" />
-                        <span className="text-xs font-bold text-red-700 dark:text-red-400">Absent Days (3)</span>
+                    <div className="flex items-center gap-3 bg-red-500/10 px-5 py-2 rounded-full border border-red-500/20">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                        <span className="text-[12px] font-black text-red-500 uppercase tracking-wider">Absent Days ({absentCount})</span>
                     </div>
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className={`border-y dark:border-white/10 border-gray-100 ${isDarkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
-                                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                                    <th key={day} className="py-4 px-2 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">{day}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {weeks.map((week, widx) => (
-                                <tr key={widx} className="border-b dark:border-white/5 border-gray-50 last:border-0">
-                                    {week.map((day, didx) => (
-                                        <td
-                                            key={didx}
-                                            className={`h-24 sm:h-32 border-r dark:border-white/5 border-gray-50 last:border-r-0 transition-all cursor-pointer group hover:bg-[#ff8c42] ${day === 3 ? 'bg-[#ff8c42]' : ''
-                                                }`}
-                                        >
-                                            {day && (
-                                                <div className="h-full w-full flex items-center justify-center relative">
-                                                    <span className={`text-lg font-bold transition-all group-hover:text-white ${day === 3 ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-800')
-                                                        }`}>
-                                                        {day}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="px-8 pb-10">
+                    <div className="grid grid-cols-7 gap-px dark:bg-white/5 bg-gray-100 rounded-xl overflow-hidden border dark:border-white/5 border-gray-100 shadow-inner">
+                        {['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'].map(day => (
+                            <div key={day} className={`py-4 text-center text-[11px] font-black text-gray-500 uppercase tracking-[2px] ${isDarkMode ? 'bg-[#181818]' : 'bg-gray-50'}`}>{day}</div>
+                        ))}
+                        {weeks.flatMap((week, widx) =>
+                            week.map((day, didx) => {
+                                const present = day ? isPresent(day) : false;
+                                return (
+                                    <div
+                                        key={`${widx}-${didx}`}
+                                        className={`h-24 sm:h-32 transition-all p-3 flex flex-col items-center justify-center relative ${isDarkMode ? 'bg-[#121212]' : 'bg-white'} ${day ? 'cursor-pointer hover:bg-orange-500/5' : ''}`}
+                                    >
+                                        {day && (
+                                            <>
+                                                <span className={`text-2xl font-black ${present ? 'text-orange-500 scale-125' : (isDarkMode ? 'text-gray-300' : 'text-gray-800')}`}>
+                                                    {day}
+                                                </span>
+                                                {present && (
+                                                    <div className="absolute top-2 right-2">
+                                                        <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.6)]" />
+                                                    </div>
+                                                )}
+                                                {present && (
+                                                    <div className="mt-2 text-[10px] font-black text-orange-500/60 uppercase tracking-tighter">Attended</div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
+
 
 export default MemberAttendance;
