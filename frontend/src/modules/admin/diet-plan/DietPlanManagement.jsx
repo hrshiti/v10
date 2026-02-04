@@ -150,9 +150,6 @@ const CreateDietPlanModal = ({ isOpen, onClose, isDarkMode }) => {
   )
 }
 
-<<<<<<< Updated upstream
-const MealAccordion = ({ mealType, foods, isDarkMode }) => {
-=======
 // Edit Diet Plan Modal - Full Screen with 7 Days and Dynamic Cards
 const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
   const [activeDay, setActiveDay] = useState('Monday');
@@ -360,7 +357,7 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
                     <option>Cup</option>
                     <option>Plate</option>
                     <option>Bowl</option>
-                    <option>Piece</option> 
+                    <option>Piece</option>
                   </select>
                 </div>
 
@@ -426,7 +423,6 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
 }
 
 const MealAccordion = ({ meal, isDarkMode }) => {
->>>>>>> Stashed changes
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -435,31 +431,29 @@ const MealAccordion = ({ meal, isDarkMode }) => {
         onClick={() => setIsOpen(!isOpen)}
         className="p-4 flex justify-between items-center cursor-pointer transition-none"
       >
-        <span className={`text-[15px] font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{mealType}</span>
+        <span className={`text-[15px] font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{meal.mealType}</span>
         <ChevronDown size={18} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-gray-400' : 'text-black'}`} />
       </div>
 
       {isOpen && (
         <div className={`border-t ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-          {foods.map((item, idx) => (
-            <div key={idx} className={`flex flex-col md:flex-row border-b last:border-b-0 ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-              <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.foodType}</span>
-                <span className="text-[11px] text-gray-500 font-medium">Food Type</span>
-              </div>
-              <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.timing}</span>
-                <span className="text-[11px] text-gray-500 font-medium">Timing</span>
-              </div>
-              <div className={`p-4 flex-1 flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
-                <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.itemName}</span>
-                <span className="text-[11px] text-gray-500 font-medium">Diet</span>
-              </div>
-              <div className="p-4 w-full md:w-[200px] flex items-center">
-                <span className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{item.quantity} {item.unit}</span>
-              </div>
+          <div className={`flex flex-col md:flex-row border-b last:border-b-0 ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+            <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+              <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{meal.foodType}</span>
+              <span className="text-[11px] text-gray-500 font-medium">Food Type</span>
             </div>
-          ))}
+            <div className={`p-4 w-full md:w-[120px] flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+              <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{meal.timing}</span>
+              <span className="text-[11px] text-gray-500 font-medium">Timing</span>
+            </div>
+            <div className={`p-4 flex-1 flex flex-col justify-center border-r ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+              <span className={`text-[13px] font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>{meal.itemName}</span>
+              <span className="text-[11px] text-gray-500 font-medium">Diet</span>
+            </div>
+            <div className="p-4 w-full md:w-[200px] flex items-center">
+              <span className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{meal.quantity} {meal.unit}</span>
+            </div>
+          </div>
         </div>
       )}
     </div>
