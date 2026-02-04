@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Maximize2, Minimize2, PenLine, Calendar as CalendarIcon, ChevronDown, Check, Clock } from 'lucide-react';
+import { X, Maximize2, Minimize2, PenLine, Calendar as CalendarIcon, ChevronDown, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // --- Helper Components ---
 
@@ -140,7 +140,6 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode, withTime = false
 
     useEffect(() => {
         if (value) {
-            // Check if value includes time: "DD-MM-YYYY HH:mm"
             const parts = value.split(' ');
             const datePart = parts[0];
             const timePart = parts[1] || '';
@@ -176,26 +175,14 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode, withTime = false
     const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
     const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
-    const handleDateSelect = (day) => {
-        const d = String(day).padStart(2, '0');
-        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const y = currentDate.getFullYear();
+    const prevMonth = (e) => {
+        e.stopPropagation();
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+    };
 
-        let finalValue = `${d}-${m}-${y}`;
-
-        if (withTime) {
-            // For TimePicker mode, just update state, don't close yet if we want a "Apply" flow
-            // But based on UX usually user picks date then time.
-            // We'll mimic the picture: Date + Time section at bottom + Cancel/Apply buttons
-            onChange(finalValue + (selectedTime ? ` ${selectedTime}` : '')); // Update parent immediately or on Apply only?
-            // Since the image shows Cancel/Apply, we should strictly use internal state until Apply is clicked. 
-            // However, for simplicity let's update parents but keep modal open.
-
-            // Wait, the image shows "Time --:--". Let's handle local state truly.
-        } else {
-            onChange(finalValue);
-            setIsOpen(false);
-        }
+    const nextMonth = (e) => {
+        e.stopPropagation();
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     };
 
     // Internal state for the picker when open
@@ -245,9 +232,7 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode, withTime = false
         }
 
         for (let i = 1; i <= daysInMonth; i++) {
-            // Check against tempDate if open, or value if closed/initial
             const currentCheck = withTime && isOpen ? tempDate : (value || '').split(' ')[0];
-
             const isSelected = currentCheck === `${String(i).padStart(2, '0')}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${currentDate.getFullYear()}`;
             const isToday = i === new Date().getDate() && currentDate.getMonth() === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear();
 
@@ -301,21 +286,35 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode, withTime = false
                 <div className={`absolute z-50 mt-1 rounded-xl shadow-2xl border w-[320px] transition-none overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'
                     }`}>
                     <div className="p-4">
-                        <div className="flex gap-2 mb-4">
-                            <div
-                                onClick={() => setView(view === 'months' ? 'calendar' : 'months')}
-                                className={`flex-1 border rounded-lg px-3 py-2 text-[14px] font-medium cursor-pointer flex items-center justify-between transition-colors ${view === 'months' ? 'border-[#f97316] text-[#f97316]' : (isDarkMode ? 'border-white/10 text-white' : 'border-gray-300 text-gray-700')
-                                    }`}
+                        <div className="flex items-center justify-between gap-2 mb-4">
+                            <button
+                                onClick={prevMonth}
+                                className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
                             >
-                                {months[currentDate.getMonth()]}
+                                <ChevronLeft size={18} />
+                            </button>
+                            <div className="flex gap-2 flex-1">
+                                <div
+                                    onClick={() => setView(view === 'months' ? 'calendar' : 'months')}
+                                    className={`flex-1 border rounded-lg px-2 py-2 text-[13px] font-bold cursor-pointer flex items-center justify-between transition-colors ${view === 'months' ? 'border-[#f97316] text-[#f97316]' : (isDarkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-700')
+                                        }`}
+                                >
+                                    {months[currentDate.getMonth()]}
+                                </div>
+                                <div
+                                    onClick={() => setView(view === 'years' ? 'calendar' : 'years')}
+                                    className={`w-20 border rounded-lg px-2 py-2 text-[13px] font-bold cursor-pointer flex items-center justify-between transition-colors ${view === 'years' ? 'border-[#f97316] text-[#f97316]' : (isDarkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-700')
+                                        }`}
+                                >
+                                    {currentDate.getFullYear()}
+                                </div>
                             </div>
-                            <div
-                                onClick={() => setView(view === 'years' ? 'calendar' : 'years')}
-                                className={`w-24 border rounded-lg px-3 py-2 text-[14px] font-medium cursor-pointer flex items-center justify-between transition-colors ${view === 'years' ? 'border-[#f97316] text-[#f97316]' : (isDarkMode ? 'border-white/10 text-white' : 'border-gray-300 text-gray-700')
-                                    }`}
+                            <button
+                                onClick={nextMonth}
+                                className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
                             >
-                                {currentDate.getFullYear()}
-                            </div>
+                                <ChevronRight size={18} />
+                            </button>
                         </div>
 
                         {view === 'calendar' && (
@@ -334,77 +333,78 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode, withTime = false
                         )}
 
                         {view === 'months' && (
-                            <div className="grid grid-cols-1 gap-1 max-h-[250px] overflow-y-auto custom-scrollbar">
-                                {months.map((month, idx) => (
-                                    <button
-                                        key={month}
+                            <div className="grid grid-cols-3 gap-2 py-2">
+                                {months.map((m, idx) => (
+                                    <div
+                                        key={m}
                                         onClick={() => {
                                             setCurrentDate(new Date(currentDate.getFullYear(), idx, 1));
                                             setView('calendar');
                                         }}
-                                        className={`text-left px-4 py-2 rounded text-[14px] transition-colors ${currentDate.getMonth() === idx
-                                            ? 'bg-[#f97316] text-white'
-                                            : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
+                                        className={`px-2 py-3 rounded-lg text-[13px] font-bold cursor-pointer text-center transition-all ${currentDate.getMonth() === idx
+                                            ? 'bg-[#f97316] text-white shadow-md'
+                                            : (isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-orange-50 hover:text-[#f97316]')
                                             }`}
                                     >
-                                        {month}
-                                    </button>
+                                        {m.substring(0, 3)}
+                                    </div>
                                 ))}
                             </div>
                         )}
 
                         {view === 'years' && (
-                            <div className="grid grid-cols-1 gap-1 max-h-[250px] overflow-y-auto custom-scrollbar">
+                            <div className="grid grid-cols-3 gap-2 py-2 max-h-[200px] overflow-y-auto custom-scrollbar">
                                 {generateYears().map(year => (
-                                    <button
+                                    <div
                                         key={year}
                                         onClick={() => {
                                             setCurrentDate(new Date(year, currentDate.getMonth(), 1));
                                             setView('calendar');
                                         }}
-                                        className={`text-left px-4 py-2 rounded text-[14px] transition-colors ${currentDate.getFullYear() === year
-                                            ? 'bg-[#f97316] text-white'
-                                            : (isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')
+                                        className={`px-2 py-3 rounded-lg text-[13px] font-bold cursor-pointer text-center transition-all ${currentDate.getFullYear() === year
+                                            ? 'bg-[#f97316] text-white shadow-md'
+                                            : (isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-orange-50 hover:text-[#f97316]')
                                             }`}
                                     >
                                         {year}
-                                    </button>
+                                    </div>
                                 ))}
                             </div>
                         )}
-                    </div>
 
-                    {/* Footer with Time Picker and Buttons (Only if withTime=true) */}
-                    {withTime && view === 'calendar' && (
-                        <div className={`p-4 border-t ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
-                            <div className="flex items-center justify-between mb-4">
-                                <span className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Time</span>
-                                <div className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg bg-white ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-300'}`}>
+                        {withTime && view === 'calendar' && (
+                            <div className={`mt-4 pt-4 border-t ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <Clock size={16} className="text-gray-400" />
+                                        <span className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Time</span>
+                                    </div>
                                     <input
                                         type="time"
                                         value={tempTime}
                                         onChange={(e) => setTempTime(e.target.value)}
-                                        className={`bg-transparent outline-none text-[13px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-700'}`}
+                                        className={`px-3 py-1.5 rounded-lg border text-[13px] font-bold outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-gray-800'
+                                            }`}
                                     />
-                                    <Clock size={16} className="text-gray-400" />
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleCancel}
+                                        className={`flex-1 py-2 rounded-lg text-[12px] font-bold border transition-colors ${isDarkMode ? 'border-white/10 text-gray-400 hover:bg-white/5' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleApply}
+                                        className="flex-1 py-2 rounded-lg text-[12px] font-bold bg-[#f97316] text-white hover:bg-orange-600 shadow-md transition-colors"
+                                    >
+                                        Apply
+                                    </button>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-end gap-3">
-                                <button
-                                    onClick={handleCancel}
-                                    className={`px-4 py-1.5 rounded-lg text-[13px] font-bold ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-200'}`}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleApply}
-                                    className="px-6 py-1.5 rounded-lg text-[13px] font-bold bg-[#f97316] hover:bg-orange-600 text-white shadow-md active:scale-95"
-                                >
-                                    Apply
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             )}
         </div>
@@ -414,17 +414,31 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode, withTime = false
 
 // --- Main Component ---
 
-const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
+const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: '',
+        mobileNumber: '',
+        emailAddress: '',
+        landlineNumber: '',
         gender: '',
         maritalStatus: '',
         birthDate: '',
         anniversaryDate: '',
+        residentialAddress: '',
+        occupation: '',
+        jobProfile: '',
+        companyName: '',
+        emergencyContactPerson: '',
+        emergencyContactNumber: '',
         commitmentDate: '',
         source: '',
         isExercising: '',
+        currentActivities: '',
+        dropoutReason: '',
         hasHealthChallenges: '',
+        healthIssueDescription: '',
         fitnessGoal: '',
         gymService: [], // Array for multi-select
         trialStartDate: '',
@@ -433,7 +447,86 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
         leadType: '',
         personalityType: '',
         referralMember: '',
+        budgetPerMonth: '',
+        otherReferral: '',
+        remarksSummary: '',
     });
+
+    useEffect(() => {
+        if (initialData) {
+            setFormData({
+                firstName: initialData.name?.split(' ')[0] || '',
+                lastName: initialData.name?.split(' ')[1] || '',
+                mobileNumber: initialData.mobile?.replace('+91', '') || '',
+                emailAddress: initialData.email || '',
+                landlineNumber: '',
+                gender: initialData.gender || 'Male',
+                maritalStatus: initialData.maritalStatus || 'Single',
+                birthDate: initialData.birthDate || '',
+                anniversaryDate: initialData.anniversaryDate || '',
+                residentialAddress: initialData.address || 'C.T.M.',
+                occupation: initialData.occupation || '',
+                jobProfile: initialData.jobProfile || '',
+                companyName: initialData.companyName || '',
+                emergencyContactPerson: initialData.emergencyContactPerson || '',
+                emergencyContactNumber: initialData.emergencyContactNumber || '',
+                commitmentDate: initialData.commitmentDate || '',
+                source: initialData.source || '',
+                isExercising: initialData.isExercising || 'No',
+                currentActivities: initialData.currentActivities || '',
+                dropoutReason: initialData.dropoutReason || '',
+                hasHealthChallenges: initialData.hasHealthChallenges || 'No',
+                healthIssueDescription: initialData.healthIssueDescription || '',
+                fitnessGoal: initialData.fitnessGoal || '',
+                gymService: initialData.gymService || [],
+                trialStartDate: initialData.trialStartDate || '',
+                trialEndDate: initialData.trialEndDate || '',
+                assignTo: initialData.handle || '',
+                leadType: initialData.type || 'Cold',
+                personalityType: initialData.personalityType || '',
+                referralMember: initialData.referralMember || '',
+                budgetPerMonth: initialData.budgetPerMonth || '',
+                otherReferral: initialData.otherReferral || '',
+                remarksSummary: initialData.remarks || '',
+            });
+        } else {
+            setFormData({
+                firstName: '',
+                lastName: '',
+                mobileNumber: '',
+                emailAddress: '',
+                landlineNumber: '',
+                gender: 'Male',
+                maritalStatus: 'Single',
+                birthDate: '',
+                anniversaryDate: '',
+                residentialAddress: '',
+                occupation: '',
+                jobProfile: '',
+                companyName: '',
+                emergencyContactPerson: '',
+                emergencyContactNumber: '',
+                commitmentDate: '',
+                source: '',
+                isExercising: 'No',
+                currentActivities: '',
+                dropoutReason: '',
+                hasHealthChallenges: 'No',
+                healthIssueDescription: '',
+                fitnessGoal: '',
+                gymService: [],
+                trialStartDate: '',
+                trialEndDate: '',
+                assignTo: '',
+                leadType: 'Cold',
+                personalityType: '',
+                referralMember: '',
+                budgetPerMonth: '',
+                otherReferral: '',
+                remarksSummary: '',
+            });
+        }
+    }, [initialData, isOpen]);
 
     if (!isOpen) return null;
 
@@ -499,7 +592,9 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
                 <div className={`flex items-center justify-between px-6 py-4 border-b ${isDarkMode ? 'border-white/10 bg-[#1e1e1e]' : 'border-gray-100 bg-[#f8f9fa]'} rounded-t-xl`}>
                     <div className="flex items-center gap-3">
                         <PenLine size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
-                        <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Add Enquiry</h2>
+                        <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                            {initialData ? 'Edit Enquiry' : 'Add Enquiry'}
+                        </h2>
                     </div>
                     <div className="flex items-center gap-4">
                         <button
@@ -527,27 +622,57 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
 
                             <div>
                                 <label className={labelClass}>First Name*</label>
-                                <input type="text" placeholder="First Name" className={inputClass} />
+                                <input
+                                    type="text"
+                                    placeholder="First Name"
+                                    className={inputClass}
+                                    value={formData.firstName}
+                                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                                />
                             </div>
 
                             <div>
                                 <label className={labelClass}>Last Name*</label>
-                                <input type="text" placeholder="Last Name" className={inputClass} />
+                                <input
+                                    type="text"
+                                    placeholder="Last Name"
+                                    className={inputClass}
+                                    value={formData.lastName}
+                                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                                />
                             </div>
 
                             <div>
                                 <label className={labelClass}>Mobile Number*</label>
-                                <input type="text" placeholder="Ex : 9988776655" className={inputClass} />
+                                <input
+                                    type="text"
+                                    placeholder="Ex : 9988776655"
+                                    className={inputClass}
+                                    value={formData.mobileNumber}
+                                    onChange={(e) => handleInputChange('mobileNumber', e.target.value)}
+                                />
                             </div>
 
                             <div>
                                 <label className={labelClass}>Email Address</label>
-                                <input type="email" placeholder="Ex : abc@gmail.com" className={inputClass} />
+                                <input
+                                    type="email"
+                                    placeholder="Ex : abc@gmail.com"
+                                    className={inputClass}
+                                    value={formData.emailAddress}
+                                    onChange={(e) => handleInputChange('emailAddress', e.target.value)}
+                                />
                             </div>
 
                             <div>
                                 <label className={labelClass}>Landline Number</label>
-                                <input type="text" placeholder="Ex : 0261-245678" className={inputClass} />
+                                <input
+                                    type="text"
+                                    placeholder="Ex : abc@gmail.com"
+                                    className={inputClass}
+                                    value={formData.landlineNumber}
+                                    onChange={(e) => handleInputChange('landlineNumber', e.target.value)}
+                                />
                             </div>
 
                             <div>
@@ -626,6 +751,8 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
                                     rows={3}
                                     placeholder="Type your Address here..."
                                     className={`${inputClass} resize-none`}
+                                    value={formData.residentialAddress}
+                                    onChange={(e) => handleInputChange('residentialAddress', e.target.value)}
                                 />
                             </div>
 
@@ -638,23 +765,49 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
                         <div className={`grid grid-cols-1 ${isFullScreen ? 'md:grid-cols-2 lg:grid-cols-2' : 'md:grid-cols-2'} gap-x-6 gap-y-5`}>
                             <div>
                                 <label className={labelClass}>Occupation</label>
-                                <input type="text" className={inputClass} />
+                                <input
+                                    type="text"
+                                    className={inputClass}
+                                    value={formData.occupation}
+                                    onChange={(e) => handleInputChange('occupation', e.target.value)}
+                                />
                             </div>
                             <div>
                                 <label className={labelClass}>Job Profile</label>
-                                <input type="text" className={inputClass} />
+                                <input
+                                    type="text"
+                                    className={inputClass}
+                                    value={formData.jobProfile}
+                                    onChange={(e) => handleInputChange('jobProfile', e.target.value)}
+                                />
                             </div>
                             <div>
                                 <label className={labelClass}>Company Name</label>
-                                <input type="text" className={inputClass} />
+                                <input
+                                    type="text"
+                                    className={inputClass}
+                                    value={formData.companyName}
+                                    onChange={(e) => handleInputChange('companyName', e.target.value)}
+                                />
                             </div>
                             <div>
                                 <label className={labelClass}>Emergency Contact Person</label>
-                                <input type="text" className={inputClass} />
+                                <input
+                                    type="text"
+                                    className={inputClass}
+                                    value={formData.emergencyContactPerson}
+                                    onChange={(e) => handleInputChange('emergencyContactPerson', e.target.value)}
+                                />
                             </div>
                             <div>
                                 <label className={labelClass}>Emergency Contact Number</label>
-                                <input type="text" placeholder="999XXXXXX09" className={inputClass} />
+                                <input
+                                    type="text"
+                                    placeholder="999XXXXXX09"
+                                    className={inputClass}
+                                    value={formData.emergencyContactNumber}
+                                    onChange={(e) => handleInputChange('emergencyContactNumber', e.target.value)}
+                                />
                             </div>
                         </div>
                     </div>
@@ -718,7 +871,12 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
 
                             <div>
                                 <label className={labelClass}>Current Activities</label>
-                                <input type="text" className={inputClass} />
+                                <input
+                                    type="text"
+                                    className={inputClass}
+                                    value={formData.currentActivities}
+                                    onChange={(e) => handleInputChange('currentActivities', e.target.value)}
+                                />
                             </div>
 
                         </div>
@@ -727,7 +885,13 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
                         <div className="mt-5 space-y-5">
                             <div>
                                 <label className={labelClass}>Dropout Reason</label>
-                                <textarea rows={3} placeholder="Describe the reason here..." className={`${inputClass} resize-none`} />
+                                <textarea
+                                    rows={3}
+                                    placeholder="Describe the reason here..."
+                                    className={`${inputClass} resize-none`}
+                                    value={formData.dropoutReason}
+                                    onChange={(e) => handleInputChange('dropoutReason', e.target.value)}
+                                />
                             </div>
 
                             <div>
@@ -760,7 +924,13 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
                                         <span className={`text-[14px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Yes</span>
                                     </label>
                                 </div>
-                                <textarea rows={3} placeholder="If Yes Please Describe Health Issue here..." className={`${inputClass} resize-none`} />
+                                <textarea
+                                    rows={3}
+                                    placeholder="If Yes Please Describe Health Issue here..."
+                                    className={`${inputClass} resize-none`}
+                                    value={formData.healthIssueDescription}
+                                    onChange={(e) => handleInputChange('healthIssueDescription', e.target.value)}
+                                />
                             </div>
                         </div>
 
@@ -861,18 +1031,36 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode }) => {
 
                             <div>
                                 <label className={labelClass}>Budget per month</label>
-                                <input type="text" placeholder="Ex : ₹4000" className={inputClass} />
+                                <input
+                                    type="text"
+                                    placeholder="Ex : ₹4000"
+                                    className={inputClass}
+                                    value={formData.budgetPerMonth}
+                                    onChange={(e) => handleInputChange('budgetPerMonth', e.target.value)}
+                                />
                             </div>
 
                             <div>
                                 <label className={labelClass}>Other Referral</label>
-                                <input type="text" placeholder="Ex : Rahul" className={inputClass} />
+                                <input
+                                    type="text"
+                                    placeholder="Ex : Rahul"
+                                    className={inputClass}
+                                    value={formData.otherReferral}
+                                    onChange={(e) => handleInputChange('otherReferral', e.target.value)}
+                                />
                             </div>
                         </div>
 
                         <div className="mt-5">
                             <label className={labelClass}>Remarks / Summary</label>
-                            <textarea rows={3} placeholder="Describe the reason here..." className={`${inputClass} resize-none`} />
+                            <textarea
+                                rows={3}
+                                placeholder="Describe the reason here..."
+                                className={`${inputClass} resize-none`}
+                                value={formData.remarksSummary}
+                                onChange={(e) => handleInputChange('remarksSummary', e.target.value)}
+                            />
                         </div>
 
                     </div>

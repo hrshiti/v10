@@ -199,11 +199,18 @@ const MembershipAnalytics = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
   const stats = [
-    { label: 'General Training', icon: User, active: 'bg-blue-600', hover: 'hover:bg-blue-600', ring: 'ring-blue-400' },
-    { label: 'Personal Training', icon: User, active: 'bg-emerald-600', hover: 'hover:bg-emerald-600', ring: 'ring-emerald-400' },
-    { label: 'Group Ex', icon: User, active: 'bg-purple-600', hover: 'hover:bg-purple-600', ring: 'ring-purple-400' },
-    { label: 'Complete Fitness', icon: User, active: 'bg-red-500', hover: 'hover:bg-red-500', ring: 'ring-red-400' },
+    { label: 'General Training', icon: User, theme: 'blue' },
+    { label: 'Personal Training', icon: User, theme: 'emerald' },
+    { label: 'Group Ex', icon: User, theme: 'purple' },
+    { label: 'Complete Fitness', icon: User, theme: 'red' },
   ];
+
+  const themeConfig = {
+    blue: { bg: 'bg-blue-600', border: 'border-blue-600', ring: 'ring-blue-400', shadow: 'shadow-blue-500/20' },
+    emerald: { bg: 'bg-emerald-600', border: 'border-emerald-600', ring: 'ring-emerald-400', shadow: 'shadow-emerald-500/20' },
+    purple: { bg: 'bg-purple-600', border: 'border-purple-600', ring: 'ring-purple-400', shadow: 'shadow-purple-500/20' },
+    red: { bg: 'bg-red-500', border: 'border-red-500', ring: 'ring-red-400', shadow: 'shadow-red-500/20' },
+  };
 
   const reportData = [
     { name: 'GYM WORKOUT', duration: '12 Month', invoiceAmount: '325500.00', sessions: '360', paidAmount: '320000.00', sold: '78' },
@@ -220,28 +227,30 @@ const MembershipAnalytics = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 transition-none">
         {stats.map((stat, idx) => {
           const isActive = selectedCategory === stat.label;
+          const config = themeConfig[stat.theme];
           return (
             <div
               key={idx}
               onClick={() => setSelectedCategory(stat.label)}
               className={`group p-6 rounded-xl flex items-center gap-5 transition-all duration-300 cursor-pointer border-2
                 ${isActive
-                  ? `${stat.active} border-transparent text-white shadow-xl ring-1 ${stat.ring}`
+                  ? (isDarkMode
+                    ? `bg-[#1a1a1a] ${config.border} text-white hover:${config.bg} hover:border-transparent hover:shadow-lg ${config.shadow}`
+                    : `bg-white ${config.border} text-gray-700 hover:text-white hover:${config.bg} hover:border-transparent hover:shadow-lg ${config.shadow}`
+                  )
                   : (isDarkMode
-                    ? `bg-[#1a1a1a] border-white/5 text-white ${stat.hover} hover:border-transparent hover:shadow-lg`
-                    : `bg-white border-gray-100 text-gray-700 ${stat.hover} hover:text-white hover:border-transparent hover:shadow-lg`
+                    ? `bg-[#1a1a1a] border-white/5 text-white hover:${config.bg} hover:border-transparent hover:shadow-lg ${config.shadow}`
+                    : `bg-white border-gray-100 text-gray-700 hover:text-white hover:${config.bg} hover:border-transparent hover:shadow-lg ${config.shadow}`
                   )}`}
             >
-              <div className={`p-4 rounded-xl transition-all duration-300
-                ${isActive
-                  ? 'bg-white/20 text-white'
-                  : (isDarkMode
-                    ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
-                    : 'bg-[#f8f9fa] text-gray-400 group-hover:bg-white/20 group-hover:text-white'
-                  )}`}>
+              <div className={`p-4 rounded-xl transition-all duration-300 
+                ${isDarkMode
+                  ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                  : 'bg-[#f8f9fa] text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                }`}>
                 <stat.icon size={28} />
               </div>
-              <span className={`text-[16px] font-black transition-colors duration-300 ${isActive ? 'text-white' : 'group-hover:text-white'}`}>{stat.label}</span>
+              <span className={`text-[16px] font-black transition-colors duration-300 ${isActive ? (isDarkMode ? 'text-white' : 'text-gray-900') : 'text-inherit'} group-hover:text-white`}>{stat.label}</span>
             </div>
           );
         })}

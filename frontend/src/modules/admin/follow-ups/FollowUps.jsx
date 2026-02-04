@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import DateRangeFilter from '../components/DateRangeFilter';
+import FollowUpActionModal from './FollowUpActionModal';
+import FollowUpDoneModal from './FollowUpDoneModal';
 
 const ReportModal = ({ isOpen, onClose, isDarkMode }) => {
   if (!isOpen) return null;
@@ -309,6 +311,32 @@ const FollowUps = () => {
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionContainerRefs = useRef({});
 
+  // Action Modal State
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [actionModalTab, setActionModalTab] = useState('edit');
+  const [isDoneModalOpen, setIsDoneModalOpen] = useState(false);
+  const [selectedRowData, setSelectedRowData] = useState(null);
+
+  const handleEditResponse = (row) => {
+    setSelectedRowData(row);
+    setActionModalTab('edit');
+    setIsActionModalOpen(true);
+    setActiveActionRow(null);
+  };
+
+  const handleHistory = (row) => {
+    setSelectedRowData(row);
+    setActionModalTab('history');
+    setIsActionModalOpen(true);
+    setActiveActionRow(null);
+  };
+
+  const handleDone = (row) => {
+    setSelectedRowData(row);
+    setIsDoneModalOpen(true);
+    setActiveActionRow(null);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       // Rows Per Page Dropdown
@@ -493,13 +521,13 @@ const FollowUps = () => {
                         className={`absolute right-10 top-0 mt-2 w-[220px] rounded-lg shadow-2xl border z-[9999] overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}
                       >
                         {[
-                          { label: "Edit Response", icon: Edit2 },
-                          { label: "History", icon: History },
-                          { label: "Done", icon: CheckCircle }
+                          { label: "Edit Response", icon: Edit2, onClick: () => handleEditResponse(row) },
+                          { label: "History", icon: History, onClick: () => handleHistory(row) },
+                          { label: "Done", icon: CheckCircle, onClick: () => handleDone(row) }
                         ].map((action, i) => (
                           <div
                             key={i}
-                            onClick={() => setActiveActionRow(null)}
+                            onClick={action.onClick}
                             className={`px-5 py-3.5 text-[14px] font-medium border-b last:border-0 cursor-pointer flex items-center gap-3 hover:pl-6 transition-all ${isDarkMode
                               ? 'text-gray-300 border-white/5 hover:bg-white/5'
                               : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
@@ -572,6 +600,24 @@ const FollowUps = () => {
       <ReportModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
+
+      <FollowUpActionModal
+        isOpen={isActionModalOpen}
+        onClose={() => setIsActionModalOpen(false)}
+        initialTab={actionModalTab}
+        rowData={selectedRowData}
+        isDarkMode={isDarkMode}
+      />
+
+      <FollowUpDoneModal
+        isOpen={isDoneModalOpen}
+        onClose={() => setIsDoneModalOpen(false)}
+        onConfirm={() => {
+          console.log("Marked as done", selectedRowData);
+          setIsDoneModalOpen(false);
+        }}
         isDarkMode={isDarkMode}
       />
     </div>

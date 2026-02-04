@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
 
@@ -61,6 +61,7 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
 
 const ExpiredMemberReport = () => {
   const { isDarkMode } = useOutletContext();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('01-01-2026');
   const [toDate, setToDate] = useState('30-01-2026');
@@ -88,16 +89,28 @@ const ExpiredMemberReport = () => {
     'Select Closed By': ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'],
   };
 
-  const stats = [
-    { label: 'Members', value: '48', icon: User },
-    { label: 'Balance Amount', value: '0', icon: User },
-    { label: 'Business Opportunity Missed', value: '255835', icon: User },
-  ];
-
   const expiredData = [
     { id: '530', name: 'Sanjay panchal', number: '7405235029', mType: 'General Training', pName: 'GYM WORKOUT', sDate: '01-01-2025', eDate: '01-01-2026', trainer: 'Abdulla Pathan', cBy: 'Abdulla Pathan', price: '6000.00', discount: '0.00', paid: '6000.00', balance: '0' },
     { id: '512', name: 'SOHIL SHAIKH', number: '8487820716', mType: 'General Training', pName: 'GYM WORKOUT', sDate: '01-01-2025', eDate: '01-01-2026', trainer: 'Abdulla Pathan', cBy: 'Abdulla Pathan', price: '6500.00', discount: '0.00', paid: '6500.00', balance: '0' },
   ];
+
+  const filteredData = expiredData.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.number.includes(searchQuery) ||
+    item.id.includes(searchQuery)
+  );
+
+  const stats = [
+    { label: 'Members', value: filteredData.length.toString(), icon: User, theme: 'blue' },
+    { label: 'Balance Amount', value: '0', icon: User, theme: 'red' },
+    { label: 'Business Opportunity Missed', value: '255835', icon: User, theme: 'purple' },
+  ];
+
+  const themeConfig = {
+    blue: { bg: 'bg-blue-600', shadow: 'shadow-blue-500/20' },
+    red: { bg: 'bg-red-500', shadow: 'shadow-red-500/20' },
+    purple: { bg: 'bg-purple-600', shadow: 'shadow-purple-500/20' },
+  };
 
   const toggleFilter = (label) => {
     setActiveFilter(activeFilter === label ? null : label);
@@ -117,17 +130,27 @@ const ExpiredMemberReport = () => {
 
       {/* Stats Cards */}
       <div className="flex gap-4 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-6 rounded-lg flex items-center gap-4 transition-none min-w-[260px] ${isDarkMode ? 'bg-[#1a1a1a] border border-white/5' : 'bg-[#fcfcfc] border border-gray-100 shadow-sm'}`}>
-            <div className={`p-4 rounded-lg bg-gray-100 dark:bg-white/5`}>
-              <stat.icon size={26} className="text-gray-300" />
+        {stats.map((stat, idx) => {
+          const config = themeConfig[stat.theme];
+          return (
+            <div
+              key={idx}
+              className={`group p-6 rounded-lg flex items-center gap-4 transition-all duration-300 min-w-[260px] cursor-pointer border
+                ${isDarkMode
+                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  : `bg-[#fcfcfc] border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                }`}
+            >
+              <div className={`p-4 rounded-lg transition-all duration-300 ${isDarkMode ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-white/20 group-hover:text-white'}`}>
+                <stat.icon size={26} />
+              </div>
+              <div>
+                <p className="text-[24px] font-black leading-none transition-colors duration-300 group-hover:text-white">{stat.value}</p>
+                <p className="text-[13px] font-bold mt-1 text-gray-500 transition-colors duration-300 group-hover:text-white/80">{stat.label}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[24px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-bold mt-1 text-gray-500`}>{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Filters Row */}
@@ -222,12 +245,15 @@ const ExpiredMemberReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {expiredData.slice(0, rowsPerPage).map((row, idx) => (
+              {filteredData.slice(0, rowsPerPage).map((row, idx) => (
                 <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                   <td className="px-6 py-8">{row.id}</td>
                   <td className="px-6 py-8">
-                    <div className="flex flex-col transition-none">
-                      <span className="text-[#3b82f6] uppercase cursor-pointer hover:underline font-black">{row.name}</span>
+                    <div
+                      onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
+                      className="flex flex-col transition-none cursor-pointer group"
+                    >
+                      <span className="text-[#3b82f6] uppercase group-hover:underline font-black">{row.name}</span>
                       <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.number}</span>
                     </div>
                   </td>

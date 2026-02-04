@@ -150,7 +150,283 @@ const CreateDietPlanModal = ({ isOpen, onClose, isDarkMode }) => {
   )
 }
 
+<<<<<<< Updated upstream
 const MealAccordion = ({ mealType, foods, isDarkMode }) => {
+=======
+// Edit Diet Plan Modal - Full Screen with 7 Days and Dynamic Cards
+const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, planName }) => {
+  const [activeDay, setActiveDay] = useState('Monday');
+
+  // Initial diet cards data
+  const initialCards = [
+    { id: 1, foodType: 'VEG', mealType: 'Breakfast', quantity: '1', unit: 'Glass', timing: '07:00', itemName: 'black coffee/a small fruit/4 dates', description: '' },
+    { id: 2, foodType: 'VEG', mealType: 'Breakfast', quantity: '1', unit: 'Cup', timing: '08:00', itemName: 'green tea/skimmed milk+ 1 plate veg poha/dhokla', description: '' },
+    { id: 3, foodType: 'VEG', mealType: 'Breakfast', quantity: '1', unit: 'Plate', timing: '10:00', itemName: '1 plate fresh fruit salad + buttermilk +water +1 coconut water', description: '' },
+    { id: 4, foodType: 'VEG', mealType: 'Lunch', quantity: '1', unit: 'Plate', timing: '14:00', itemName: '1 plate salad +brown rice+dal+curd', description: '' },
+    { id: 5, foodType: 'VEG', mealType: 'Evening Snacks', quantity: '1', unit: 'Bowl', timing: '17:00', itemName: 'lemon tea/green tea/1 bowl boiled mung/chana', description: '' },
+    { id: 6, foodType: 'VEG', mealType: 'Dinner', quantity: '1', unit: 'Bowl', timing: '20:00', itemName: 'veg. soup + veg salad+veg khichdi/rice/curd', description: '' },
+    { id: 7, foodType: 'VEG', mealType: 'Dinner', quantity: '1', unit: 'Piece', timing: '22:00', itemName: 'fruit any 1 before going to bed', description: '' },
+  ];
+
+  // State for diet cards for each day
+  const [dietCardsPerDay, setDietCardsPerDay] = useState({
+    Monday: initialCards,
+    Tuesday: initialCards,
+    Wednesday: initialCards,
+    Thursday: initialCards,
+    Friday: initialCards,
+    Saturday: initialCards,
+    Sunday: initialCards,
+  });
+
+  const [nextId, setNextId] = useState(8);
+
+  if (!isOpen) return null;
+
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const currentDayCards = dietCardsPerDay[activeDay];
+
+  // Delete card function
+  const handleDeleteCard = (cardId) => {
+    setDietCardsPerDay(prev => ({
+      ...prev,
+      [activeDay]: prev[activeDay].filter(card => card.id !== cardId)
+    }));
+  };
+
+  // Add new card function
+  const handleAddCard = () => {
+    const newCard = {
+      id: nextId,
+      foodType: 'VEG',
+      mealType: 'Breakfast',
+      quantity: '1',
+      unit: 'Glass',
+      timing: '07:00',
+      itemName: '',
+      description: ''
+    };
+
+    setDietCardsPerDay(prev => ({
+      ...prev,
+      [activeDay]: [...prev[activeDay], newCard]
+    }));
+
+    setNextId(nextId + 1);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-white dark:bg-[#1e1e1e] overflow-y-auto">
+      {/* Header */}
+      <div className={`sticky top-0 z-10 border-b ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-black text-white p-1 rounded">
+              <Utensils size={16} fill="white" />
+            </div>
+            <h3 className={`text-[16px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Edit Diet Plan</h3>
+          </div>
+          <button onClick={onClose} className={isDarkMode ? 'text-white hover:text-gray-300' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Diet Plan Name */}
+        <div className="px-6 pb-4">
+          <h2 className={`text-[14px] font-bold tracking-wide ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+            {planName || 'INSTANT WEIGHT LOSS DIET'}
+          </h2>
+        </div>
+
+        {/* Day Tabs */}
+        <div className="px-6 flex gap-4 overflow-x-auto">
+          {days.map((day) => (
+            <button
+              key={day}
+              onClick={() => setActiveDay(day)}
+              className={`pb-3 px-2 text-[14px] font-bold whitespace-nowrap border-b-2 transition-none ${activeDay === day
+                ? 'border-[#f97316] text-[#f97316]'
+                : isDarkMode
+                  ? 'border-transparent text-gray-400 hover:text-gray-300'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              {day}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Diet Cards Container */}
+      <div className="px-6 py-6 space-y-4 max-w-7xl mx-auto">
+        {currentDayCards.map((card, index) => {
+          const isLastCard = index === currentDayCards.length - 1;
+
+          return (
+            <div
+              key={card.id}
+              className={`rounded-lg border p-6 relative ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200 shadow-sm'
+                }`}
+            >
+              {/* Delete and Plus Icons - Only on Last Card */}
+              {isLastCard && (
+                <div className="absolute top-4 right-4 flex items-center gap-2">
+                  <button
+                    onClick={() => handleDeleteCard(card.id)}
+                    className={`p-1.5 rounded hover:bg-red-50 transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-500' : 'text-gray-600 hover:text-red-600'
+                      }`}
+                    title="Delete Card"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                  <button
+                    onClick={handleAddCard}
+                    className={`p-1.5 rounded hover:bg-green-50 transition-colors ${isDarkMode ? 'text-gray-400 hover:text-green-500' : 'text-gray-600 hover:text-green-600'
+                      }`}
+                    title="Add Card"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
+              )}
+
+              {/* First Section - Food Type, Meal Type, Quantity, Unit, Timing */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                {/* Food Type */}
+                <div>
+                  <label className={`block text-[11px] font-bold mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Food Type*
+                  </label>
+                  <select
+                    defaultValue={card.foodType}
+                    className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
+                      ? 'bg-[#0d0d0d] border-white/10 text-white'
+                      : 'bg-white border-gray-300 text-gray-700'
+                      }`}
+                  >
+                    <option>VEG</option>
+                    <option>NON-VEG</option>
+                    <option>VEGAN</option>
+                  </select>
+                </div>
+
+                {/* Meal Type */}
+                <div>
+                  <label className={`block text-[11px] font-bold mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Meal Type*
+                  </label>
+                  <select
+                    defaultValue={card.mealType}
+                    className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
+                      ? 'bg-[#0d0d0d] border-white/10 text-white'
+                      : 'bg-white border-gray-300 text-gray-700'
+                      }`}
+                  >
+                    <option>Breakfast</option>
+                    <option>Lunch</option>
+                    <option>Evening Snacks</option>
+                    <option>Dinner</option>
+                  </select>
+                </div>
+
+                {/* Quantity */}
+                <div>
+                  <label className={`block text-[11px] font-bold mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Quantity*
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={card.quantity}
+                    className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
+                      ? 'bg-[#0d0d0d] border-white/10 text-white placeholder-gray-500'
+                      : 'bg-white border-gray-300 text-gray-700 placeholder-gray-400'
+                      }`}
+                  />
+                </div>
+
+                {/* Unit */}
+                <div>
+                  <label className={`block text-[11px] font-bold mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Unit*
+                  </label>
+                  <select
+                    defaultValue={card.unit}
+                    className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
+                      ? 'bg-[#0d0d0d] border-white/10 text-white'
+                      : 'bg-white border-gray-300 text-gray-700'
+                      }`}
+                  >
+                    <option>Glass</option>
+                    <option>Cup</option>
+                    <option>Plate</option>
+                    <option>Bowl</option>
+                    <option>Piece</option> 
+                  </select>
+                </div>
+
+                {/* Timing */}
+                <div>
+                  <label className={`block text-[11px] font-bold mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Timing*
+                  </label>
+                  <input
+                    type="time"
+                    defaultValue={card.timing}
+                    className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
+                      ? 'bg-[#0d0d0d] border-white/10 text-white'
+                      : 'bg-white border-gray-300 text-gray-700'
+                      }`}
+                  />
+                </div>
+              </div>
+
+              {/* Second Section - Item Name */}
+              <div className="mb-4">
+                <label className={`block text-[11px] font-bold mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Item Name*
+                </label>
+                <input
+                  type="text"
+                  defaultValue={card.itemName}
+                  className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none ${isDarkMode
+                    ? 'bg-[#0d0d0d] border-white/10 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-700 placeholder-gray-400'
+                    }`}
+                />
+              </div>
+
+              {/* Third Section - Description */}
+              <div>
+                <label className={`block text-[11px] font-bold mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Description*
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Describe Diet here..."
+                  defaultValue={card.description}
+                  className={`w-full px-3 py-2 border rounded-lg text-[13px] font-medium outline-none resize-none ${isDarkMode
+                    ? 'bg-[#0d0d0d] border-white/10 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-700 placeholder-gray-400'
+                    }`}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer - Submit Button */}
+      <div className={`sticky bottom-0 border-t px-6 py-4 flex justify-end ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
+        <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95 transition-none">
+          Submit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const MealAccordion = ({ meal, isDarkMode }) => {
+>>>>>>> Stashed changes
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -194,6 +470,7 @@ const DietPlanItem = ({ plan, isDarkMode }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeActionRow, setActiveActionRow] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const actionRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -251,7 +528,12 @@ const DietPlanItem = ({ plan, isDarkMode }) => {
                 {['Edit', 'Delete'].map((action, i) => (
                   <div
                     key={i}
-                    onClick={() => setActiveActionRow(false)}
+                    onClick={() => {
+                      if (action === 'Edit') {
+                        setIsEditModalOpen(true);
+                      }
+                      setActiveActionRow(false);
+                    }}
                     className={`px-5 py-3.5 text-[14px] font-medium border-b last:border-0 cursor-pointer hover:pl-6 transition-all ${isDarkMode
                       ? 'text-gray-300 border-white/5 hover:bg-white/5'
                       : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
@@ -286,6 +568,14 @@ const DietPlanItem = ({ plan, isDarkMode }) => {
           ))}
         </div>
       )}
+
+      {/* Edit Diet Plan Modal */}
+      <EditDietPlanModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        isDarkMode={isDarkMode}
+        planName={plan.name}
+      />
     </div>
   );
 };

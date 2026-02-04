@@ -10,9 +10,12 @@ import {
   Upload,
   Calendar,
   CheckCircle,
-  Bell
+  Bell,
+  Trash2, // Added for Delete Modal
+
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
+// Removed EditEmployeeModal import as we are reusing AddEmployeeModal
 
 const ToastNotification = ({ message, onClose, isDarkMode }) => {
   useEffect(() => {
@@ -206,7 +209,55 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode }) => {
   );
 };
 
-const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
+const DeleteEmployeeModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
+      <div className={`w-[400px] rounded-lg shadow-2xl relative pt-10 pb-8 px-6 flex flex-col items-center text-center ${isDarkMode ? 'bg-white' : 'bg-white'}`}>
+        <button
+          onClick={onClose}
+          className={`absolute top-4 right-4 p-1 rounded transition-colors text-gray-400 hover:text-gray-600`}
+        >
+          <X size={20} />
+        </button>
+
+        <div className="mb-6 bg-red-100 p-4 rounded-xl">
+          <Trash2 size={40} className="text-red-500" />
+        </div>
+
+        <h2 className="text-[24px] font-bold mb-2 text-gray-900">Delete Employee?</h2>
+        <p className="text-[14px] font-medium mb-4 text-gray-500 max-w-[260px]">
+          Do you really want to delete?
+          This process cannot be undone.
+        </p>
+
+        <p className="text-[14px] font-medium mb-2 text-gray-800">Select New Trainer*</p>
+        <div className="w-full mb-4">
+          <CustomDropdown
+            isDarkMode={false}
+            placeholder="Select Trainer"
+            options={["Abdulla Pathan", "ANJALI KANWAR", "V10 FITNESS LAB"]}
+            value=""
+            onChange={() => { }}
+          />
+        </div>
+
+
+
+        <button
+          onClick={onConfirm}
+          className="bg-[#ef4444] hover:bg-red-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-lg shadow-red-500/20 transition-all flex items-center gap-2"
+        >
+          <Trash2 size={16} />
+          Yes, Delete Employee
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEmployee, initialData, isEditMode }) => {
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', mobile: '', email: '', gender: '', marital: '',
     birthDate: '', anniversaryDate: '',
@@ -217,6 +268,38 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
     employeeType: ''
   });
 
+  useEffect(() => {
+    if (isEditMode && initialData) {
+      const [first, ...last] = initialData.name ? initialData.name.split(' ') : ['', ''];
+      setFormData({
+        firstName: first || '',
+        lastName: last.join(' ') || '',
+        mobile: initialData.mobile || '',
+        email: 'user@example.com', // Dummy
+        gender: 'Male', // Dummy
+        marital: 'Single', // Dummy
+        birthDate: '',
+        anniversaryDate: '',
+        language: [],
+        gymRole: initialData.role ? initialData.role.split(',') : [],
+        gymActivities: initialData.activities || '',
+        address: '',
+        country: '', state: '', city: '',
+        employeeType: ''
+      });
+    } else {
+      setFormData({
+        firstName: '', lastName: '', mobile: '', email: '', gender: '', marital: '',
+        birthDate: '', anniversaryDate: '',
+        language: [], gymRole: [],
+        gymActivities: '',
+        address: '',
+        country: '', state: '', city: '',
+        employeeType: ''
+      });
+    }
+  }, [isOpen, isEditMode, initialData]);
+
   const handleMultiChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -224,6 +307,27 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  const handleSubmit = () => {
+    if (!formData.firstName || !formData.mobile) {
+      alert("Please fill required fields");
+      return;
+    }
+    const employeeData = {
+      name: `${formData.firstName} ${formData.lastName}`,
+      mobile: formData.mobile,
+      role: formData.gymRole.join(','),
+      activities: formData.gymActivities,
+      active: true
+    }
+
+    if (isEditMode) {
+      onEditEmployee(employeeData);
+    } else {
+      onAddEmployee(employeeData);
+    }
+    onClose();
+  }
 
   if (!isOpen) return null;
 
@@ -236,7 +340,9 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
             <div className="bg-black text-white p-1 rounded-md">
               <Plus size={16} />
             </div>
-            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Add Employee</h2>
+            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {isEditMode ? 'Edit Employee' : 'Add Employee'}
+            </h2>
           </div>
           <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
             <X size={20} />
@@ -257,7 +363,6 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
               accept="image/*"
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
-                  // Handle file upload here if needed
                   console.log("File selected:", e.target.files[0].name);
                 }
               }}
@@ -274,19 +379,43 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>First Name*</label>
-              <input type="text" placeholder="First Name" className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`} />
+              <input
+                type="text"
+                placeholder="First Name"
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
+                value={formData.firstName}
+                onChange={(e) => handleChange('firstName', e.target.value)}
+              />
             </div>
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Last Name*</label>
-              <input type="text" placeholder="Last Name" className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`} />
+              <input
+                type="text"
+                placeholder="Last Name"
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
+                value={formData.lastName}
+                onChange={(e) => handleChange('lastName', e.target.value)}
+              />
             </div>
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Mobile Number*</label>
-              <input type="text" placeholder="Ex : 9988776655" className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`} />
+              <input
+                type="text"
+                placeholder="Ex : 9988776655"
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
+                value={formData.mobile}
+                onChange={(e) => handleChange('mobile', e.target.value)}
+              />
             </div>
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Email Address*</label>
-              <input type="email" placeholder="Ex : abc@gmail.com" className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`} />
+              <input
+                type="email"
+                placeholder="Ex : abc@gmail.com"
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
+                value={formData.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+              />
             </div>
           </div>
 
@@ -296,11 +425,11 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
               <label className={`block text-[13px] font-bold mb-3 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Gender*</label>
               <div className="flex gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="gender" className="w-5 h-5 accent-[#f97316]" />
+                  <input type="radio" name="gender" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('gender', 'Male')} checked={formData.gender === 'Male'} />
                   <span className={`text-[14px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Male</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="gender" className="w-5 h-5 accent-[#f97316]" />
+                  <input type="radio" name="gender" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('gender', 'Female')} checked={formData.gender === 'Female'} />
                   <span className={`text-[14px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Female</span>
                 </label>
               </div>
@@ -309,11 +438,11 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
               <label className={`block text-[13px] font-bold mb-3 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Marital Status</label>
               <div className="flex gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('marital', 'Single')} />
+                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('marital', 'Single')} checked={formData.marital === 'Single'} />
                   <span className={`text-[14px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Single</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('marital', 'Married')} />
+                  <input type="radio" name="marital" className="w-5 h-5 accent-[#f97316]" onChange={() => handleChange('marital', 'Married')} checked={formData.marital === 'Married'} />
                   <span className={`text-[14px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Married</span>
                 </label>
               </div>
@@ -378,7 +507,13 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
 
           <div className="mb-6">
             <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Residential Address*</label>
-            <textarea placeholder="Type your Address here..." rows={3} className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none resize-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`} />
+            <textarea
+              placeholder="Type your Address here..."
+              rows={3}
+              className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none resize-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
+              value={formData.address}
+              onChange={(e) => handleChange('address', e.target.value)}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -433,6 +568,7 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode }) => {
         {/* Footer */}
         <div className={`p-4 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
           <button
+            onClick={handleSubmit}
             className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none"
           >
             Submit
@@ -495,6 +631,7 @@ const Employees = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null); // Used for editing
   const [notification, setNotification] = useState(null);
 
   // States for interactive table
@@ -505,6 +642,34 @@ const Employees = () => {
     { id: '489895', name: 'ANJALI KANWAR', mobile: '9824060468', activities: '', role: 'Trainer,Receptionist,Sales consultant', active: true },
     { id: '489291', name: 'Abdulla Pathan', mobile: '8320350506', activities: '', role: 'Gym owner,Trainer,Sales consultant', active: true },
   ]);
+
+  // Delete State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+
+  const handleAddEmployee = (newEmployee) => {
+    const id = String(Math.floor(Math.random() * 900000) + 100000);
+    setEmployees(prev => [...prev, { ...newEmployee, id }]);
+    setNotification('Employee Added successfully');
+  }
+
+  const handleUpdateEmployee = (updatedData) => {
+    setEmployees(prev => prev.map(emp => emp.id === selectedEmployee.id ? { ...emp, ...updatedData } : emp));
+    setNotification('Edit Successfully');
+    setSelectedEmployee(null);
+  }
+
+  const handleDeleteClick = (id) => {
+    setDeleteId(id);
+    setIsDeleteModalOpen(true);
+  }
+
+  const handleConfirmDelete = () => {
+    setEmployees(prev => prev.filter(emp => emp.id !== deleteId));
+    setNotification('Employee Deleted successfully');
+    setIsDeleteModalOpen(false);
+    setDeleteId(null);
+  }
 
   const actionRef = useRef({});
 
@@ -634,7 +799,15 @@ const Employees = () => {
                           {['Edit', 'Delete', 'Add to Essl', 'UnBlock from Essl'].map((action, i) => (
                             <div
                               key={i}
-                              onClick={() => setActiveActionRow(null)}
+                              onClick={() => {
+                                if (action === 'Edit') {
+                                  setSelectedEmployee(emp);
+                                  setIsAddModalOpen(true); // Open Add Modal in Edit Mode
+                                } else if (action === 'Delete') {
+                                  handleDeleteClick(emp.id);
+                                }
+                                setActiveActionRow(null);
+                              }}
                               className={`px-5 py-3.5 text-[14px] font-black border-b last:border-0 cursor-pointer hover:pl-7 transition-all ${isDarkMode
                                 ? 'text-gray-300 border-white/5 hover:bg-white/5'
                                 : action === 'Delete' ? 'text-red-500 hover:bg-red-50' : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-[#f97316]'
@@ -674,7 +847,21 @@ const Employees = () => {
 
       <AddEmployeeModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setSelectedEmployee(null);
+        }}
+        isDarkMode={isDarkMode}
+        onAddEmployee={handleAddEmployee}
+        onEditEmployee={handleUpdateEmployee}
+        isEditMode={!!selectedEmployee}
+        initialData={selectedEmployee}
+      />
+
+      <DeleteEmployeeModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
         isDarkMode={isDarkMode}
       />
     </div>

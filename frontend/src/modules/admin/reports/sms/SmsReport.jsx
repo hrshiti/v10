@@ -20,19 +20,24 @@ const SmsReport = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  const smsData = Array.from({ length: 12 }, (_, i) => ({
+  const [smsData, setSmsData] = useState(Array.from({ length: 5 }, (_, i) => ({
     srNo: i + 1,
     mobile: `9876543${i}21`,
     message: 'Welcome to V10 Fitness Lab!',
     status: 'Delivered',
     send: '2026-01-31 10:00',
     delivered: '2026-01-31 10:01'
-  }));
+  })));
 
   const stats = [
-    { label: 'Total SMS', value: '0', icon: MessageSquare },
-    { label: 'Remaining SMS', value: '4998', icon: MessageSquare },
+    { label: 'Total SMS', value: smsData.length.toString(), icon: MessageSquare, theme: 'blue' },
+    { label: 'Remaining SMS', value: '4998', icon: MessageSquare, theme: 'emerald' },
   ];
+
+  const themeConfig = {
+    blue: { bg: 'bg-blue-600', shadow: 'shadow-blue-500/20' },
+    emerald: { bg: 'bg-emerald-600', shadow: 'shadow-emerald-500/20' },
+  };
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'} max-w-full overflow-x-hidden`}>
@@ -43,17 +48,27 @@ const SmsReport = () => {
 
       {/* Stats Cards */}
       <div className="flex gap-6 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-5 rounded-lg flex items-center gap-4 transition-none min-w-[220px] border ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-[#f8f9fa] border-gray-100'}`}>
-            <div className={`p-3 rounded-lg bg-white dark:bg-white/5`}>
-              <stat.icon size={28} className="text-gray-300" />
+        {stats.map((stat, idx) => {
+          const config = themeConfig[stat.theme];
+          return (
+            <div
+              key={idx}
+              className={`group p-5 rounded-lg flex items-center gap-4 transition-all duration-300 min-w-[220px] border cursor-pointer
+                ${isDarkMode
+                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  : `bg-[#f8f9fa] border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                }`}
+            >
+              <div className={`p-3 rounded-lg transition-all duration-300 ${isDarkMode ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white' : 'bg-white text-gray-400 group-hover:bg-white/20 group-hover:text-white'}`}>
+                <stat.icon size={28} />
+              </div>
+              <div>
+                <p className="text-[24px] font-black leading-none transition-colors duration-300 group-hover:text-white">{stat.value}</p>
+                <p className="text-[13px] font-bold mt-1 text-gray-500 transition-colors duration-300 group-hover:text-white/80">{stat.label}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[24px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-bold mt-1 text-gray-500`}>{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Filters Row */}

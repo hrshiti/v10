@@ -93,6 +93,59 @@ const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
   );
 };
 
+const UpdateClientIdModal = ({ isOpen, onClose, isDarkMode, onSubmit }) => {
+  const [clientId, setClientId] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSubmit = () => {
+    onSubmit(clientId);
+    setClientId('');
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`w-full max-w-[550px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        {/* Header */}
+        <div className={`px-6 py-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+          <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Update Client ID</h2>
+          <button onClick={onClose} className={isDarkMode ? 'text-white hover:text-gray-300' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+          <label className={`block text-[14px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Client ID*</label>
+          <input
+            type="text"
+            placeholder="Client ID"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 shadow-sm placeholder:text-gray-400'}`}
+          />
+        </div>
+
+        {/* Footer */}
+        <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button
+            onClick={onClose}
+            className={`px-8 py-2.5 rounded-lg text-[15px] font-bold transition-none ${isDarkMode ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600"
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Main Component ---
 
 const Memberships = () => {
@@ -102,6 +155,8 @@ const Memberships = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionRef = useRef({});
+  const [isUpdateClientIdModalOpen, setIsUpdateClientIdModalOpen] = useState(false);
+  const [selectedMemberIndex, setSelectedMemberIndex] = useState(null);
 
   // State for active stat card
   const [selectedStat, setSelectedStat] = useState('');
@@ -126,12 +181,23 @@ const Memberships = () => {
     { label: 'Delete Memberships', value: '15', icon: UserMinus, active: 'bg-slate-600', hover: 'hover:bg-slate-600', ring: 'ring-slate-400' },
   ];
 
-  const membershipsData = [
+  const [membershipsData, setMembershipsData] = useState([
     { id: '1232', name: 'NIRAJ GUPTA', mobile: '+917778877207', duration: '12 Month', sessions: 360, startDate: '29 Jan, 2026', endDate: '28 Jan, 2027', trainer: 'Abdulla Pathan', addOn: 0, status: 'Active' },
     { id: '1231', name: 'CHANDAN SINGH', mobile: '+91919998596909', duration: '12 Month', sessions: 360, startDate: '28 Jan, 2026', endDate: '27 Jan, 2027', trainer: 'Abdulla Pathan', addOn: 0, status: 'Active' },
     { id: '1230', name: 'DEV LODHA', mobile: '+917698523069', duration: '12 Month', sessions: 360, startDate: '28 Jan, 2026', endDate: '27 Jan, 2027', trainer: 'Abdulla Pathan', addOn: 0, status: 'Active' },
     { id: '5/1229', name: 'KHETRAM KUMAWAT', mobile: '+916376566316', duration: '12 Month', sessions: 360, startDate: '28 Jan, 2026', endDate: '27 Jan, 2027', trainer: 'Abdulla Pathan', addOn: 0, status: 'Active' },
-  ];
+  ]);
+
+  const handleUpdateClientId = (newClientId) => {
+    if (selectedMemberIndex !== null && newClientId) {
+      const updatedMembers = [...membershipsData];
+      updatedMembers[selectedMemberIndex].id = newClientId;
+      setMembershipsData(updatedMembers);
+      console.log('Client ID updated:', newClientId);
+    }
+    setIsUpdateClientIdModalOpen(false);
+    setActiveActionRow(null);
+  };
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>
@@ -250,7 +316,14 @@ const Memberships = () => {
                           ].map((action, i) => (
                             <div
                               key={i}
-                              onClick={() => setActiveActionRow(null)}
+                              onClick={() => {
+                                if (action === 'Add Client Id') {
+                                  setSelectedMemberIndex(idx);
+                                  setIsUpdateClientIdModalOpen(true);
+                                } else {
+                                  setActiveActionRow(null);
+                                }
+                              }}
                               className={`px-5 py-4 text-[14px] font-black border-b last:border-0 cursor-pointer hover:pl-7 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
                                 }`}
                             >
@@ -289,6 +362,16 @@ const Memberships = () => {
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         isDarkMode={isDarkMode}
+      />
+
+      <UpdateClientIdModal
+        isOpen={isUpdateClientIdModalOpen}
+        onClose={() => {
+          setIsUpdateClientIdModalOpen(false);
+          setActiveActionRow(null);
+        }}
+        isDarkMode={isDarkMode}
+        onSubmit={handleUpdateClientId}
       />
     </div>
   );

@@ -24,15 +24,21 @@ const PtReport = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const trainerRef = useRef(null);
 
+  const [ptData, setPtData] = useState([]);
+
+  const filteredData = ptData.filter(item =>
+    item.trainerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.customerNumber.includes(searchQuery)
+  );
+
   const stats = [
-    { label: 'Total PT Members', value: '12', icon: User },
-    { label: 'Active PT Sessions', value: '156', icon: User },
+    { label: 'Total PT', value: filteredData.length.toString(), icon: User, theme: 'blue' },
   ];
 
-  const ptData = [
-    { id: '442', name: 'RAJESH SHARMA', number: '9825098250', trainer: 'Abdulla Pathan', total: '24', used: '10', balance: '14', end: '15-02-2026' },
-    { id: '445', name: 'MEHUL PATEL', number: '9904499044', trainer: 'Abdulla Pathan', total: '12', used: '12', balance: '0', end: '30-01-2026' },
-  ];
+  const themeConfig = {
+    blue: { bg: 'bg-blue-600', shadow: 'shadow-blue-500/20' },
+  };
 
   const scrollTable = (direction) => {
     if (tableContainerRef.current) {
@@ -50,21 +56,31 @@ const PtReport = () => {
 
       {/* Stats Cards */}
       <div className="flex gap-6 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-5 rounded-lg flex items-center gap-4 transition-none min-w-[240px] border ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-[#f8f9fa] border-gray-100'}`}>
-            <div className={`p-3 rounded-lg bg-white dark:bg-white/5`}>
-              <stat.icon size={28} className="text-gray-300" />
+        {stats.map((stat, idx) => {
+          const config = themeConfig[stat.theme];
+          return (
+            <div
+              key={idx}
+              className={`group p-5 rounded-lg flex items-center gap-4 transition-all duration-300 min-w-[240px] border cursor-pointer
+                ${isDarkMode
+                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  : `bg-[#f8f9fa] border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                }`}
+            >
+              <div className={`p-3 rounded-lg transition-all duration-300 ${isDarkMode ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white' : 'bg-white text-gray-400 group-hover:bg-white/20 group-hover:text-white'}`}>
+                <stat.icon size={28} />
+              </div>
+              <div>
+                <p className="text-[24px] font-black leading-none transition-colors duration-300 group-hover:text-white">{stat.value}</p>
+                <p className="text-[13px] font-bold mt-1 text-gray-500 transition-colors duration-300 group-hover:text-white/80">{stat.label}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[24px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-bold mt-1 text-gray-500`}>{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Filters Row */}
-      <div className="space-y-4 pt-4 transition-none">
+      <div className="space-y-6 pt-4 transition-none">
         <div className="flex flex-wrap items-center gap-4">
           <SingleDatePicker
             value={fromDate}
@@ -107,26 +123,26 @@ const PtReport = () => {
             )}
           </div>
 
-          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600">Apply</button>
-          <button className="bg-[#f4a261] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600">Clear</button>
+          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-black transition-none active:scale-95 shadow-md hover:bg-orange-600">Apply</button>
+          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-black transition-none active:scale-95 shadow-md hover:bg-orange-600">Clear</button>
         </div>
 
-        <div className="flex justify-between items-center pt-2 transition-none">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex justify-between items-center transition-none gap-4">
+          <div className="relative w-full max-w-[400px]">
             <Search size={18} className="absolute left-4 top-3.5 text-gray-400" />
             <input
               type="text"
               placeholder="Search"
-              className={`w-full pl-11 pr-4 py-2.5 border rounded-lg text-[14px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-200 text-black placeholder:text-gray-400'}`}
+              className={`w-full pl-11 pr-4 py-2.5 border rounded-lg text-[14px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#f8f9fa] border-gray-200 text-black placeholder:text-gray-400'}`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <button
             onClick={() => setIsReportModalOpen(true)}
-            className={`flex items-center gap-2 px-6 py-2.5 border rounded-xl text-[14px] font-black transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
+            className={`flex items-center gap-2 px-6 py-2.5 border rounded-lg text-[14px] font-black transition-none active:scale-95 whitespace-nowrap ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-100 shadow-md text-gray-700'}`}
           >
-            <Download size={18} className="text-gray-400" />
+            <Download size={18} className="text-gray-500" />
             Generate XLS Report
           </button>
         </div>
@@ -151,30 +167,34 @@ const PtReport = () => {
           <table className="min-w-full text-left whitespace-nowrap">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-white border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
-                <th className="px-6 py-5">Client Id</th>
-                <th className="px-6 py-5">Name & Number</th>
                 <th className="px-6 py-5">Trainer Name</th>
-                <th className="px-6 py-5 text-center">Total Sessions</th>
-                <th className="px-6 py-5 text-center">Used Sessions</th>
-                <th className="px-6 py-5 text-center">Balance Sessions</th>
-                <th className="px-6 py-5">End Date</th>
+                <th className="px-6 py-5">Customer Name & Number</th>
+                <th className="px-6 py-5">Package Start Date</th>
+                <th className="px-6 py-5">Package End Date</th>
+                <th className="px-6 py-5 text-center">Total Session</th>
+                <th className="px-6 py-5 text-center">Attended Session</th>
+                <th className="px-6 py-5">Amount</th>
+                <th className="px-6 py-5">Status</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {ptData.slice(0, rowsPerPage).map((row, idx) => (
+              {filteredData.slice(0, rowsPerPage).map((row, idx) => (
                 <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-8">{row.id}</td>
-                  <td className="px-6 py-8 text-[#3b82f6] uppercase transition-none">
+                  <td className="px-6 py-8">{row.trainerName}</td>
+                  <td className="px-6 py-8">
                     <div className="flex flex-col transition-none">
-                      <span>{row.name}</span>
-                      <span className="text-[12px]">{row.number}</span>
+                      <span className="text-[#3b82f6] uppercase font-black">{row.customerName}</span>
+                      <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.customerNumber}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-8">{row.trainer}</td>
-                  <td className="px-6 py-8 text-center font-black">{row.total}</td>
-                  <td className="px-6 py-8 text-center font-black">{row.used}</td>
-                  <td className="px-6 py-8 text-center font-black">{row.balance}</td>
-                  <td className="px-6 py-8">{row.end}</td>
+                  <td className="px-6 py-8">{row.startDate}</td>
+                  <td className="px-6 py-8">{row.endDate}</td>
+                  <td className="px-6 py-8 text-center font-black">{row.totalSession}</td>
+                  <td className="px-6 py-8 text-center font-black">{row.attendedSession}</td>
+                  <td className="px-6 py-8 font-black">{row.amount}</td>
+                  <td className="px-6 py-8">
+                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[11px] font-black uppercase">{row.status}</span>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -184,18 +204,18 @@ const PtReport = () => {
         {/* Pagination */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2 transition-none">
-            <button className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[12px] font-bold bg-[#f4a261] text-white shadow-md transition-none">1</button>
-            <button className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>Next »</button>
+            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>« Previous</button>
+            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
+            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>Next »</button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">
-            <span className="text-[15px] font-bold text-gray-500">Rows per page</span>
+            <span className="text-[14px] font-black text-gray-500 uppercase tracking-tight">Rows per page</span>
             <div className="relative transition-none">
               <select
                 value={rowsPerPage}
                 onChange={(e) => setRowsPerPage(parseInt(e.target.value))}
-                className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-black shadow-sm'}`}
+                className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-[14px] font-bold outline-none cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 text-black shadow-sm'}`}
               >
                 {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
               </select>

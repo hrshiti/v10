@@ -22,8 +22,12 @@ import {
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import AddEnquiryModal from './AddEnquiryModal';
+import CloseEnquiryModal from './CloseEnquiryModal';
+import CallNotConnectedModal from './CallNotConnectedModal';
+import AddFollowUpModal from './AddFollowUpModal';
 import DateRangeFilter from '../components/DateRangeFilter';
 import GenerateReportModal from '../components/GenerateReportModal';
+import Toast from '../components/Toast';
 
 const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, onSelect, activeVal }) => {
   const dropdownRef = useRef(null);
@@ -82,6 +86,12 @@ const Enquiries = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isCloseEnquiryModalOpen, setIsCloseEnquiryModalOpen] = useState(false);
+  const [isCallNotConnectedModalOpen, setIsCallNotConnectedModalOpen] = useState(false);
+  const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Interactive tooltips / active rows
   const [activeActionRow, setActiveActionRow] = useState(null);
@@ -177,8 +187,22 @@ const Enquiries = () => {
   }
 
   // Auto-Close Action Menu on Selection
-  const handleActionSelect = () => {
+  const handleActionSelect = (action, row) => {
+    setSelectedEnquiry(row);
     setActiveActionRow(null);
+
+    if (action === "Sale Enquiry") {
+      setIsCloseEnquiryModalOpen(true);
+    } else if (action === "Edit Enquiry") {
+      setIsModalOpen(true);
+    } else if (action === "Call Not Connected") {
+      setIsCallNotConnectedModalOpen(true);
+    } else if (action === "Schedule Follow Up") {
+      setIsFollowUpModalOpen(true);
+    } else if (action === "Call Done") {
+      setToastMessage("Status Updated.");
+      setShowToast(true);
+    }
   };
 
 
@@ -188,7 +212,10 @@ const Enquiries = () => {
       <div className="flex justify-between items-center transition-none">
         <h1 className="text-[28px] font-black tracking-tight">Enquiry</h1>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setSelectedEnquiry(null);
+            setIsModalOpen(true);
+          }}
           className="bg-[#f97316] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 text-[15px] font-bold shadow-md active:scale-95 transition-none"
         >
           <Plus size={20} />
@@ -443,7 +470,7 @@ const Enquiries = () => {
                               ? 'text-gray-300 border-white/5 hover:bg-white/5'
                               : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
                               }`}
-                            onClick={handleActionSelect}
+                            onClick={() => handleActionSelect(action, row)}
                           >
                             {action}
                           </div>
@@ -453,7 +480,7 @@ const Enquiries = () => {
                             ? 'text-gray-300 hover:bg-white/5'
                             : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                             }`}
-                          onClick={handleActionSelect}
+                          onClick={() => handleActionSelect("Schedule Follow Up", row)}
                         >
                           <RefreshCcw size={14} className="" />
                           Schedule Follow Up
@@ -520,8 +547,12 @@ const Enquiries = () => {
 
       <AddEnquiryModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedEnquiry(null);
+        }}
         isDarkMode={isDarkMode}
+        initialData={selectedEnquiry}
       />
 
       <GenerateReportModal
@@ -529,6 +560,37 @@ const Enquiries = () => {
         onClose={() => setIsReportModalOpen(false)}
         isDarkMode={isDarkMode}
       />
+
+      <CloseEnquiryModal
+        isOpen={isCloseEnquiryModalOpen}
+        onClose={() => setIsCloseEnquiryModalOpen(false)}
+        onConfirm={() => setIsCloseEnquiryModalOpen(false)}
+        isDarkMode={isDarkMode}
+      />
+
+      <CallNotConnectedModal
+        isOpen={isCallNotConnectedModalOpen}
+        onClose={() => setIsCallNotConnectedModalOpen(false)}
+        onSubmit={() => setIsCallNotConnectedModalOpen(false)}
+        enquiryName={selectedEnquiry?.name}
+        isDarkMode={isDarkMode}
+      />
+
+      <AddFollowUpModal
+        isOpen={isFollowUpModalOpen}
+        onClose={() => setIsFollowUpModalOpen(false)}
+        onSubmit={() => setIsFollowUpModalOpen(false)}
+        enquiryData={selectedEnquiry}
+        isDarkMode={isDarkMode}
+      />
+
+      {showToast && (
+        <Toast
+          message={toastMessage}
+          onClose={() => setShowToast(false)}
+          isDarkMode={isDarkMode}
+        />
+      )}
     </div>
   );
 };

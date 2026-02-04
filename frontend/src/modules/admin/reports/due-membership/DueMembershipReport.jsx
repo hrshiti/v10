@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
 
@@ -61,6 +61,7 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
 
 const DueMembershipReport = () => {
   const { isDarkMode } = useOutletContext();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('31-01-2026');
   const [toDate, setToDate] = useState('31-01-2026');
@@ -88,18 +89,29 @@ const DueMembershipReport = () => {
     'Select Closed By': ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'],
   };
 
-  const stats = [
-    { label: 'Members', value: '5', icon: User },
-    { label: 'Expected Business', value: '33555', icon: User },
-  ];
-
   const dueData = [
     { id: '551', name: 'BHARWAD JAGDISH', number: '7990769808', mType: 'General Training', sDate: '31-01-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '5555.00', discount: '0.00', balance: '0.00', cBy: 'Abdulla Pathan' },
-    { id: '', name: 'ANKHUSH MAURYA', number: '9537971487', mType: 'General Training', sDate: '01-02-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '9000.00', discount: '3000.00', balance: '100400.00', cBy: 'Abdulla Pathan' },
-    { id: '', name: 'RAHUL BHAI', number: '6351339232', mType: 'General Training', sDate: '01-02-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '9000.00', discount: '3000.00', balance: '4400.00', cBy: 'Abdulla Pathan' },
-    { id: '', name: 'siddharth parmar', number: '9974713590', mType: 'General Training', sDate: '01-11-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '5000.00', discount: '1500.00', balance: '0.00', cBy: 'Abdulla Pathan' },
-    { id: '', name: 'parmar prince', number: '9106843438', mType: 'General Training', sDate: '01-11-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '5000.00', discount: '1000.00', balance: '0.00', cBy: 'Abdulla Pathan' },
+    { id: '1226-A', name: 'ANKHUSH MAURYA', number: '9537971487', mType: 'General Training', sDate: '01-02-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '9000.00', discount: '3000.00', balance: '100400.00', cBy: 'Abdulla Pathan' },
+    { id: '1227-A', name: 'RAHUL BHAI', number: '6351339232', mType: 'General Training', sDate: '01-02-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '9000.00', discount: '3000.00', balance: '4400.00', cBy: 'Abdulla Pathan' },
+    { id: '1228-A', name: 'siddharth parmar', number: '9974713590', mType: 'General Training', sDate: '01-11-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '5000.00', discount: '1500.00', balance: '0.00', cBy: 'Abdulla Pathan' },
+    { id: '1229-A', name: 'parmar prince', number: '9106843438', mType: 'General Training', sDate: '01-11-2025', eDate: '31-01-2026', trainer: 'Abdulla Pathan', price: '5000.00', discount: '1000.00', balance: '0.00', cBy: 'Abdulla Pathan' },
   ];
+
+  const filteredData = dueData.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.number.includes(searchQuery) ||
+    item.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const stats = [
+    { label: 'Members', value: filteredData.length.toString(), icon: User, theme: 'blue' },
+    { label: 'Expected Business', value: '33555', icon: User, theme: 'emerald' },
+  ];
+
+  const themeConfig = {
+    blue: { bg: 'bg-blue-600', shadow: 'shadow-blue-500/20' },
+    emerald: { bg: 'bg-emerald-600', shadow: 'shadow-emerald-500/20' },
+  };
 
   const toggleFilter = (label) => {
     setActiveFilter(activeFilter === label ? null : label);
@@ -119,17 +131,27 @@ const DueMembershipReport = () => {
 
       {/* Stats Cards */}
       <div className="flex gap-4 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-6 rounded-lg flex items-center gap-4 transition-none min-w-[260px] ${isDarkMode ? 'bg-[#1a1a1a] border border-white/5' : 'bg-[#fcfcfc] border border-gray-100 shadow-sm'}`}>
-            <div className={`p-4 rounded-lg bg-gray-100 dark:bg-white/5`}>
-              <stat.icon size={26} className="text-gray-300" />
+        {stats.map((stat, idx) => {
+          const config = themeConfig[stat.theme];
+          return (
+            <div
+              key={idx}
+              className={`group p-6 rounded-lg flex items-center gap-4 transition-all duration-300 min-w-[260px] border cursor-pointer
+                ${isDarkMode
+                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  : `bg-[#fcfcfc] border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                }`}
+            >
+              <div className={`p-4 rounded-lg transition-all duration-300 ${isDarkMode ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-white/20 group-hover:text-white'}`}>
+                <stat.icon size={26} />
+              </div>
+              <div>
+                <p className="text-[24px] font-black leading-none transition-colors duration-300 group-hover:text-white">{stat.value}</p>
+                <p className="text-[13px] font-bold mt-1 text-gray-500 transition-colors duration-300 group-hover:text-white/80">{stat.label}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[24px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-bold mt-1 text-gray-500`}>{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Filters Row */}
@@ -225,13 +247,23 @@ const DueMembershipReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {dueData.slice(0, rowsPerPage).map((row, idx) => (
+              {filteredData.slice(0, rowsPerPage).map((row, idx) => (
                 <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                   <td className="px-6 py-8">{row.id}</td>
                   <td className="px-6 py-8">
                     <div className="flex flex-col transition-none">
-                      <span className="text-[#3b82f6] uppercase cursor-pointer hover:underline font-black">{row.name}</span>
-                      <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.number}</span>
+                      <span
+                        onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
+                        className="text-[#3b82f6] uppercase cursor-pointer hover:underline font-black"
+                      >
+                        {row.name}
+                      </span>
+                      <span
+                        onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
+                        className="text-[#3b82f6] text-[12px] font-bold mt-0.5 cursor-pointer hover:underline"
+                      >
+                        {row.number}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-8">{row.mType}</td>

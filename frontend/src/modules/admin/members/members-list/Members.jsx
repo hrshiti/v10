@@ -18,7 +18,7 @@ import {
   Plus,
   Calendar
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 
 // --- Reusable Components ---
 
@@ -113,6 +113,250 @@ const GenerateReportModal = ({ isOpen, onClose, isDarkMode }) => {
   );
 };
 
+const VaccinationModal = ({ isOpen, onClose, isDarkMode, onConfirm }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`w-full max-w-[450px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        {/* Header */}
+        <div className={`px-6 py-4 border-b flex items-center justify-end ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+          <button onClick={onClose} className={isDarkMode ? 'text-white hover:text-gray-300' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-8 text-center">
+          <h2 className={`text-[22px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Is Member Vaccinated (Covid-19)?
+          </h2>
+        </div>
+
+        {/* Footer */}
+        <div className={`px-6 py-6 flex justify-center ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button
+            onClick={onConfirm}
+            className="bg-[#f97316] text-white px-12 py-3 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600"
+          >
+            Yes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ScheduleFollowUpModal = ({ isOpen, onClose, isDarkMode, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    followUpDate: '',
+    allocate: '',
+    type: '',
+    convertibility: '',
+    toDo: ''
+  });
+
+  const [showAllocateDropdown, setShowAllocateDropdown] = useState(false);
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showConvertibilityDropdown, setShowConvertibilityDropdown] = useState(false);
+  const allocateRef = useRef(null);
+  const typeRef = useRef(null);
+  const convertibilityRef = useRef(null);
+
+  const allocateOptions = ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'];
+  const typeOptions = ['Balance Due', 'Enquiry', 'Feedback'];
+  const convertibilityOptions = ['Hot', 'Warm', 'Cold'];
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (allocateRef.current && !allocateRef.current.contains(event.target)) {
+        setShowAllocateDropdown(false);
+      }
+      if (typeRef.current && !typeRef.current.contains(event.target)) {
+        setShowTypeDropdown(false);
+      }
+      if (convertibilityRef.current && !convertibilityRef.current.contains(event.target)) {
+        setShowConvertibilityDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = () => {
+    onSubmit(formData);
+    setFormData({
+      followUpDate: '',
+      allocate: '',
+      type: '',
+      convertibility: '',
+      toDo: ''
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`w-full max-w-[550px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        {/* Header */}
+        <div className={`px-6 py-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+          <div className="flex items-center gap-3">
+            <Plus size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
+            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Schedule Followup</h2>
+          </div>
+          <button onClick={onClose} className={isDarkMode ? 'text-white hover:text-gray-300' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-5">
+          {/* Follow Up Date */}
+          <div>
+            <label className={`block text-[14px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Follow Up Date*</label>
+            <div className="relative">
+              <Calendar size={18} className="absolute left-4 top-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="dd/mm/yyyy"
+                value={formData.followUpDate}
+                onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
+                className={`w-full pl-12 pr-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 shadow-sm placeholder:text-gray-400'}`}
+              />
+              <ChevronDown size={16} className="absolute right-4 top-4 text-gray-400" />
+            </div>
+          </div>
+
+          {/* Allocate */}
+          <div ref={allocateRef}>
+            <label className={`block text-[14px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Allocate*</label>
+            <div className="relative">
+              <div
+                onClick={() => setShowAllocateDropdown(!showAllocateDropdown)}
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none cursor-pointer flex justify-between items-center ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : showAllocateDropdown ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 shadow-sm'}`}
+              >
+                <span className={formData.allocate ? (isDarkMode ? 'text-white' : 'text-black') : 'text-[#f97316]'}>
+                  {formData.allocate || 'Select'}
+                </span>
+                <ChevronDown size={16} className={`transition-transform ${showAllocateDropdown ? 'rotate-180 text-[#f97316]' : 'text-[#f97316]'}`} />
+              </div>
+              {showAllocateDropdown && (
+                <div className={`absolute top-full left-0 right-0 mt-1 max-h-[200px] overflow-y-auto rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                  {allocateOptions.map((option) => (
+                    <div
+                      key={option}
+                      onClick={() => {
+                        setFormData({ ...formData, allocate: option });
+                        setShowAllocateDropdown(false);
+                      }}
+                      className={`px-4 py-3 text-[14px] font-medium cursor-pointer ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'}`}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Type */}
+          <div ref={typeRef}>
+            <label className={`block text-[14px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Type*</label>
+            <div className="relative">
+              <div
+                onClick={() => setShowTypeDropdown(!showTypeDropdown)}
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none cursor-pointer flex justify-between items-center ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : showTypeDropdown ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 shadow-sm'}`}
+              >
+                <span className={formData.type ? (isDarkMode ? 'text-white' : 'text-black') : 'text-[#f97316]'}>
+                  {formData.type || 'Select'}
+                </span>
+                <ChevronDown size={16} className={`transition-transform ${showTypeDropdown ? 'rotate-180 text-[#f97316]' : 'text-[#f97316]'}`} />
+              </div>
+              {showTypeDropdown && (
+                <div className={`absolute top-full left-0 right-0 mt-1 max-h-[200px] overflow-y-auto rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                  {typeOptions.map((option) => (
+                    <div
+                      key={option}
+                      onClick={() => {
+                        setFormData({ ...formData, type: option });
+                        setShowTypeDropdown(false);
+                      }}
+                      className={`px-4 py-3 text-[14px] font-medium cursor-pointer ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'}`}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Convertibility */}
+          <div ref={convertibilityRef}>
+            <label className={`block text-[14px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Convertibility*</label>
+            <div className="relative">
+              <div
+                onClick={() => setShowConvertibilityDropdown(!showConvertibilityDropdown)}
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none cursor-pointer flex justify-between items-center ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : showConvertibilityDropdown ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 shadow-sm'}`}
+              >
+                <span className={formData.convertibility ? (isDarkMode ? 'text-white' : 'text-black') : 'text-[#f97316]'}>
+                  {formData.convertibility || 'Select'}
+                </span>
+                <ChevronDown size={16} className={`transition-transform ${showConvertibilityDropdown ? 'rotate-180 text-[#f97316]' : 'text-[#f97316]'}`} />
+              </div>
+              {showConvertibilityDropdown && (
+                <div className={`absolute top-full left-0 right-0 mt-1 max-h-[200px] overflow-y-auto rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                  {convertibilityOptions.map((option) => (
+                    <div
+                      key={option}
+                      onClick={() => {
+                        setFormData({ ...formData, convertibility: option });
+                        setShowConvertibilityDropdown(false);
+                      }}
+                      className={`px-4 py-3 text-[14px] font-medium cursor-pointer ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'}`}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* To Do */}
+          <div>
+            <label className={`block text-[14px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>To Do*</label>
+            <textarea
+              placeholder="Type here..."
+              value={formData.toDo}
+              onChange={(e) => setFormData({ ...formData, toDo: e.target.value })}
+              rows={4}
+              className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none resize-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 shadow-sm placeholder:text-gray-400'}`}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button
+            onClick={onClose}
+            className={`px-8 py-2.5 rounded-lg text-[15px] font-bold transition-none ${isDarkMode ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600"
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -162,6 +406,7 @@ const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
 
 const Members = () => {
   const { isDarkMode } = useOutletContext();
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGender, setSelectedGender] = useState('');
@@ -169,6 +414,11 @@ const Members = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionRef = useRef({});
+  const [isVaccinationModalOpen, setIsVaccinationModalOpen] = useState(false);
+  const [isScheduleFollowUpModalOpen, setIsScheduleFollowUpModalOpen] = useState(false);
+  const [selectedMemberIndex, setSelectedMemberIndex] = useState(null);
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -183,20 +433,50 @@ const Members = () => {
   }, [activeActionRow]);
 
   const stats = [
-    { label: 'All Members', value: '1080', icon: User, color: 'bg-blue-600', active: true },
-    { label: 'Active Members', value: '413', icon: Activity, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
-    { label: 'Upcoming Members', value: '4', icon: UserPlus, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
-    { label: 'Past Members', value: '547', icon: User, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
-    { label: 'Today Attendance', value: '0', icon: Users, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
+    { label: 'All Members', value: '1080', icon: User, theme: 'blue' },
+    { label: 'Active Members', value: '413', icon: Activity, theme: 'emerald' },
+    { label: 'Upcoming Members', value: '4', icon: UserPlus, theme: 'purple' },
+    { label: 'Past Members', value: '547', icon: User, theme: 'slate' },
+    { label: 'Today Attendance', value: '0', icon: Users, theme: 'orange' },
   ];
 
-  const membersData = [
+  const themeConfig = {
+    blue: { bg: 'bg-blue-600', shadow: 'shadow-blue-500/20', ring: 'ring-blue-400' },
+    emerald: { bg: 'bg-emerald-600', shadow: 'shadow-emerald-500/20', ring: 'ring-emerald-400' },
+    purple: { bg: 'bg-purple-600', shadow: 'shadow-purple-500/20', ring: 'ring-purple-400' },
+    slate: { bg: 'bg-slate-600', shadow: 'shadow-slate-500/20', ring: 'ring-slate-400' },
+    orange: { bg: 'bg-orange-600', shadow: 'shadow-orange-500/20', ring: 'ring-orange-400' },
+  };
+
+  const [membersData, setMembersData] = useState([
     { id: '1232', name: 'NIRAJ GUPTA', mobile: '+917778877207', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
     { id: '1231', name: 'CHANDAN SINGH', mobile: '+91919998596909', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
     { id: '1230', name: 'DEV LODHA', mobile: '+917698523069', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
     { id: '5/1229', name: 'KHETRAM KUMAWAT', mobile: '+916376566316', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
     { id: '99/22', name: 'KUNAL CHAUHAN', mobile: '+919978145629', gender: 'Male', status: 'Active', executive: 'Abdulla Pathan', vaccination: 'NO' },
-  ];
+  ]);
+
+  const handleVaccinationConfirm = () => {
+    if (selectedMemberIndex !== null) {
+      const updatedMembers = [...membersData];
+      updatedMembers[selectedMemberIndex].vaccination = 'YES';
+      setMembersData(updatedMembers);
+      setSuccessMessage('Vaccination status updated successfully!');
+      setShowSuccessNotification(true);
+      setTimeout(() => setShowSuccessNotification(false), 3000);
+    }
+    setIsVaccinationModalOpen(false);
+    setActiveActionRow(null);
+  };
+
+  const handleScheduleFollowUpSubmit = (formData) => {
+    console.log('Follow up scheduled:', formData);
+    setSuccessMessage('Follow-up scheduled successfully!');
+    setShowSuccessNotification(true);
+    setTimeout(() => setShowSuccessNotification(false), 3000);
+    setIsScheduleFollowUpModalOpen(false);
+    setActiveActionRow(null);
+  };
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>
@@ -207,17 +487,31 @@ const Members = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-6 rounded-xl flex items-center gap-5 transition-none cursor-pointer border ${stat.active ? 'bg-blue-600 border-blue-600 text-white shadow-xl' : (isDarkMode ? 'bg-[#1a1a1a] border-white/5 shadow-inner' : 'bg-white border-gray-100 shadow-sm hover:shadow-md')}`}>
-            <div className={`p-4 rounded-xl ${stat.active ? 'bg-white/20' : (isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-[#fcfcfc] text-gray-400')}`}>
-              <stat.icon size={28} />
+        {stats.map((stat, idx) => {
+          const config = themeConfig[stat.theme];
+          return (
+            <div
+              key={idx}
+              className={`group p-6 rounded-xl flex items-center gap-5 transition-all duration-300 cursor-pointer border
+                ${isDarkMode
+                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  : `bg-white border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                }`}
+            >
+              <div className={`p-4 rounded-xl transition-all duration-300 
+                ${isDarkMode
+                  ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                  : 'bg-[#fcfcfc] text-gray-400 group-hover:bg-white/20 group-hover:text-white'
+                }`}>
+                <stat.icon size={28} />
+              </div>
+              <div>
+                <p className="text-[28px] font-black leading-none transition-colors duration-300 group-hover:text-white">{stat.value}</p>
+                <p className="text-[13px] font-black mt-1 uppercase tracking-tight text-gray-500 group-hover:text-white/80 transition-colors duration-300">{stat.label}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[28px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-black mt-1 uppercase tracking-tight ${stat.active ? 'text-white/80' : 'text-gray-500'}`}>{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Filters */}
@@ -298,8 +592,11 @@ const Members = () => {
                   <td className="px-6 py-8"><input type="checkbox" className="w-5 h-5 rounded accent-[#f97316] cursor-pointer" /></td>
                   <td className="px-6 py-8">{row.id}</td>
                   <td className="px-6 py-8">
-                    <div className="flex flex-col transition-none">
-                      <span className="text-[#3b82f6] text-[15px] font-black hover:underline cursor-pointer uppercase">{row.name}</span>
+                    <div
+                      className="flex flex-col transition-none cursor-pointer"
+                      onClick={() => navigate(`/admin/members/profile/edit?id=${row.id}`, { state: { member: row } })}
+                    >
+                      <span className="text-[#3b82f6] text-[15px] font-black hover:underline uppercase">{row.name}</span>
                       <span className="text-[#3b82f6] text-[13px] mt-0.5 font-bold">{row.mobile}</span>
                     </div>
                   </td>
@@ -327,13 +624,49 @@ const Members = () => {
                             'Vaccination',
                             'Schedule Followup'
                           ].map((action, i) => (
-                            <div
-                              key={i}
-                              onClick={() => setActiveActionRow(null)}
-                              className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
-                                }`}
-                            >
-                              {action}
+                            <div key={i}>
+                              {action === 'View Profile' ? (
+                                <div
+                                  onClick={() => {
+                                    setActiveActionRow(null);
+                                    navigate(`/admin/members/profile/edit?id=${row.id}`, { state: { member: row } });
+                                  }}
+                                  className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
+                                    }`}
+                                >
+                                  {action}
+                                </div>
+                              ) : action === 'Vaccination' ? (
+                                <div
+                                  onClick={() => {
+                                    setSelectedMemberIndex(idx);
+                                    setIsVaccinationModalOpen(true);
+                                  }}
+                                  className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
+                                    }`}
+                                >
+                                  {action}
+                                </div>
+                              ) : action === 'Schedule Followup' ? (
+                                <div
+                                  onClick={() => {
+                                    setSelectedMemberIndex(idx);
+                                    setIsScheduleFollowUpModalOpen(true);
+                                  }}
+                                  className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
+                                    }`}
+                                >
+                                  {action}
+                                </div>
+                              ) : (
+                                <div
+                                  onClick={() => setActiveActionRow(null)}
+                                  className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
+                                    }`}
+                                >
+                                  {action}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -381,6 +714,61 @@ const Members = () => {
         onClose={() => setIsReportModalOpen(false)}
         isDarkMode={isDarkMode}
       />
+
+      <VaccinationModal
+        isOpen={isVaccinationModalOpen}
+        onClose={() => {
+          setIsVaccinationModalOpen(false);
+          setActiveActionRow(null);
+        }}
+        isDarkMode={isDarkMode}
+        onConfirm={handleVaccinationConfirm}
+      />
+
+      <ScheduleFollowUpModal
+        isOpen={isScheduleFollowUpModalOpen}
+        onClose={() => {
+          setIsScheduleFollowUpModalOpen(false);
+          setActiveActionRow(null);
+        }}
+        isDarkMode={isDarkMode}
+        onSubmit={handleScheduleFollowUpSubmit}
+      />
+
+      {/* Success Notification */}
+      {showSuccessNotification && (
+        <div className="fixed top-24 right-8 z-[200] animate-in fade-in slide-in-from-right-10 duration-300">
+          <div className="bg-white rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-100 p-6 flex items-center gap-4 min-w-[320px] relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500" />
+            <div className="p-2 rounded-full bg-emerald-100 text-emerald-600">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-[15px] font-black text-gray-700">{successMessage}</p>
+            </div>
+            <button onClick={() => setShowSuccessNotification(false)} className="text-gray-300 hover:text-gray-500">
+              <X size={20} />
+            </button>
+            <div className="absolute bottom-0 left-0 h-1 bg-emerald-500/20 w-full">
+              <div
+                className="h-full bg-emerald-500"
+                style={{
+                  animation: 'progress 3s linear forwards',
+                  width: '0%'
+                }}
+              />
+            </div>
+          </div>
+          <style>{`
+            @keyframes progress {
+              from { width: 0%; }
+              to { width: 100%; }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 };

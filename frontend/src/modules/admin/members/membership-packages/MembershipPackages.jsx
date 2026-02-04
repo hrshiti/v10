@@ -8,10 +8,12 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import AddPackageModal from './AddPackageModal';
+import EditPackageModal from './EditPackageModal';
 
 // --- Reusable Components ---
 
@@ -95,6 +97,52 @@ const SuccessNotification = ({ message, show, onClose }) => {
   );
 };
 
+const DeletePlanModal = ({ isOpen, onClose, isDarkMode, onConfirm, packageName }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`w-full max-w-[450px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        {/* Header */}
+        <div className={`px-6 py-4 border-b flex items-center justify-end ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+          <button onClick={onClose} className={isDarkMode ? 'text-white hover:text-gray-300' : 'text-gray-500 hover:text-black'}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-8 text-center">
+          <div className="flex justify-center mb-6">
+            <div className="p-4 rounded-full bg-red-100">
+              <Trash2 size={48} className="text-[#f97316]" />
+            </div>
+          </div>
+          <h2 className={`text-[24px] font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Delete Plan?
+          </h2>
+          <p className={`text-[15px] mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Do you really want to delete?
+          </p>
+          <p className={`text-[15px] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            This process cannot be undone.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className={`px-6 py-6 flex justify-center ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button
+            onClick={onConfirm}
+            className="bg-[#f97316] text-white px-10 py-3 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600 flex items-center gap-2"
+          >
+            <Trash2 size={18} />
+            Yes, Delete Plan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Main Component ---
 
 const MembershipPackages = () => {
@@ -103,9 +151,14 @@ const MembershipPackages = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionRef = useRef({});
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedPackageId, setSelectedPackageId] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
 
   const [packages, setPackages] = useState([
     { id: 13590, name: 'Complementary', duration: '12 Months', sessions: 360, price: '0.00', status: true },
@@ -116,11 +169,18 @@ const MembershipPackages = () => {
   ]);
 
   const stats = [
-    { label: 'General Training', value: 9, icon: User, color: 'bg-blue-600', active: true },
-    { label: 'Personal Training', value: 9, icon: User, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
-    { label: 'Complete Fitness', value: 0, icon: User, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
-    { label: 'Group Ex', value: 0, icon: User, color: isDarkMode ? 'bg-white/5' : 'bg-gray-50' },
+    { label: 'General Training', value: 9, icon: User, theme: 'blue' },
+    { label: 'Personal Training', value: 9, icon: User, theme: 'emerald' },
+    { label: 'Complete Fitness', value: 0, icon: User, theme: 'red' },
+    { label: 'Group Ex', value: 0, icon: User, theme: 'purple' },
   ];
+
+  const themeConfig = {
+    blue: { bg: 'bg-blue-600', shadow: 'shadow-blue-500/20', ring: 'ring-blue-400' },
+    emerald: { bg: 'bg-emerald-600', shadow: 'shadow-emerald-500/20', ring: 'ring-emerald-400' },
+    red: { bg: 'bg-red-500', shadow: 'shadow-red-500/20', ring: 'ring-red-400' },
+    purple: { bg: 'bg-purple-600', shadow: 'shadow-purple-500/20', ring: 'ring-purple-400' },
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -155,14 +215,26 @@ const MembershipPackages = () => {
     setPackages(packages.map(pkg =>
       pkg.id === id ? { ...pkg, status: !pkg.status } : pkg
     ));
+    setNotificationMessage('Plan Status Updated.');
     setShowNotification(true);
     setTimeout(() => setShowNotification(false), 3000);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (selectedPackageId !== null) {
+      setPackages(packages.filter(pkg => pkg.id !== selectedPackageId));
+      setNotificationMessage('Plan Deleted Successfully.');
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
+    }
+    setIsDeleteModalOpen(false);
+    setActiveActionRow(null);
   };
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>
       <SuccessNotification
-        message="Plan Status Updated."
+        message={notificationMessage}
         show={showNotification}
         onClose={() => setShowNotification(false)}
       />
@@ -181,17 +253,28 @@ const MembershipPackages = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-6 rounded-xl flex items-center gap-5 transition-none cursor-pointer border-2 ${stat.active ? 'bg-blue-600 border-blue-600 text-white shadow-xl' : (isDarkMode ? 'bg-[#1a1a1a] border-white/5 shadow-inner' : 'bg-white border-gray-100 shadow-sm hover:shadow-md')}`}>
-            <div className={`p-4 rounded-xl ${stat.active ? 'bg-white/20' : (isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-[#f8f9fa] text-gray-400')}`}>
-              <stat.icon size={28} />
+        {stats.map((stat, idx) => {
+          const config = themeConfig[stat.theme];
+          const isActive = false; // Add state logic if needed, for now just hover
+          return (
+            <div
+              key={idx}
+              className={`group p-6 rounded-xl flex items-center gap-5 transition-all duration-300 cursor-pointer border-2 
+                ${isDarkMode
+                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  : `bg-white border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                }`}
+            >
+              <div className={`p-4 rounded-xl transition-all duration-300 ${isDarkMode ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white' : 'bg-[#f8f9fa] text-gray-400 group-hover:bg-white/20 group-hover:text-white'}`}>
+                <stat.icon size={28} />
+              </div>
+              <div>
+                <p className="text-[28px] font-black leading-none transition-colors duration-300 group-hover:text-white">{stat.value}</p>
+                <p className="text-[13px] font-black mt-1 uppercase tracking-tight text-gray-500 group-hover:text-white/80 transition-colors duration-300">{stat.label}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[28px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-black mt-1 uppercase tracking-tight ${stat.active ? 'text-white/80' : 'text-gray-500'}`}>{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Search */}
@@ -263,13 +346,19 @@ const MembershipPackages = () => {
                       <div className={`absolute right-12 top-12 w-[220px] rounded-xl shadow-2xl border z-50 overflow-hidden text-left ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 font-bold'}`}>
                         <div className="py-2">
                           <div
-                            onClick={() => setActiveActionRow(null)}
+                            onClick={() => {
+                              setSelectedPackage(row);
+                              setIsEditModalOpen(true);
+                            }}
                             className={`px-6 py-4 text-[15px] font-black border-b cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'}`}
                           >
                             Edit Package
                           </div>
                           <div
-                            onClick={() => setActiveActionRow(null)}
+                            onClick={() => {
+                              setSelectedPackageId(row.id);
+                              setIsDeleteModalOpen(true);
+                            }}
                             className={`px-6 py-4 text-[15px] font-black cursor-pointer hover:pl-8 transition-all text-[#ff4d4d] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
                           >
                             Delete
@@ -326,6 +415,27 @@ const MembershipPackages = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         isDarkMode={isDarkMode}
+      />
+
+      <DeletePlanModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setActiveActionRow(null);
+        }}
+        isDarkMode={isDarkMode}
+        onConfirm={handleDeleteConfirm}
+        packageName={packages.find(pkg => pkg.id === selectedPackageId)?.name}
+      />
+
+      <EditPackageModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setActiveActionRow(null);
+        }}
+        isDarkMode={isDarkMode}
+        packageData={selectedPackage}
       />
     </div>
   );

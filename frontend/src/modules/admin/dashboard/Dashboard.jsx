@@ -37,6 +37,18 @@ const Dashboard = () => {
     const [selectedDateRange, setSelectedDateRange] = useState('Today');
     const [selectedDateRangeText, setSelectedDateRangeText] = useState('');
 
+    // Modal states
+    const [isDoneModalOpen, setIsDoneModalOpen] = useState(false);
+    const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+    const [selectedFollowUp, setSelectedFollowUp] = useState(null);
+
+    // Follow Up Response form states
+    const [convertibilityStatus, setConvertibilityStatus] = useState('');
+    const [customerResponse, setCustomerResponse] = useState('');
+    const [customerRemarks, setCustomerRemarks] = useState('');
+    const [showConvertibilityDropdown, setShowConvertibilityDropdown] = useState(false);
+    const [showCustomerResponseDropdown, setShowCustomerResponseDropdown] = useState(false);
+
     // Refs for click outside detection
     const datePickerRef = useRef(null);
     const followUpTypeRef = useRef(null);
@@ -86,6 +98,7 @@ const Dashboard = () => {
     // Follow Ups Data
     const followUps = [
         {
+            id: '489890',
             name: 'KUNAL CHAUHAN',
             number: '9978145629',
             type: 'Balance Due',
@@ -94,6 +107,7 @@ const Dashboard = () => {
             comment: 'Follow up for balance payment of Rs. 4000 due on 31-01-2026 against invoice number V10FL/2025-26/554.'
         },
         {
+            id: '489891',
             name: 'Riya patel',
             number: '9099031248',
             type: 'Membership Renewal',
@@ -102,6 +116,7 @@ const Dashboard = () => {
             comment: 'GYM WORKOUT, 12 months, renewal due on 14-02-2026.'
         },
         {
+            id: '489892',
             name: 'satish badgujar',
             number: '8488800551',
             type: 'Membership Renewal',
@@ -110,6 +125,7 @@ const Dashboard = () => {
             comment: 'GYM WORKOUT, 12 months, renewal due on 14-02-2026.'
         },
         {
+            id: '489893',
             name: 'KRISHNA PRAJAPATI',
             number: '9726540860',
             type: 'Membership Renewal',
@@ -118,6 +134,7 @@ const Dashboard = () => {
             comment: 'GYM WORKOUT, 12 months, renewal due on 13-02-2026.'
         },
         {
+            id: '489894',
             name: 'SHASTHA MUDOLIAR',
             number: '9712244420',
             type: 'Membership Renewal',
@@ -277,8 +294,11 @@ const Dashboard = () => {
                                 {followUps.slice(0, rowsPerPage).map((item, idx) => (
                                     <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                                         <td className="px-5 py-4">
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="text-blue-500 font-normal hover:underline cursor-pointer">{item.name}</span>
+                                            <div
+                                                onClick={() => navigate(`/admin/members/profile/edit?id=${item.id}`, { state: { member: item } })}
+                                                className="flex flex-col gap-0.5 cursor-pointer group"
+                                            >
+                                                <span className="text-blue-500 font-normal group-hover:underline">{item.name}</span>
                                                 <span className="text-blue-400 font-normal text-[12px]">{item.number}</span>
                                             </div>
                                         </td>
@@ -311,14 +331,21 @@ const Dashboard = () => {
                                                             }`}
                                                     >
                                                         <div
-                                                            onClick={() => setActiveMenu(null)}
+                                                            onClick={() => {
+                                                                setSelectedFollowUp(item);
+                                                                setIsFollowUpModalOpen(true);
+                                                                setActiveMenu(null);
+                                                            }}
                                                             className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
                                                                 }`}
                                                         >
                                                             Followup Response
                                                         </div>
                                                         <div
-                                                            onClick={() => setActiveMenu(null)}
+                                                            onClick={() => {
+                                                                setIsDoneModalOpen(true);
+                                                                setActiveMenu(null);
+                                                            }}
                                                             className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
                                                                 }`}
                                                         >
@@ -808,6 +835,292 @@ const Dashboard = () => {
                     </div>
                 </div>
             </section>
+
+            {/* Done Confirmation Modal */}
+            {isDoneModalOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className={`w-full max-w-md rounded-lg shadow-2xl ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+                        {/* Close Button */}
+                        <div className="flex justify-end p-4">
+                            <button
+                                onClick={() => setIsDoneModalOpen(false)}
+                                className={`text-2xl ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="px-8 pb-8 text-center">
+                            {/* Green Checkmark */}
+                            <div className="flex justify-center mb-6">
+                                <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                                    <path d="M25 40L35 50L55 30" stroke="#22c55e" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </div>
+
+                            {/* Title */}
+                            <h2 className={`text-2xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                Done Followup?
+                            </h2>
+
+                            {/* Description */}
+                            <p className={`text-sm mb-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                Do you really want to mark as done followup?
+                            </p>
+
+                            {/* Done Button */}
+                            <button
+                                onClick={() => {
+                                    setIsDoneModalOpen(false);
+                                    // Add your done logic here
+                                }}
+                                className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-all flex items-center gap-2 mx-auto"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M3 8L6 11L13 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Follow Up Response Modal */}
+            {isFollowUpModalOpen && selectedFollowUp && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+                    <div className={`w-full max-w-2xl my-8 rounded-lg shadow-2xl ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+                        {/* Header */}
+                        <div className={`p-5 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                            <div>
+                                <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {selectedFollowUp.name}
+                                </h2>
+                                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    Follow Up ID : 2101150
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded transition-colors">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsFollowUpModalOpen(false);
+                                        setSelectedFollowUp(null);
+                                        setConvertibilityStatus('');
+                                        setCustomerResponse('');
+                                        setCustomerRemarks('');
+                                    }}
+                                    className={`text-2xl ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Tab */}
+                        <div className={`border-b ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                            <div className="px-6 py-3 border-b-2 border-orange-500 inline-flex items-center gap-2 text-sm font-semibold text-orange-500">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                                Edit Response
+                            </div>
+                        </div>
+
+                        {/* Body - Scrollable */}
+                        <div className="p-6 max-h-[60vh] overflow-y-auto">
+                            {/* Response Properties */}
+                            <div className="mb-6">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        Response Properties
+                                    </h3>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-gray-400">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                    </svg>
+                                </div>
+
+                                <div className={`border rounded-lg ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                                    <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                            Follow Up ID : 2101150
+                                        </span>
+                                    </div>
+                                    <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                            Follow Up On : 02 Feb, 2026 11:50 PM
+                                        </span>
+                                        <span className="bg-red-500 text-white px-3 py-1 rounded text-xs font-bold">
+                                            PENDING
+                                        </span>
+                                    </div>
+                                    <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                            Remarks/Summary: GYM WORKOUT, 12 months, renewal due on 15-02-2026.
+                                        </span>
+                                    </div>
+                                    <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                            Assign to : Abdulla Pathan
+                                        </span>
+                                    </div>
+                                    <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                            Schedule by : Abdulla Pathan
+                                        </span>
+                                    </div>
+                                    <div className={`px-4 py-3 border-b flex items-center gap-2 ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                            Follow Up Type :
+                                        </span>
+                                        <span className="border-2 border-orange-500 text-orange-500 px-3 py-1 rounded text-xs font-medium">
+                                            Membership Renewal
+                                        </span>
+                                    </div>
+                                    <div className={`px-4 py-3 flex items-center gap-2 ${isDarkMode ? '' : ''}`}>
+                                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                            Convertibility :
+                                        </span>
+                                        <span className="bg-red-500 text-white px-3 py-1 rounded text-xs font-bold">
+                                            Hot
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Update Response */}
+                            <div className="mb-6">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        Update Response
+                                    </h3>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-gray-400">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                    </svg>
+                                </div>
+
+                                {/* Convertibility Status Dropdown */}
+                                <div className="mb-4">
+                                    <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        Convertibility Status
+                                    </label>
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowConvertibilityDropdown(!showConvertibilityDropdown)}
+                                            className={`w-full px-4 py-3 border rounded-lg text-sm text-left flex items-center justify-between ${convertibilityStatus ? 'border-orange-500 text-orange-500' : isDarkMode ? 'border-white/10 text-gray-400' : 'border-gray-300 text-gray-400'}`}
+                                        >
+                                            <span>{convertibilityStatus || 'Select'}</span>
+                                            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                                                <path d="M6 8L2 4h8L6 8z" />
+                                            </svg>
+                                        </button>
+
+                                        {showConvertibilityDropdown && (
+                                            <div className={`absolute top-full left-0 right-0 mt-1 rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
+                                                {['Hot', 'Warm', 'Cold'].map((option) => (
+                                                    <div
+                                                        key={option}
+                                                        onClick={() => {
+                                                            setConvertibilityStatus(option);
+                                                            setShowConvertibilityDropdown(false);
+                                                        }}
+                                                        className={`px-4 py-3 text-sm cursor-pointer border-b last:border-0 ${isDarkMode ? 'text-gray-300 hover:bg-white/5 border-white/5' : 'text-gray-700 hover:bg-gray-50 border-gray-100'}`}
+                                                    >
+                                                        {option}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Customer Response Dropdown */}
+                                <div className="mb-4">
+                                    <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        Customer Response*
+                                    </label>
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowCustomerResponseDropdown(!showCustomerResponseDropdown)}
+                                            className={`w-full px-4 py-3 border rounded-lg text-sm text-left flex items-center justify-between ${customerResponse ? 'border-orange-500 text-orange-500' : isDarkMode ? 'border-white/10 text-gray-400' : 'border-gray-300 text-gray-400'}`}
+                                        >
+                                            <span>{customerResponse || 'Select'}</span>
+                                            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                                                <path d="M6 8L2 4h8L6 8z" />
+                                            </svg>
+                                        </button>
+
+                                        {showCustomerResponseDropdown && (
+                                            <div className={`absolute top-full left-0 right-0 mt-1 rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
+                                                {['Follow Up Again', 'Successful Follow Up', 'Not Interested'].map((option) => (
+                                                    <div
+                                                        key={option}
+                                                        onClick={() => {
+                                                            setCustomerResponse(option);
+                                                            setShowCustomerResponseDropdown(false);
+                                                        }}
+                                                        className={`px-4 py-3 text-sm cursor-pointer border-b last:border-0 ${isDarkMode ? 'text-gray-300 hover:bg-white/5 border-white/5' : 'text-gray-700 hover:bg-gray-50 border-gray-100'}`}
+                                                    >
+                                                        {option}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Customer Remarks */}
+                                <div className="mb-4">
+                                    <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        Customer Remarks*
+                                    </label>
+                                    <textarea
+                                        value={customerRemarks}
+                                        onChange={(e) => setCustomerRemarks(e.target.value)}
+                                        placeholder="Type your Remarks here"
+                                        rows={4}
+                                        className={`w-full px-4 py-3 border rounded-lg text-sm outline-none resize-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400'}`}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Followup Created by */}
+                            <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                <p className="font-semibold">{selectedFollowUp.name}</p>
+                                <p>Followup Created by</p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className={`p-4 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                            <button
+                                onClick={() => {
+                                    setIsFollowUpModalOpen(false);
+                                    setSelectedFollowUp(null);
+                                    setConvertibilityStatus('');
+                                    setCustomerResponse('');
+                                    setCustomerRemarks('');
+                                }}
+                                className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-all"
+                            >
+                                Submit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

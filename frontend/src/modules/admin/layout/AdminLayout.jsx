@@ -50,8 +50,8 @@ const AdminLayout = () => {
                     toggleTheme={toggleTheme}
                 />
 
-                <main className={`p-8 mt-16 flex-1 overflow-x-hidden min-w-0 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                    <Outlet context={{ isDarkMode }} />
+                <main className={`p-8 mt-16 flex-1 min-w-0 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                    <Outlet context={{ isDarkMode, setSidebarOpen }} />
                 </main>
             </div>
 

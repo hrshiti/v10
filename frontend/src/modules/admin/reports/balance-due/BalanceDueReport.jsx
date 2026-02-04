@@ -6,34 +6,45 @@ import {
   Search,
   User
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
 
 const BalanceDueReport = () => {
   const { isDarkMode } = useOutletContext();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('01-01-2026');
   const [toDate, setToDate] = useState('30-01-2026');
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
+  const [reportData, setReportData] = useState([
+    { id: '442', name: 'RAJESH SHARMA', number: '9825098250', invoice: 'INV-2026-001', due: 5000, dueDate: '2026-02-15', closedBy: 'Abdulla Pathan', closedDate: '2026-01-31' },
+    { id: '1226', name: 'PATEL DHRUV', number: '7179010403', invoice: 'INV-2026-002', due: 2000, dueDate: '2026-02-16', closedBy: 'Abdulla Pathan', closedDate: '2026-01-31' },
+    { id: '1227', name: 'SANDEEP PATEL', number: '7043484769', invoice: 'INV-2026-003', due: 3000, dueDate: '2026-02-17', closedBy: 'Abdulla Pathan', closedDate: '2026-01-31' },
+    { id: '1228', name: 'MODI PRATHAM', number: '6352560220', invoice: 'INV-2026-004', due: 1500, dueDate: '2026-02-18', closedBy: 'Abdulla Pathan', closedDate: '2026-01-31' },
+    { id: '1229', name: 'HEMIL MODI', number: '9512585046', invoice: 'INV-2026-005', due: 1000, dueDate: '2026-02-19', closedBy: 'Abdulla Pathan', closedDate: '2026-01-31' },
+  ]);
+
+  const filteredData = reportData.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.number.includes(searchQuery) ||
+    item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.invoice.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totalBalanceDue = filteredData.reduce((acc, curr) => acc + curr.due, 0);
+
   const stats = [
-    { label: 'Members', value: '3', icon: User, color: isDarkMode ? 'bg-[#1a1a1a]' : 'bg-gray-100/50' },
-    { label: 'Balance Due', value: '₹ 15000.00', icon: User, color: isDarkMode ? 'bg-[#1a1a1a]' : 'bg-gray-100/50' },
+    { label: 'Members', value: filteredData.length.toString(), icon: User, theme: 'blue' },
+    { label: 'Balance Due', value: `₹ ${totalBalanceDue.toFixed(2)}`, icon: User, theme: 'red' },
   ];
 
-  const reportData = Array.from({ length: 10 }, (_, i) => ({
-    idx: i + 1,
-    id: `CL${442 + i}`,
-    name: 'RAJESH SHARMA',
-    number: '9825098250',
-    invoice: `INV-2026-00${i + 1}`,
-    due: '₹ 5000.00',
-    dueDate: '2026-02-15',
-    closedBy: 'Abdulla Pathan',
-    closedDate: '2026-01-31'
-  }));
+  const themeConfig = {
+    blue: { bg: 'bg-blue-600', shadow: 'shadow-blue-500/20' },
+    red: { bg: 'bg-red-500', shadow: 'shadow-red-500/20' },
+  };
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'} max-w-full overflow-x-hidden`}>
@@ -44,17 +55,27 @@ const BalanceDueReport = () => {
 
       {/* Stats Cards */}
       <div className="flex gap-6 transition-none">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`p-5 rounded-lg flex items-center gap-4 transition-none min-w-[240px] border ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-[#f8f9fa] border-gray-100'}`}>
-            <div className={`p-3 rounded-lg bg-white dark:bg-white/5`}>
-              <stat.icon size={28} className="text-gray-300" />
+        {stats.map((stat, idx) => {
+          const config = themeConfig[stat.theme];
+          return (
+            <div
+              key={idx}
+              className={`group p-5 rounded-lg flex items-center gap-4 transition-all duration-300 min-w-[240px] border cursor-pointer
+                ${isDarkMode
+                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  : `bg-[#f8f9fa] border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                }`}
+            >
+              <div className={`p-3 rounded-lg transition-all duration-300 ${isDarkMode ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white' : 'bg-white text-gray-400 group-hover:bg-white/20 group-hover:text-white'}`}>
+                <stat.icon size={28} />
+              </div>
+              <div>
+                <p className="text-[24px] font-black leading-none transition-colors duration-300 group-hover:text-white">{stat.value}</p>
+                <p className="text-[13px] font-bold mt-1 text-gray-500 transition-colors duration-300 group-hover:text-white/80">{stat.label}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[24px] font-black leading-none">{stat.value}</p>
-              <p className={`text-[13px] font-bold mt-1 text-gray-500`}>{stat.label}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Filters Row */}
@@ -115,17 +136,27 @@ const BalanceDueReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-[rgba(0,0,0,0.8)]'}`}>
-              {reportData.slice(0, rowsPerPage).map((row, idx) => (
+              {filteredData.slice(0, rowsPerPage).map((row, idx) => (
                 <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-7">{row.idx}</td>
+                  <td className="px-6 py-7">{idx + 1}</td>
                   <td className="px-6 py-7">
                     <div className="flex flex-col">
-                      <span className="text-[#3b82f6] uppercase">{row.name}</span>
-                      <span className="text-[12px] text-gray-500">{row.number}</span>
+                      <span
+                        onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
+                        className="text-[#3b82f6] uppercase cursor-pointer hover:underline font-black"
+                      >
+                        {row.name}
+                      </span>
+                      <span
+                        onClick={() => navigate(`/admin/members/profile/memberships?id=${row.id}`)}
+                        className="text-[#3b82f6] text-[12px] font-bold mt-0.5 cursor-pointer hover:underline"
+                      >
+                        {row.number}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-7">{row.invoice}</td>
-                  <td className="px-6 py-7 text-red-500">{row.due}</td>
+                  <td className="px-6 py-7 text-red-500 font-black">₹ {row.due.toFixed(2)}</td>
                   <td className="px-6 py-7">{row.dueDate}</td>
                   <td className="px-6 py-7">{row.closedBy}</td>
                   <td className="px-6 py-7">{row.closedDate}</td>

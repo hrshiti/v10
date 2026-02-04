@@ -8,11 +8,37 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Clock // Added for consistency if needed, though not strictly used in expense date
+  Clock,
+  Check,
+  Trash2 // Added Trash2 for Delete Modal
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 
 // --- Reusable Components ---
+
+const Toast = ({ message, onClose, isDarkMode }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000); // Auto close after 3 seconds
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className={`fixed top-10 right-10 z-[120] flex flex-col rounded-lg shadow-2xl overflow-hidden min-w-[350px] animate-in slide-in-from-right duration-300 ${isDarkMode ? 'bg-white text-black' : 'bg-white text-gray-800'}`}>
+      <div className="flex items-center p-4 gap-3">
+        <div className="w-6 h-6 rounded-full bg-[#22c55e] flex items-center justify-center flex-shrink-0">
+          <Check size={16} className="text-white" strokeWidth={3} />
+        </div>
+        <p className="font-medium text-[15px] flex-1">{message}</p>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <X size={18} />
+        </button>
+      </div>
+      <div className="h-1 bg-[#f0fdf4] w-full">
+        <div className="h-full bg-[#22c55e] animate-progress origin-left w-full"></div>
+      </div>
+    </div>
+  );
+};
 
 const ReportModal = ({ isOpen, onClose, isDarkMode }) => {
   if (!isOpen) return null;
@@ -242,7 +268,42 @@ const AdvancedSingleDatePicker = ({ value, onChange, isDarkMode, placeholder = "
   );
 };
 
-const AddExpenseModal = ({ isOpen, onClose, isDarkMode }) => {
+const DeleteExpenseModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
+      <div className={`w-[400px] rounded-lg shadow-2xl relative pt-10 pb-8 px-6 flex flex-col items-center text-center ${isDarkMode ? 'bg-white' : 'bg-white'}`}>
+        <button
+          onClick={onClose}
+          className={`absolute top-4 right-4 p-1 rounded transition-colors text-gray-400 hover:text-gray-600`}
+        >
+          <X size={20} />
+        </button>
+
+        <div className="mb-6 bg-red-100 p-4 rounded-xl">
+          <Trash2 size={40} className="text-red-500" />
+        </div>
+
+        <h2 className="text-[24px] font-bold mb-2 text-gray-900">Delete Expense?</h2>
+        <p className="text-[14px] font-medium mb-8 text-gray-500 max-w-[260px]">
+          Do you really want to delete?
+          This process cannot be undone.
+        </p>
+
+        <button
+          onClick={onConfirm}
+          className="bg-[#ef4444] hover:bg-red-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-lg shadow-red-500/20 transition-all flex items-center gap-2"
+        >
+          <Trash2 size={16} />
+          Yes, Delete Expense
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const AddExpenseModal = ({ isOpen, onClose, isDarkMode, onAddExpense, onEditExpense, initialData, isEditMode }) => {
   if (!isOpen) return null;
 
   const [expenseData, setExpenseData] = useState({
@@ -254,6 +315,35 @@ const AddExpenseModal = ({ isOpen, onClose, isDarkMode }) => {
     staffName: ''
   });
 
+  useEffect(() => {
+    if (isEditMode && initialData) {
+      setExpenseData(initialData);
+    } else {
+      setExpenseData({
+        expenseType: '',
+        description: '',
+        amount: '',
+        date: '',
+        paymentMode: '',
+        staffName: ''
+      });
+    }
+  }, [isOpen, isEditMode, initialData]);
+
+  const handleSubmit = () => {
+    if (!expenseData.expenseType || !expenseData.amount || !expenseData.date || !expenseData.paymentMode || !expenseData.staffName) {
+      alert("Please fill all required fields");
+      return;
+    }
+
+    if (isEditMode) {
+      onEditExpense(expenseData);
+    } else {
+      onAddExpense(expenseData);
+    }
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
       <div className={`w-[500px] rounded-xl shadow-2xl transition-all max-h-[90vh] overflow-y-auto custom-scrollbar ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
@@ -263,7 +353,9 @@ const AddExpenseModal = ({ isOpen, onClose, isDarkMode }) => {
             <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center">
               <span className="text-lg font-bold">$</span>
             </div>
-            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Add Expenses</h2>
+            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              {isEditMode ? 'Edit Expenses' : 'Add Expenses'}
+            </h2>
           </div>
           <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
             <X size={20} />
@@ -350,8 +442,11 @@ const AddExpenseModal = ({ isOpen, onClose, isDarkMode }) => {
 
         {/* Footer */}
         <div className={`p-5 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-md transition-none active:scale-95">
-            Submit
+          <button
+            onClick={handleSubmit}
+            className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-md transition-none active:scale-95"
+          >
+            {isEditMode ? 'Update' : 'Submit'}
           </button>
         </div>
       </div>
@@ -677,6 +772,64 @@ const ExpenseManagement = () => {
   // State for active stat card
   const [selectedStat, setSelectedStat] = useState('');
 
+  // Expenses State
+  const [expenses, setExpenses] = useState([]);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [toast, setToast] = useState(null); // { message }
+
+  // Edit & Delete State
+  const [editingExpense, setEditingExpense] = useState(null); // Stores the expense being edited
+  const [deleteId, setDeleteId] = useState(null); // Stores ID of expense to delete
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const handleAddExpense = (newExpense) => {
+    // Generate simple ID
+    const id = Math.floor(Math.random() * 90000) + 10000;
+    const expenseWithId = { ...newExpense, id };
+
+    setExpenses(prev => [...prev, expenseWithId]);
+    setTotalExpenses(prev => prev + Number(newExpense.amount));
+    setToast({ message: 'Expense Added successfully.' });
+  };
+
+  const handleEditClick = (expense) => {
+    setEditingExpense(expense);
+    setIsAddExpenseModalOpen(true);
+  };
+
+  const handleUpdateExpense = (updatedData) => {
+    setExpenses(prev => prev.map(ex => ex.id === editingExpense.id ? { ...updatedData, id: editingExpense.id } : ex));
+
+    // Recalculate total expenses
+    const newTotal = expenses.map(ex => ex.id === editingExpense.id ? { ...updatedData, id: editingExpense.id } : ex)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+    setTotalExpenses(newTotal);
+
+    setToast({ message: 'Edit Successfully' });
+    setEditingExpense(null);
+  };
+
+  const handleDeleteClick = (id) => {
+    setDeleteId(id);
+    setIsDeleteModalOpen(true);
+  }
+
+  const handleConfirmDelete = () => {
+    const expenseToDelete = expenses.find(e => e.id === deleteId);
+    if (expenseToDelete) {
+      setExpenses(prev => prev.filter(e => e.id !== deleteId));
+      setTotalExpenses(prev => prev - Number(expenseToDelete.amount));
+      setToast({ message: 'Expense Deleted successfully.' });
+    }
+    setIsDeleteModalOpen(false);
+    setDeleteId(null);
+  };
+
+  const handleAddModalClose = () => {
+    setIsAddExpenseModalOpen(false);
+    setEditingExpense(null); // Clear editing state on close
+  }
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (rowsDropdownRef.current && !rowsDropdownRef.current.contains(event.target)) {
@@ -727,7 +880,7 @@ const ExpenseManagement = () => {
             </div>
           </div>
           <div>
-            <p className={`text-[36px] font-black leading-none transition-colors duration-300 ${selectedStat === 'Total Expenses' ? 'text-white' : 'group-hover:text-white'}`}>₹ 0</p>
+            <p className={`text-[36px] font-black leading-none transition-colors duration-300 ${selectedStat === 'Total Expenses' ? 'text-white' : 'group-hover:text-white'}`}>₹ {totalExpenses}</p>
             <p className={`text-[15px] font-bold mt-1 opacity-80 transition-colors duration-300 ${selectedStat === 'Total Expenses' ? 'text-white' : 'group-hover:text-white'}`}>Total Expenses</p>
           </div>
         </div>
@@ -768,7 +921,7 @@ const ExpenseManagement = () => {
         </div>
       </div>
 
-      <p className="text-[13px] font-bold text-gray-500 pt-2 transition-none">Total Expenses (₹0)</p>
+      <p className="text-[13px] font-bold text-gray-500 pt-2 transition-none">Total Expenses (₹{totalExpenses})</p>
 
       {/* Table Section */}
       <div className={`rounded-lg overflow-hidden transition-none border ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
@@ -790,7 +943,45 @@ const ExpenseManagement = () => {
               </tr>
             </thead>
             <tbody className="transition-none">
-              {/* Empty state matches the screenshot */}
+              {expenses.length === 0 ? (
+                <tr className="border-b dark:border-white/5">
+                  <td colSpan={7} className="px-8 py-8 text-center text-gray-400 font-medium">No expenses found</td>
+                </tr>
+              ) : (
+                expenses.map((expense) => (
+                  <tr key={expense.id} className={`border-b transition-none ${isDarkMode ? 'bg-transparent border-white/5 hover:bg-white/5' : 'bg-white border-gray-50 hover:bg-gray-50'}`}>
+                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{expense.id}</td>
+                    <td className="px-8 py-5">
+                      <span className={`inline-block px-3 py-1 border rounded text-[13px] font-bold ${isDarkMode ? 'border-orange-500/30 text-orange-400 bg-orange-500/10' : 'border-orange-200 text-orange-600 bg-orange-50'}`}>
+                        {expense.expenseType}
+                      </span>
+                    </td>
+                    <td className={`px-8 py-5 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{expense.description}</td>
+                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{expense.date}</td>
+                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800 uppercase'}`}>{expense.staffName}</td>
+                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{expense.amount}</td>
+                    <td className="px-8 py-5">
+                      <span className={`inline-block px-3 py-1 border rounded text-[12px] font-bold uppercase ${isDarkMode ? 'border-orange-500/30 text-orange-400 bg-orange-500/10' : 'border-orange-200 text-orange-600 bg-orange-50'}`}>
+                        {expense.paymentMode}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEditClick(expense)}
+                          className="bg-[#f97316] text-white px-4 py-1.5 rounded-lg text-[13px] font-bold shadow-sm hover:bg-orange-600 transition-none">
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(expense.id)}
+                          className="bg-[#f97316] text-white px-4 py-1.5 rounded-lg text-[13px] font-bold shadow-sm hover:bg-orange-600 transition-none">
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -844,9 +1035,28 @@ const ExpenseManagement = () => {
 
       <AddExpenseModal
         isOpen={isAddExpenseModalOpen}
-        onClose={() => setIsAddExpenseModalOpen(false)}
+        onClose={handleAddModalClose}
+        isDarkMode={isDarkMode}
+        onAddExpense={handleAddExpense}
+        onEditExpense={handleUpdateExpense}
+        initialData={editingExpense}
+        isEditMode={!!editingExpense}
+      />
+
+      <DeleteExpenseModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
         isDarkMode={isDarkMode}
       />
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          onClose={() => setToast(null)}
+          isDarkMode={isDarkMode}
+        />
+      )}
     </div>
   );
 };
