@@ -712,6 +712,138 @@ const bulkAssignTrainer = asyncHandler(async (req, res) => {
     res.json({ message: 'Trainer assigned successfully' });
 });
 
+// @desc    Pay Due Balance for a subscription
+// @route   PUT /api/admin/members/subscriptions/:subscriptionId/pay-due
+// @access  Private/Admin
+const payDue = asyncHandler(async (req, res) => {
+    const { amount, paymentMode, closedBy } = req.body;
+    const { subscriptionId } = req.params;
+
+    if (!amount || amount <= 0) {
+        res.status(400);
+        throw new Error('Please provide a valid payment amount');
+    }
+
+    const subscription = await Subscription.findById(subscriptionId);
+    if (!subscription) {
+        res.status(404);
+        throw new Error('Subscription not found');
+    }
+
+    const member = await Member.findById(subscription.memberId);
+    if (!member) {
+        res.status(404);
+        throw new Error('Member not found');
+    }
+
+    // 1. Update Subscription
+    subscription.paidAmount += Number(amount);
+    // dueAmount is auto-calculated in pre-save
+    await subscription.save();
+
+    // 2. Update Member (Master Record)
+    member.paidAmount += Number(amount);
+    // dueAmount is auto-calculated in pre-save
+    await member.save();
+
+    // 3. Create Sale record
+    await Sale.create({
+        memberId: member._id,
+        amount: Number(amount),
+        subTotal: Number(amount),
+        taxAmount: 0,
+        paymentMode: paymentMode || 'Cash',
+        type: 'Due Payment',
+        description: `Due payment for ${subscription.packageName} package.`,
+        closedBy: closedBy || null
+    });
+
+    res.json({
+        message: 'Payment recorded successfully',
+        subscription,
+        member
+    });
+});
+
+// @desc    Pay Due Balance at Member Level (applies to oldest dues first)
+// @route   PUT /api/admin/members/:id/pay-due
+// @access  Private/Admin
+const payDueMember = asyncHandler(async (req, res) => {
+    const { amount, paymentMode, closedBy } = req.body;
+    const member = await Member.findById(req.params.id);
+
+    if (!member) {
+        res.status(404);
+        throw new Error('Member not found');
+    }
+
+    const payAmount = Number(amount);
+    if (isNaN(payAmount) || payAmount <= 0) {
+        res.status(400);
+        throw new Error('Please provide a valid payment amount');
+    }
+
+    // Find all subscriptions for this member
+    let subscriptions = await Subscription.find({ memberId: member._id }).sort({ createdAt: 1 });
+
+    if (subscriptions.length === 0) {
+        res.status(400);
+        throw new Error('No subscriptions found for this member to apply payment to');
+    }
+
+    let remainingToApply = payAmount;
+    const updatedSubscriptions = [];
+
+    // First, try to apply to subscriptions that actually show a dueAmount > 0
+    for (const sub of subscriptions) {
+        if (remainingToApply <= 0) break;
+
+        // Use totalAmount - paidAmount directly in case dueAmount is out of sync
+        const actualDue = sub.totalAmount - sub.paidAmount;
+        if (actualDue > 0) {
+            const paymentToApply = Math.min(remainingToApply, actualDue);
+            sub.paidAmount += paymentToApply;
+            remainingToApply -= paymentToApply;
+            await sub.save();
+            updatedSubscriptions.push(sub);
+        }
+    }
+
+    // If there's still money left (maybe data was out of sync), apply to the most recent subscription anyway
+    if (remainingToApply > 0) {
+        const lastSub = subscriptions[subscriptions.length - 1];
+        lastSub.paidAmount += remainingToApply;
+        remainingToApply = 0;
+        await lastSub.save();
+        if (!updatedSubscriptions.find(s => s._id.toString() === lastSub._id.toString())) {
+            updatedSubscriptions.push(lastSub);
+        }
+    }
+
+    // Update Member master record
+    member.paidAmount += payAmount;
+    await member.save();
+
+    // Create Sale record
+    await Sale.create({
+        memberId: member._id,
+        amount: payAmount,
+        subTotal: payAmount,
+        taxAmount: 0,
+        paymentMode: paymentMode || 'Cash',
+        type: 'Due Payment',
+        description: `Due payment for member ${member.firstName} ${member.lastName}. Applied to ${updatedSubscriptions.length} subscriptions.`,
+        closedBy: closedBy || null
+    });
+
+    res.json({
+        message: 'Payment recorded successfully',
+        member,
+        paid: payAmount,
+        newDue: member.totalAmount - member.paidAmount
+    });
+});
+
 module.exports = {
     getMembers,
     getMemberById,
@@ -728,6 +860,8 @@ module.exports = {
     upgradeMembership,
     transferMembership,
     bulkDeactivateMembers,
-    bulkAssignTrainer
+    bulkAssignTrainer,
+    payDue,
+    payDueMember
 };
 

@@ -12,7 +12,8 @@ const {
     getWorkoutStats,
     submitFeedback,
     getUserFeedbacks,
-    getHomeStats
+    getHomeStats,
+    checkWorkoutStatus
 } = require('../../controllers/user/userController');
 
 const upload = require('../../middlewares/uploadMiddleware');
@@ -27,6 +28,7 @@ router.get('/attendance', getUserAttendance);
 router.get('/diet-plan', getUserDietPlan);
 router.get('/workouts', getUserWorkouts);
 router.post('/workouts/log', logWorkoutCompletion);
+router.get('/workouts/status', checkWorkoutStatus);
 router.get('/workouts/stats', getWorkoutStats);
 router.route('/feedback')
     .get(getUserFeedbacks)

@@ -8,6 +8,10 @@ const {
     getAttendanceReport,
     getDueMembershipReport
 } = require('../../controllers/admin/reportController');
+const {
+    getHealthAssessments,
+    createHealthAssessment
+} = require('../../controllers/admin/healthAssessmentController');
 const { protect } = require('../../middlewares/authMiddleware');
 
 router.use(protect);
@@ -18,5 +22,9 @@ router.get('/membership-expiry', getMembershipExpiryReport);
 router.get('/subscription-analytics', getSubscriptionAnalytics);
 router.get('/attendance', getAttendanceReport);
 router.get('/due-membership', getDueMembershipReport);
+
+router.route('/health-assessments')
+    .get(getHealthAssessments)
+    .post(createHealthAssessment);
 
 module.exports = router;

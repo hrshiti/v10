@@ -5,6 +5,7 @@ import Dashboard from '../dashboard/Dashboard';
 import Enquiries from '../enquiries/Enquiries';
 import FollowUps from '../follow-ups/FollowUps';
 import Members from '../members/members-list/Members';
+import AddMember from '../members/members-list/AddMember';
 import Memberships from '../members/memberships/Memberships';
 import MembershipPackages from '../members/membership-packages/MembershipPackages';
 import MembersWorkoutCard from '../members/workout-card/MembersWorkoutCard';
@@ -23,7 +24,7 @@ import MemberHealthAssessment from '../members/profile/MemberHealthAssessment';
 import HealthAssessmentAdd from '../members/profile/HealthAssessmentAdd';
 import MemberAttendance from '../members/profile/MemberAttendance';
 import FreshSale from '../members/profile/FreshSale';
-import TransferMembership from '../members/profile/TransferMembership';
+
 import ResalePlan from '../members/profile/ResalePlan';
 import UpgradePlan from '../members/profile/UpgradePlan';
 import FreezePlan from '../members/profile/FreezePlan';
@@ -67,6 +68,7 @@ const AdminRoutes = () => {
 
                     <Route path="members">
                         <Route path="list" element={<Members />} />
+                        <Route path="add" element={<AddMember />} />
                         <Route path="memberships" element={<Memberships />} />
                         <Route path="packages" element={<MembershipPackages />} />
                         <Route path="workout-cards" element={<MembersWorkoutCard />} />
@@ -86,7 +88,7 @@ const AdminRoutes = () => {
                             <Route path="health-assessment" element={<MemberHealthAssessment />} />
                             <Route path="health-assessment-add" element={<HealthAssessmentAdd />} />
                             <Route path="sale/fresh" element={<FreshSale />} />
-                            <Route path="membership/transfer" element={<TransferMembership />} />
+
                             <Route path="membership/resale" element={<ResalePlan />} />
                             <Route path="membership/upgrade" element={<UpgradePlan />} />
                             <Route path="membership/freeze" element={<FreezePlan />} />
@@ -99,7 +101,7 @@ const AdminRoutes = () => {
                     <Route path="diet-plan" element={<DietPlanManagement />} />
 
                     <Route path="reports">
-                        <Route path="sales" element={<SalesReport />} />
+                        {/* <Route path="sales" element={<SalesReport />} /> */}
                         <Route path="balance-due" element={<BalanceDueReport />} />
                         <Route path="attendance" element={<AttendanceReport />} />
                         <Route path="expired" element={<ExpiredMemberReport />} />

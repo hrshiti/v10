@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, MoreVertical, Search, Clock, Info } from 'lucide-react';
-import { dietPlans } from '../data/mockDietPlans';
+import { API_BASE_URL } from '../../../config/api';
 
 const DietPlanSection = () => {
     const [plan, setPlan] = useState(null);
@@ -11,7 +11,7 @@ const DietPlanSection = () => {
     React.useEffect(() => {
         const fetchDietPlan = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/user/diet-plan', {
+                const response = await fetch(`${API_BASE_URL}/api/user/diet-plan`, {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('userToken')}`
                     }

@@ -35,6 +35,12 @@ const Dashboard = () => {
     const [showYearFilter, setShowYearFilter] = useState(false);
     const [activeMenu, setActiveMenu] = useState(null);
     const [rowsPerPage, setRowsPerPage] = useState(5);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    // Reset page on rowsPerPage change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [rowsPerPage]);
     const [selectedDateRange, setSelectedDateRange] = useState('Today');
     const [selectedDateRangeText, setSelectedDateRangeText] = useState('');
 
@@ -145,35 +151,8 @@ const Dashboard = () => {
     ];
     const leadTypes = chartsData?.leadTypes || leadTypesData;
 
-    const membersTrendData = [
-        { name: 'Jan', active: 58, inactive: 5, upcoming: 5 },
-        { name: 'Feb', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'Mar', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'Apr', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'May', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'Jun', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'Jul', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'Aug', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'Sep', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'Oct', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'Nov', active: 0, inactive: 0, upcoming: 0 },
-        { name: 'Dec', active: 0, inactive: 0, upcoming: 0 },
-    ];
-
-    const financialData = [
-        { name: 'Jan', amount: 330000 },
-        { name: 'Feb', amount: 0 },
-        { name: 'Mar', amount: 0 },
-        { name: 'Apr', amount: 0 },
-        { name: 'May', amount: 0 },
-        { name: 'Jun', amount: 0 },
-        { name: 'Jul', amount: 0 },
-        { name: 'Aug', amount: 4800 },
-        { name: 'Sep', amount: 0 },
-        { name: 'Oct', amount: 0 },
-        { name: 'Nov', amount: 0 },
-        { name: 'Dec', amount: 0 },
-    ];
+    const membersTrendData = chartsData?.memberTrendData || [];
+    const financialData = chartsData?.financialData || [];
 
     // Date picker quick options
     const dateOptions = ['Today', 'Yesterday', 'Last Week', 'Last Months', 'This Year'];
@@ -286,7 +265,7 @@ const Dashboard = () => {
                             </thead>
                             <tbody className={`text-[13px] ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>
                                 {followUpsData.length > 0 ? (
-                                    followUpsData.slice(0, rowsPerPage).map((item, idx) => (
+                                    followUpsData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((item, idx) => (
                                         <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                                             <td className="px-5 py-4">
                                                 <div
@@ -366,17 +345,34 @@ const Dashboard = () => {
                     {/* Pagination */}
                     <div className={`px-5 py-3 border-t flex justify-between items-center ${isDarkMode ? 'border-white/5 bg-white/5' : 'border-gray-100 bg-white'}`}>
                         <div className="flex items-center gap-2">
-                            <button className={`px-3 py-1.5 border rounded-md text-[12px] font-normal ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'
-                                }`}>« Previous</button>
-                            <button className="w-8 h-8 bg-[#f97316] text-white rounded-md font-bold text-[12px]">1</button>
-                            <button className={`w-8 h-8 border rounded-md text-[12px] font-normal ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'
-                                }`}>2</button>
-                            <button className={`w-8 h-8 border rounded-md text-[12px] font-normal ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'
-                                }`}>3</button>
-                            <button className={`w-8 h-8 border rounded-md text-[12px] font-normal ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'
-                                }`}>4</button>
-                            <button className={`px-3 py-1.5 border rounded-md text-[12px] font-normal ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'
-                                }`}>Next »</button>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className={`px-3 py-1.5 border rounded-md text-[12px] font-normal disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'}`}
+                            >
+                                « Previous
+                            </button>
+
+                            {Array.from({ length: Math.ceil(followUpsData.length / rowsPerPage) }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => setCurrentPage(page)}
+                                    className={`w-8 h-8 rounded-md text-[12px] font-bold transition-colors ${currentPage === page
+                                        ? 'bg-[#f97316] text-white'
+                                        : (isDarkMode ? 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10' : 'bg-white border border-gray-300 text-black hover:bg-gray-50')
+                                        }`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(followUpsData.length / rowsPerPage)))}
+                                disabled={currentPage === Math.ceil(followUpsData.length / rowsPerPage) || followUpsData.length === 0}
+                                className={`px-3 py-1.5 border rounded-md text-[12px] font-normal disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'}`}
+                            >
+                                Next »
+                            </button>
                         </div>
 
                         {/* Rows Per Page Dropdown */}
@@ -752,15 +748,15 @@ const Dashboard = () => {
                         <div className="flex flex-wrap gap-6 mb-6">
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-[#10b981]" />
-                                <span className="text-[12px] font-normal text-[#10b981]">Active Members : 1</span>
+                                <span className="text-[12px] font-normal text-[#10b981]">New Joins</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-[#ef4444]" />
-                                <span className="text-[12px] font-normal text-[#ef4444]">Inactive Members : 1</span>
+                                <span className="text-[12px] font-normal text-[#ef4444]">Expiries</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-[#f97316]" />
-                                <span className="text-[12px] font-normal text-[#f97316]">Upcoming Members : 1</span>
+                                <span className="text-[12px] font-normal text-[#f97316]">Renewals</span>
                             </div>
                         </div>
                         <div className="h-[280px] w-full">
@@ -769,7 +765,16 @@ const Dashboard = () => {
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#333' : '#eee'} />
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: isDarkMode ? '#666' : '#999' }} />
                                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: isDarkMode ? '#666' : '#999' }} />
-                                    <Tooltip cursor={{ fill: 'transparent' }} />
+                                    <Tooltip
+                                        cursor={{ fill: 'transparent' }}
+                                        contentStyle={{ backgroundColor: isDarkMode ? '#1a1a1a' : '#fff', borderColor: 'transparent', borderRadius: '8px' }}
+                                        formatter={(value, name) => {
+                                            if (name === 'active') return [value, 'New Joins'];
+                                            if (name === 'inactive') return [value, 'Expiries'];
+                                            if (name === 'upcoming') return [value, 'Renewals'];
+                                            return [value, name];
+                                        }}
+                                    />
                                     <Bar dataKey="active" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
                                     <Bar dataKey="inactive" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
                                     <Bar dataKey="upcoming" stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} />
@@ -786,11 +791,9 @@ const Dashboard = () => {
                 <div className={`p-6 rounded-lg border ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
                     <div className="flex flex-wrap gap-6 mb-6">
                         {[
-                            { color: '#06b6d4', label: 'Paid Amount' },
-                            { color: '#84cc16', label: 'Paid Balance Amount' },
-                            { color: '#f97316', label: 'Pending Payment' },
-                            { color: '#ef4444', label: 'Total Expenses' },
-                            { color: '#22c55e', label: 'Total Profit' },
+                            { color: '#10b981', label: 'Revenue' },
+                            { color: '#ef4444', label: 'Expenses' },
+                            { color: '#f97316', label: 'Pending' },
                         ].map((indicator, idx) => (
                             <div key={idx} className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: indicator.color }} />
@@ -804,14 +807,10 @@ const Dashboard = () => {
                                 <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#333' : '#eee'} vertical={false} />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#999' }} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#999' }} />
-                                <Tooltip />
-                                <Area type="monotone" dataKey="amount" stroke="#10b981" fill="url(#colorAmount)" strokeWidth={2} />
-                                <defs>
-                                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
+                                <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1a1a1a' : '#fff', borderColor: 'transparent', borderRadius: '8px' }} />
+                                <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={0.1} fill="#10b981" strokeWidth={2} />
+                                <Area type="monotone" dataKey="expenses" stroke="#ef4444" fillOpacity={0.1} fill="#ef4444" strokeWidth={2} />
+                                <Area type="monotone" dataKey="pending" stroke="#f97316" fillOpacity={0.1} fill="#f97316" strokeWidth={2} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -821,28 +820,36 @@ const Dashboard = () => {
                                 <div className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
                                 <span className={`text-[12px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Total Revenue</span>
                             </div>
-                            <h2 className={`text-[28px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>₹343600.00</h2>
+                            <h2 className={`text-[28px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                                ₹{stats?.financial?.totalRevenue || 0}
+                            </h2>
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
                                 <span className={`text-[12px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Pending Payment</span>
                             </div>
-                            <h2 className={`text-[28px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>₹11500.00</h2>
+                            <h2 className={`text-[28px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                                ₹{stats?.financial?.pendingPayment || 0}
+                            </h2>
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
                                 <span className={`text-[12px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Total Expenses</span>
                             </div>
-                            <h2 className={`text-[28px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>₹0.00</h2>
+                            <h2 className={`text-[28px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                                ₹{financialData.reduce((acc, curr) => acc + (curr.expenses || 0), 0)}
+                            </h2>
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
                                 <span className={`text-[12px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Total Profit</span>
                             </div>
-                            <h2 className={`text-[28px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>₹343600.00</h2>
+                            <h2 className={`text-[28px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                                ₹{(stats?.financial?.totalRevenue || 0) - financialData.reduce((acc, curr) => acc + (curr.expenses || 0), 0)}
+                            </h2>
                         </div>
                     </div>
                 </div>

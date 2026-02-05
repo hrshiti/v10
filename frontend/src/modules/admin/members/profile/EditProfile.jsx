@@ -223,8 +223,12 @@ const EditProfile = () => {
         <div className="space-y-6 animate-in fade-in zoom-in duration-300">
             {/* Header */}
             <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-yellow-400 flex items-center justify-center border-4 border-white shadow-sm">
-                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`} alt="Profile" className="w-full h-full object-cover" />
+                <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center border-4 border-white shadow-sm shrink-0">
+                    {memberData?.photo ? (
+                        <img src={memberData.photo} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`} alt="Profile" className="w-full h-full object-cover" />
+                    )}
                 </div>
                 <div>
                     <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formData.name}</h2>

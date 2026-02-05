@@ -230,9 +230,8 @@ const StatusDropdown = ({ isDarkMode, onChange }) => {
   )
 }
 
-const SelectAllocateDropdown = ({ isDarkMode }) => {
+const SelectAllocateDropdown = ({ isDarkMode, trainers, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selected, setSelected] = useState('Select Allocate');
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -245,6 +244,8 @@ const SelectAllocateDropdown = ({ isDarkMode }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const selectedTrainer = trainers.find(t => t._id === value);
+
   return (
     <div className="relative min-w-[170px]" ref={dropdownRef}>
       <div
@@ -254,22 +255,31 @@ const SelectAllocateDropdown = ({ isDarkMode }) => {
           : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
           }`}
       >
-        <span>{selected}</span>
+        <span>{selectedTrainer ? `${selectedTrainer.firstName} ${selectedTrainer.lastName}` : 'Select Allocate'}</span>
         <ChevronDown size={14} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
       </div>
 
       {isOpen && (
-        <div className={`absolute top-full left-0 mt-2 w-full rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
-          {['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'].map((alloc) => (
+        <div className={`absolute top-full left-0 mt-2 w-full rounded-lg shadow-xl border z-50 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+          <div
+            onClick={() => {
+              onChange('');
+              setIsOpen(false);
+            }}
+            className={`px-4 py-3 text-[13px] font-bold cursor-pointer hover:bg-gray-50 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
+          >
+            All Allocations
+          </div>
+          {trainers.map((trainer) => (
             <div
-              key={alloc}
+              key={trainer._id}
               onClick={() => {
-                setSelected(alloc);
+                onChange(trainer._id);
                 setIsOpen(false);
               }}
               className={`px-4 py-3 text-[13px] font-bold cursor-pointer hover:bg-gray-50 uppercase ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
             >
-              {alloc}
+              {trainer.firstName} {trainer.lastName}
             </div>
           ))}
         </div>
@@ -278,9 +288,8 @@ const SelectAllocateDropdown = ({ isDarkMode }) => {
   )
 }
 
-const AllocateToMeDropdown = ({ isDarkMode }) => {
+const AllocateToMeDropdown = ({ isDarkMode, onAllocateToMe }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selected, setSelected] = useState('Allocate To Me');
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -302,19 +311,19 @@ const AllocateToMeDropdown = ({ isDarkMode }) => {
           : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
           }`}
       >
-        <span>{selected}</span>
+        <span>Allocate To Me</span>
         <ChevronDown size={14} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
       </div>
       {isOpen && (
         <div className={`absolute top-full left-0 mt-2 w-full rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
           <div
             onClick={() => {
-              setSelected('Allocate To Me');
+              onAllocateToMe();
               setIsOpen(false);
             }}
             className={`px-4 py-3 text-[13px] font-bold cursor-pointer hover:bg-gray-50 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
           >
-            Allocate To Me
+            Show My Tasks
           </div>
         </div>
       )}
@@ -351,9 +360,27 @@ const FollowUps = () => {
   const [isDoneFilter, setIsDoneFilter] = useState(false); // Default pending
   const [typeFilter, setTypeFilter] = useState('');
   const [convertibilityFilter, setConvertibilityFilter] = useState('');
+  const [handledByFilter, setHandledByFilter] = useState('');
+  const [trainers, setTrainers] = useState([]);
 
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  const fetchTrainers = async () => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setTrainers(data);
+    } catch (error) {
+      console.error('Error fetching trainers:', error);
+    }
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -362,13 +389,21 @@ const FollowUps = () => {
       const token = adminInfo?.token;
       if (!token) return;
 
-      const query = new URLSearchParams({
+      const queryParams = {
         pageNumber: currentPage,
         pageSize: rowsPerPage,
         isDone: isDoneFilter,
         keyword: searchQuery,
         type: typeFilter,
-        status: convertibilityFilter
+        status: convertibilityFilter,
+        handledBy: handledByFilter
+      };
+
+      const query = new URLSearchParams();
+      Object.keys(queryParams).forEach(key => {
+        if (queryParams[key] !== undefined && queryParams[key] !== '') {
+          query.append(key, queryParams[key]);
+        }
       });
 
       const res = await fetch(`${API_BASE_URL}/api/admin/follow-ups?${query.toString()}`, {
@@ -386,8 +421,19 @@ const FollowUps = () => {
   };
 
   useEffect(() => {
+    fetchTrainers();
+  }, []);
+
+  useEffect(() => {
     fetchData();
-  }, [currentPage, rowsPerPage, isDoneFilter, typeFilter, convertibilityFilter]);
+  }, [currentPage, rowsPerPage, isDoneFilter, typeFilter, convertibilityFilter, handledByFilter]);
+
+  const handleAllocateToMe = () => {
+    const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+    if (adminInfo?._id) {
+      setHandledByFilter(adminInfo._id);
+    }
+  };
 
   const handleSearch = () => {
     setCurrentPage(1);
@@ -502,8 +548,13 @@ const FollowUps = () => {
         <FollowTypeDropdown isDarkMode={isDarkMode} onChange={(val) => setTypeFilter(val)} />
         <ConvertibleTypeDropdown isDarkMode={isDarkMode} onChange={(val) => setConvertibilityFilter(val)} />
         <StatusDropdown isDarkMode={isDarkMode} onChange={(status) => setIsDoneFilter(status === 'DONE')} />
-        <SelectAllocateDropdown isDarkMode={isDarkMode} />
-        <AllocateToMeDropdown isDarkMode={isDarkMode} />
+        <SelectAllocateDropdown
+          isDarkMode={isDarkMode}
+          trainers={trainers}
+          value={handledByFilter}
+          onChange={(val) => setHandledByFilter(val)}
+        />
+        <AllocateToMeDropdown isDarkMode={isDarkMode} onAllocateToMe={handleAllocateToMe} />
 
         <DateRangeFilter
           isDarkMode={isDarkMode}
@@ -540,19 +591,19 @@ const FollowUps = () => {
         <div className={`px-5 py-4 border-b border-gray-50 dark:border-white/5 bg-white`}>
           <span className="text-[14px] font-bold text-black-strict tracking-tight transition-none">Follow Ups</span>
         </div>
-        <div className="overflow-x-visible min-h-[500px]">
-          <table className="w-full text-left">
+        <div className="overflow-x-auto min-h-[500px]">
+          <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className={`text-[13px] font-bold text-gray-500 border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100'}`}>
-                <th className="px-6 py-5 whitespace-nowrap">Follow Up Date & Time</th>
-                <th className="px-6 py-5">Status</th>
-                <th className="px-6 py-5">Follow Up Type</th>
-                <th className="px-6 py-5">Name & Number</th>
-                <th className="px-6 py-5">Allocate</th>
-                <th className="px-6 py-5">Scheduled By</th>
-                <th className="px-6 py-5">Convertibility Status</th>
-                <th className="px-6 py-5">Comment</th>
-                <th className="px-6 py-5 w-10"></th>
+                <th className="px-4 py-5">Follow Up Date & Time</th>
+                <th className="px-4 py-5 text-center">Status</th>
+                <th className="px-4 py-5 text-center">Follow Up Type</th>
+                <th className="px-4 py-5">Name & Number</th>
+                <th className="px-4 py-5">Allocate</th>
+                <th className="px-4 py-5">Scheduled By</th>
+                <th className="px-4 py-5 text-center">Convertibility Status</th>
+                <th className="px-4 py-5">Comment</th>
+                <th className={`px-4 py-5 w-10 sticky right-0 z-20 border-l ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-white border-gray-100'}`}>Action</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-600'}`}>
@@ -589,11 +640,11 @@ const FollowUps = () => {
                         {row.status}
                       </div>
                     </td>
-                    <td className="px-6 py-7 text-[13px] font-medium leading-relaxed max-w-sm">{row.comment}</td>
-                    <td className="px-6 py-7 text-right relative" ref={el => actionContainerRefs.current[idx] = el}>
+                    <td className="px-4 py-7 text-[13px] font-medium leading-relaxed max-w-xs truncate">{row.comment}</td>
+                    <td className={`px-4 py-7 text-right relative sticky right-0 z-10 border-l ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-white border-gray-50'}`} ref={el => actionContainerRefs.current[idx] = el}>
                       <button
                         onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
-                        className={`transition-none p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 ${activeActionRow === idx ? 'text-black dark:text-white' : 'text-gray-400'}`}
+                        className={`transition-none p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 ${activeActionRow === idx ? 'text-black dark:text-white' : 'text-gray-400'}`}
                       >
                         <MoreVertical size={20} />
                       </button>
@@ -637,19 +688,52 @@ const FollowUps = () => {
         {/* Pagination - Matching Image 3 exactly */}
         <div className={`px-6 py-5 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2">
-            <button className={`px-5 py-2.5 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300'}`}>« Previous</button>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-              <button key={num} className={`w-10 h-10 rounded-lg text-[12px] font-bold transition-none ${num === 1 ? 'bg-[#f4a261] text-white' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600')}`}>
-                {num}
-              </button>
-            ))}
-            <span className="px-1 text-gray-400">...</span>
-            {[245, 246].map(num => (
-              <button key={num} className={`w-10 h-10 border rounded-lg text-[12px] font-bold shadow-sm transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600'}`}>
-                {num}
-              </button>
-            ))}
-            <button className={`px-5 py-2.5 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300'}`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-5 py-2.5 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400 disabled:opacity-50 cursor-not-allowed' : 'bg-white border-gray-300 text-gray-600 disabled:opacity-50 cursor-not-allowed'}`}
+            >
+              « Previous
+            </button>
+
+            {(() => {
+              const pages = [];
+              if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+              } else {
+                if (currentPage <= 4) {
+                  pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                } else if (currentPage >= totalPages - 3) {
+                  pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                } else {
+                  pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                }
+              }
+
+              if (totalPages === 0) return null;
+
+              return pages.map((page, idx) => (
+                page === '...' ? (
+                  <span key={idx} className="px-1 text-gray-400">...</span>
+                ) : (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-lg text-[12px] font-bold transition-none ${page === currentPage ? 'bg-[#f4a261] text-white' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50')}`}
+                  >
+                    {page}
+                  </button>
+                )
+              ));
+            })()}
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className={`px-5 py-2.5 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400 disabled:opacity-50 cursor-not-allowed' : 'bg-white border-gray-300 text-gray-600 disabled:opacity-50 cursor-not-allowed'}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">

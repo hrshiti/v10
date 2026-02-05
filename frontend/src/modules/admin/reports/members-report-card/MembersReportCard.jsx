@@ -10,15 +10,126 @@ import {
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
+import { API_BASE_URL } from '../../../../config/api';
 
-const AddReportCardModal = ({ isOpen, onClose, isDarkMode }) => {
+const AddReportCardModal = ({ isOpen, onClose, isDarkMode, onSuccess }) => {
   const [formData, setFormData] = useState({
-    date: '01-02-2026'
+    memberId: '',
+    memberName: '',
+    date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'),
+    age: '',
+    skeletalMuscles: '',
+    height: '',
+    weight: '',
+    bodyFat: '',
+    visceralFat: '',
+    bmi: '',
+    thigh: { left: '', right: '' },
+    shoulder: '',
+    biceps: { left: '', right: '' },
+    calf: { left: '', right: '' },
+    forearm: { left: '', right: '' },
+    chest: '',
+    glutes: '',
+    waist: '',
+    neck: '',
+    back: ''
   });
+
+  const [memberSearch, setMemberSearch] = useState('');
+  const [members, setMembers] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showMemberResults, setShowMemberResults] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (memberSearch.length > 2) {
+      const delayDebounceFn = setTimeout(() => {
+        searchMembers();
+      }, 500);
+      return () => clearTimeout(delayDebounceFn);
+    } else {
+      setMembers([]);
+      setShowMemberResults(false);
+    }
+  }, [memberSearch]);
+
+  const searchMembers = async () => {
+    setIsSearching(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      const res = await fetch(`${API_BASE_URL}/api/admin/members?keyword=${memberSearch}&pageSize=5`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data.members);
+        setShowMemberResults(true);
+      }
+    } catch (error) {
+      console.error('Error searching members:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const selectMember = (member) => {
+    setFormData({ ...formData, memberId: member._id, memberName: `${member.firstName} ${member.lastName}` });
+    setMemberSearch(`${member.firstName} ${member.lastName}`);
+    setMembers([]);
+    setShowMemberResults(false);
+  };
+
+  const handleInputChange = (field, value, subfield = null) => {
+    if (subfield) {
+      setFormData({
+        ...formData,
+        [field]: { ...formData[field], [subfield]: value }
+      });
+    } else {
+      setFormData({ ...formData, [field]: value });
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.memberId) {
+      alert('Please select a member');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/health-assessments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...formData,
+          date: formData.date.split('-').reverse().join('-') // to YYYY-MM-DD
+        })
+      });
+      if (res.ok) {
+        onSuccess();
+        onClose();
+      } else {
+        const errorData = await res.json();
+        alert(errorData.message || 'Error saving report card');
+      }
+    } catch (error) {
+      console.error('Error saving report card:', error);
+      alert('Network error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (!isOpen) return null;
 
-  const InputGroup = ({ label, placeholder, unit, type = "text", example }) => (
+  const InputGroup = ({ label, placeholder, unit, type = "text", example, value, onChange }) => (
     <div className="space-y-1.5 flex-1 min-w-[200px]">
       <label className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{label}</label>
       <div className="flex">
@@ -30,6 +141,8 @@ const AddReportCardModal = ({ isOpen, onClose, isDarkMode }) => {
         <input
           type={type}
           placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           className={`w-full px-4 py-3 border text-[14px] font-bold outline-none transition-none ${unit ? 'rounded-r-lg' : 'rounded-lg'} ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#fcfcfc] border-gray-200 text-black placeholder:text-gray-400'}`}
         />
       </div>
@@ -37,7 +150,7 @@ const AddReportCardModal = ({ isOpen, onClose, isDarkMode }) => {
     </div>
   );
 
-  const DropdownGroup = ({ label, placeholder, unit, example }) => {
+  const DropdownGroup = ({ label, placeholder, unit, example, value, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedUnit, setSelectedUnit] = useState(unit);
     const dropdownRef = useRef(null);
@@ -81,6 +194,8 @@ const AddReportCardModal = ({ isOpen, onClose, isDarkMode }) => {
           )}
           <input
             placeholder={placeholder}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
             className={`w-full px-4 py-3 border text-[14px] font-bold outline-none transition-none ${unit ? 'rounded-r-lg' : 'rounded-lg'} ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#fcfcfc] border-gray-200 text-black placeholder:text-gray-400'}`}
           />
         </div>
@@ -110,42 +225,61 @@ const AddReportCardModal = ({ isOpen, onClose, isDarkMode }) => {
           <div className={`p-6 rounded-xl border space-y-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'} border-b pb-4 ${isDarkMode ? 'border-white/5' : 'border-gray-50'}`}>Basic Details</h3>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 relative">
               <label className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Member Name</label>
               <input
                 placeholder="Search Member"
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                onFocus={() => members.length > 0 && setShowMemberResults(true)}
                 className={`w-full px-4 py-3 border rounded-lg text-[14px] font-bold outline-none transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#fcfcfc] border-gray-200 text-black placeholder:text-gray-400'}`}
               />
+              {showMemberResults && (
+                <div className={`absolute left-0 right-0 mt-1 border rounded-lg shadow-xl z-50 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
+                  {members.map(m => (
+                    <div
+                      key={m._id}
+                      onClick={() => selectMember(m)}
+                      className={`px-4 py-3 text-[14px] font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-orange-50 hover:text-orange-600 border-b last:border-0'}`}
+                    >
+                      {m.firstName} {m.lastName} ({m.mobile})
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-6">
-              <InputGroup label="Age*" placeholder="Age" />
+              <InputGroup label="Age*" placeholder="Age" type="number" value={formData.age} onChange={(val) => handleInputChange('age', val)} />
               <div className="space-y-1.5 flex-1 min-w-[200px]">
                 <label className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Date*</label>
                 <SingleDatePicker value={formData.date} onSelect={(val) => setFormData({ ...formData, date: val })} isDarkMode={isDarkMode} />
               </div>
             </div>
 
-            <InputGroup label="Skeletal Muscles*" placeholder="Measurement" />
+            <InputGroup label="Skeletal Muscles*" placeholder="Measurement" type="number" value={formData.skeletalMuscles} onChange={(val) => handleInputChange('skeletalMuscles', val)} />
 
             <div className="space-y-1.5">
               <label className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Height*</label>
               <div className="relative">
-                <select className={`w-full px-4 py-3 border rounded-lg text-[14px] font-bold outline-none appearance-none transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-[#fcfcfc] border-gray-200 text-black'}`}>
-                  <option>Select</option>
-                </select>
-                <ChevronDown size={18} className="absolute right-4 top-3.5 text-black" />
+                <input
+                  type="number"
+                  placeholder="Height in cm"
+                  value={formData.height}
+                  onChange={(e) => handleInputChange('height', e.target.value)}
+                  className={`w-full px-4 py-3 border rounded-lg text-[14px] font-bold outline-none transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-[#fcfcfc] border-gray-200 text-black'}`}
+                />
               </div>
             </div>
 
             <div className="flex flex-wrap gap-6">
-              <InputGroup label="Weight*" placeholder="Weight" unit="kg" />
-              <InputGroup label="Body Fat %*" placeholder="Body Fat" unit="kg" />
+              <InputGroup label="Weight*" placeholder="Weight" unit="kg" type="number" value={formData.weight} onChange={(val) => handleInputChange('weight', val)} />
+              <InputGroup label="Body Fat %*" placeholder="Body Fat" unit="%" type="number" value={formData.bodyFat} onChange={(val) => handleInputChange('bodyFat', val)} />
             </div>
 
             <div className="flex flex-wrap gap-6">
-              <InputGroup label="Visceral Fat *" placeholder="Visceral Fat" unit="%" />
-              <InputGroup label="BMI*" placeholder="BMI" />
+              <InputGroup label="Visceral Fat *" placeholder="Visceral Fat" unit="%" type="number" value={formData.visceralFat} onChange={(val) => handleInputChange('visceralFat', val)} />
+              <InputGroup label="BMI*" placeholder="BMI" type="number" value={formData.bmi} onChange={(val) => handleInputChange('bmi', val)} />
             </div>
           </div>
 
@@ -153,23 +287,23 @@ const AddReportCardModal = ({ isOpen, onClose, isDarkMode }) => {
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Thigh</h3>
             <div className="flex flex-wrap gap-6">
-              <DropdownGroup label="Left Thigh *" placeholder="Left Thigh" unit="In" />
-              <InputGroup label="Right Thigh *" placeholder="Right Thigh" />
+              <DropdownGroup label="Left Thigh *" placeholder="Left Thigh" unit="In" value={formData.thigh.left} onChange={(val) => handleInputChange('thigh', val, 'left')} />
+              <InputGroup label="Right Thigh *" placeholder="Right Thigh" type="number" value={formData.thigh.right} onChange={(val) => handleInputChange('thigh', val, 'right')} />
             </div>
           </div>
 
           {/* Shoulder Section */}
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Shoulder</h3>
-            <DropdownGroup label="Shoulder*" placeholder="Shoulder" unit="In" example="10" />
+            <DropdownGroup label="Shoulder*" placeholder="Shoulder" unit="In" example="10" value={formData.shoulder} onChange={(val) => handleInputChange('shoulder', val)} />
           </div>
 
           {/* Biceps Section */}
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Biceps</h3>
             <div className="flex flex-wrap gap-6">
-              <DropdownGroup label="Left Biceps*" placeholder="Left Biceps" unit="In" />
-              <InputGroup label="Right Biceps*" placeholder="Right Biceps" />
+              <DropdownGroup label="Left Biceps*" placeholder="Left Biceps" unit="In" value={formData.biceps.left} onChange={(val) => handleInputChange('biceps', val, 'left')} />
+              <InputGroup label="Right Biceps*" placeholder="Right Biceps" type="number" value={formData.biceps.right} onChange={(val) => handleInputChange('biceps', val, 'right')} />
             </div>
           </div>
 
@@ -177,8 +311,8 @@ const AddReportCardModal = ({ isOpen, onClose, isDarkMode }) => {
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Calf</h3>
             <div className="flex flex-wrap gap-6">
-              <DropdownGroup label="Left Calf*" placeholder="Left Calf" unit="In" />
-              <InputGroup label="Right Calf*" placeholder="Right Calf" />
+              <DropdownGroup label="Left Calf*" placeholder="Left Calf" unit="In" value={formData.calf.left} onChange={(val) => handleInputChange('calf', val, 'left')} />
+              <InputGroup label="Right Calf*" placeholder="Right Calf" type="number" value={formData.calf.right} onChange={(val) => handleInputChange('calf', val, 'right')} />
             </div>
           </div>
 
@@ -186,46 +320,50 @@ const AddReportCardModal = ({ isOpen, onClose, isDarkMode }) => {
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Forearm</h3>
             <div className="flex flex-wrap gap-6">
-              <DropdownGroup label="Left Forearm*" placeholder="Left Forearm" unit="In" />
-              <InputGroup label="Right Forearm*" placeholder="Right Forearm" />
+              <DropdownGroup label="Left Forearm*" placeholder="Left Forearm" unit="In" value={formData.forearm.left} onChange={(val) => handleInputChange('forearm', val, 'left')} />
+              <InputGroup label="Right Forearm*" placeholder="Right Forearm" type="number" value={formData.forearm.right} onChange={(val) => handleInputChange('forearm', val, 'right')} />
             </div>
           </div>
 
           {/* Chest Section */}
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Chest</h3>
-            <DropdownGroup label="Chest*" placeholder="Chest" unit="In" example="10" />
+            <DropdownGroup label="Chest*" placeholder="Chest" unit="In" example="10" value={formData.chest} onChange={(val) => handleInputChange('chest', val)} />
           </div>
 
           {/* Hip Section */}
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Hip</h3>
-            <DropdownGroup label="Glutes*" placeholder="Glutes" unit="In" example="10" />
+            <DropdownGroup label="Glutes*" placeholder="Glutes" unit="In" example="10" value={formData.glutes} onChange={(val) => handleInputChange('glutes', val)} />
           </div>
 
           {/* Waist Section */}
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Waist</h3>
-            <DropdownGroup label="Waist*" placeholder="Waist" unit="In" example="10" />
+            <DropdownGroup label="Waist*" placeholder="Waist" unit="In" example="10" value={formData.waist} onChange={(val) => handleInputChange('waist', val)} />
           </div>
 
           {/* Neck Section */}
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Neck</h3>
-            <DropdownGroup label="Neck*" placeholder="Neck" unit="In" example="10" />
+            <DropdownGroup label="Neck*" placeholder="Neck" unit="In" example="10" value={formData.neck} onChange={(val) => handleInputChange('neck', val)} />
           </div>
 
           {/* Back Section */}
           <div className="space-y-4">
             <h3 className={`text-[16px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Back</h3>
-            <DropdownGroup label="Back*" placeholder="Back" unit="In" example="10" />
+            <DropdownGroup label="Back*" placeholder="Back" unit="In" example="10" value={formData.back} onChange={(val) => handleInputChange('back', val)} />
           </div>
         </div>
 
         {/* Footer */}
         <div className={`p-6 border-t flex justify-end sticky bottom-0 z-10 transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white'}`}>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-3 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95">
-            Submit
+          <button
+            disabled={isSubmitting}
+            onClick={handleSubmit}
+            className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-3 rounded-lg text-[15px] font-black shadow-md transition-none active:scale-95 disabled:opacity-50"
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit'}
           </button>
         </div>
       </div>
@@ -237,9 +375,37 @@ const MemberReportCard = () => {
   const { isDarkMode } = useOutletContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRowsPerPageOpen, setIsRowsPerPageOpen] = useState(false);
+  const [reportCardData, setReportCardData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const rowsPerPageRef = useRef(null);
+
+  const fetchReports = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/health-assessments?pageNumber=${currentPage}&pageSize=${rowsPerPage}&search=${searchQuery}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReportCardData(data.assessments);
+        setTotalPages(data.pages);
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReports();
+  }, [currentPage, rowsPerPage, searchQuery]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -250,10 +416,6 @@ const MemberReportCard = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const reportCardData = [
-    // { member: 'RAJESH SHARMA', date: '31-01-2026', number: '9825098250' }
-  ];
 
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'} max-w-full overflow-x-hidden`}>
@@ -274,25 +436,36 @@ const MemberReportCard = () => {
         <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search"
+          placeholder="Search by name or mobile"
           className={`w-full pl-12 pr-4 py-3 border rounded-lg text-[15px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#fcfcfc] border-gray-200 text-black placeholder:text-gray-400'}`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      <p className="text-[13px] font-black text-gray-400 uppercase tracking-tight pt-2 transition-none">Member Report Card ({reportCardData.length})</p>
+      <p className="text-[13px] font-black text-gray-400 uppercase tracking-tight pt-2 transition-none">Member Report Card</p>
 
       {/* Table Section */}
       <div className={`mt-2 border rounded-lg overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
-        <div className="px-5 py-5 border-b bg-white dark:bg-white/5 transition-none flex items-center gap-4">
-          <span className="text-[14px] font-black text-gray-800 dark:text-gray-200 tracking-tight">
-            Member Report Card
-          </span>
-          <div className="flex items-center gap-3">
-            <ChevronLeft size={20} className="text-gray-400 cursor-pointer hover:text-gray-800" />
-            <ChevronRight size={20} className="text-gray-400 cursor-pointer hover:text-gray-800" />
+        <div className="px-5 py-5 border-b bg-white dark:bg-white/5 transition-none flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="text-[14px] font-black text-gray-800 dark:text-gray-200 tracking-tight">
+              Member Report Card
+            </span>
+            <div className="flex items-center gap-3">
+              <ChevronLeft
+                size={20}
+                className={`text-gray-400 cursor-pointer hover:text-gray-800 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+              />
+              <ChevronRight
+                size={20}
+                className={`text-gray-400 cursor-pointer hover:text-gray-800 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+              />
+            </div>
           </div>
+          <span className="text-xs font-bold text-gray-400">Page {currentPage} of {totalPages}</span>
         </div>
         <div className="overflow-x-auto transition-none">
           <table className="w-full text-left whitespace-nowrap transition-none">
@@ -304,15 +477,19 @@ const MemberReportCard = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {reportCardData.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="3" className="px-6 py-20 text-center text-gray-400 font-black uppercase tracking-widest bg-gray-50/10">Loading...</td>
+                </tr>
+              ) : reportCardData.length === 0 ? (
                 <tr>
                   <td colSpan="3" className="px-6 py-20 text-center text-gray-400 font-black uppercase tracking-widest bg-gray-50/10">No records found</td>
                 </tr>
               ) : (
-                reportCardData.slice(0, rowsPerPage).map((row, idx) => (
+                reportCardData.map((row, idx) => (
                   <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                     <td className="px-6 py-8 text-[#3b82f6] font-black uppercase cursor-pointer hover:underline">{row.member}</td>
-                    <td className="px-6 py-8">{row.date}</td>
+                    <td className="px-6 py-8">{new Date(row.date).toLocaleDateString('en-GB')}</td>
                     <td className="px-6 py-8">{row.number}</td>
                   </tr>
                 ))
@@ -324,9 +501,21 @@ const MemberReportCard = () => {
         {/* Pagination Section */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2 transition-none">
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'} ${currentPage === 1 ? 'opacity-50' : ''}`}
+            >
+              « Previous
+            </button>
+            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'} ${currentPage === totalPages ? 'opacity-50' : ''}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">
@@ -344,7 +533,7 @@ const MemberReportCard = () => {
                   {[5, 10, 20, 50].map(n => (
                     <div
                       key={n}
-                      onClick={() => { setRowsPerPage(n); setIsRowsPerPageOpen(false); }}
+                      onClick={() => { setRowsPerPage(n); setIsRowsPerPageOpen(false); setCurrentPage(1); }}
                       className={`px-3 py-2 text-[14px] font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-orange-50 hover:text-orange-600 text-gray-700'}`}
                     >
                       {n}
@@ -361,6 +550,7 @@ const MemberReportCard = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         isDarkMode={isDarkMode}
+        onSuccess={fetchReports}
       />
     </div>
   );

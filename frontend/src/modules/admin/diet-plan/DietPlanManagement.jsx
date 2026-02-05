@@ -10,6 +10,8 @@ import {
   Utensils
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import { API_BASE_URL } from '../../../config/api';
+import toast from 'react-hot-toast';
 
 const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -235,7 +237,7 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, plan, onUpdate }) => {
   const handleSubmit = () => {
     const weeklyPlan = days.map(day => ({
       day,
-      meals: dietCardsPerDay[day] || []
+      meals: (dietCardsPerDay[day] || []).filter(meal => meal.itemName && meal.itemName.trim() !== '')
     }));
 
     const updatedPlan = {
@@ -512,8 +514,68 @@ const DietPlanItem = ({ plan, isDarkMode, onDelete, onUpdate }) => {
   const [activeActionRow, setActiveActionRow] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const actionRef = useRef(null);
   const inputRef = useRef(null);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberResults, setMemberResults] = useState([]);
+  const [isSearchingMembers, setIsSearchingMembers] = useState(false);
+
+  useEffect(() => {
+    const searchMembers = async () => {
+      if (memberSearch.trim().length < 2) {
+        setMemberResults([]);
+        return;
+      }
+
+      try {
+        setIsSearchingMembers(true);
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const response = await fetch(`${API_BASE_URL}/api/admin/members?keyword=${memberSearch}`, {
+          headers: {
+            'Authorization': `Bearer ${adminInfo?.token}`
+          }
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setMemberResults(data.members || []);
+        }
+      } catch (err) {
+        console.error('Error searching members:', err);
+      } finally {
+        setIsSearchingMembers(false);
+      }
+    };
+
+    const timer = setTimeout(searchMembers, 500);
+    return () => clearTimeout(timer);
+  }, [memberSearch]);
+
+  const handleAssignMember = async (member) => {
+    const isAlreadyAssigned = plan.assignedMembers?.some(m => (m._id || m) === member._id);
+    if (isAlreadyAssigned) {
+      toast.error('Member already assigned');
+      return;
+    }
+
+    const updatedPlan = {
+      ...plan,
+      assignedMembers: [...(plan.assignedMembers || []).map(m => m._id || m), member._id]
+    };
+
+    onUpdate(updatedPlan);
+    setMemberSearch('');
+    setMemberResults([]);
+    setIsSearchActive(false);
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    const updatedPlan = {
+      ...plan,
+      assignedMembers: plan.assignedMembers.filter(m => (m._id || m) !== memberId).map(m => m._id || m)
+    };
+    onUpdate(updatedPlan);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -544,16 +606,38 @@ const DietPlanItem = ({ plan, isDarkMode, onDelete, onUpdate }) => {
               ? 'border-[#f97316] ring-1 ring-[#f97316]'
               : isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f8f9fa]'
               }`}
-            onClick={() => setIsSearchActive(true)}
           >
             <Search size={16} className={`mr-2 ${isSearchActive ? 'text-[#f97316]' : 'text-gray-400'}`} />
             <input
               type="text"
               placeholder="Search Members"
+              value={memberSearch}
+              onChange={(e) => {
+                setMemberSearch(e.target.value);
+                setIsSearchActive(true);
+              }}
+              onFocus={() => setIsSearchActive(true)}
               className={`w-full bg-transparent text-[14px] font-bold outline-none placeholder:font-medium placeholder:text-gray-400 ${isDarkMode ? 'text-white' : 'text-[#f97316]'
                 }`}
             />
             <ChevronDown size={16} className={`ml-2 ${isSearchActive ? 'text-[#f97316]' : 'text-gray-400'}`} />
+
+            {isSearchActive && memberResults.length > 0 && (
+              <div className={`absolute top-full left-0 right-0 mt-1 rounded-lg shadow-xl border z-30 max-h-[200px] overflow-y-auto ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                {memberResults.map(member => (
+                  <div
+                    key={member._id}
+                    onClick={() => handleAssignMember(member)}
+                    className={`px-4 py-2 text-[13px] font-bold cursor-pointer transition-all ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-orange-50 hover:text-[#f97316]'}`}
+                  >
+                    <div className="flex justify-between">
+                      <span>{member.firstName} {member.lastName}</span>
+                      <span className="text-[10px] opacity-60">{member.memberId}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <button onClick={() => setIsExpanded(!isExpanded)}>
@@ -566,12 +650,14 @@ const DietPlanItem = ({ plan, isDarkMode, onDelete, onUpdate }) => {
             </button>
             {activeActionRow && (
               <div className={`absolute right-0 top-full mt-2 w-[180px] rounded-lg shadow-2xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
-                {['Edit', 'Delete'].map((action, i) => (
+                {['Edit', 'Assign Members', 'Delete'].map((action, i) => (
                   <div
                     key={i}
                     onClick={() => {
                       if (action === 'Edit') {
                         setIsEditModalOpen(true);
+                      } else if (action === 'Assign Members') {
+                        setIsAssignModalOpen(true);
                       } else if (action === 'Delete') {
                         onDelete(plan); // Call the delete handler
                       }
@@ -590,6 +676,26 @@ const DietPlanItem = ({ plan, isDarkMode, onDelete, onUpdate }) => {
           </div>
         </div>
       </div>
+
+      {/* Assigned Members Chips */}
+      {plan.assignedMembers && plan.assignedMembers.length > 0 && (
+        <div className="px-4 pb-4 flex flex-wrap gap-2">
+          {plan.assignedMembers.map((member, mIdx) => (
+            <div key={mIdx} className="bg-orange-50 dark:bg-orange-950/20 text-[#f97316] px-3 py-1 rounded-full text-[12px] font-bold flex items-center gap-2 border border-orange-100 dark:border-orange-900/30">
+              {typeof member === 'object' ? `${member.firstName} ${member.lastName}` : 'Member'}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveMember(member._id || member);
+                }}
+                className="hover:text-red-500 transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Expanded Content (Weekly Schedule) */}
       {isExpanded && (
@@ -616,6 +722,15 @@ const DietPlanItem = ({ plan, isDarkMode, onDelete, onUpdate }) => {
       <EditDietPlanModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
+        isDarkMode={isDarkMode}
+        plan={plan}
+        onUpdate={onUpdate}
+      />
+
+      {/* Assign Members Modal */}
+      <AssignMembersModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
         isDarkMode={isDarkMode}
         plan={plan}
         onUpdate={onUpdate}
@@ -652,6 +767,40 @@ const CreateDietPlanDetailsModal = ({ isOpen, onClose, isDarkMode, planName, pri
   });
 
   const [nextId, setNextId] = useState(2);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberResults, setMemberResults] = useState([]);
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [isSearchingMembers, setIsSearchingMembers] = useState(false);
+
+  useEffect(() => {
+    const searchMembers = async () => {
+      if (memberSearch.trim().length < 2) {
+        setMemberResults([]);
+        return;
+      }
+
+      try {
+        setIsSearchingMembers(true);
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const response = await fetch(`${API_BASE_URL}/api/admin/members?keyword=${memberSearch}`, {
+          headers: {
+            'Authorization': `Bearer ${adminInfo?.token}`
+          }
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setMemberResults(data.members || []);
+        }
+      } catch (err) {
+        console.error('Error searching members:', err);
+      } finally {
+        setIsSearchingMembers(false);
+      }
+    };
+
+    const timer = setTimeout(searchMembers, 500);
+    return () => clearTimeout(timer);
+  }, [memberSearch]);
 
   if (!isOpen) return null;
 
@@ -697,19 +846,38 @@ const CreateDietPlanDetailsModal = ({ isOpen, onClose, isDarkMode, planName, pri
     // Transform to weeklyPlan array format expected by the list component
     const weeklyPlan = days.map(day => ({
       day,
-      meals: finalDietCards[day]
+      meals: finalDietCards[day].filter(meal => meal.itemName && meal.itemName.trim() !== '')
     }));
 
+    // Check if at least one meal across all days has been added
+    const totalMeals = weeklyPlan.reduce((sum, day) => sum + day.meals.length, 0);
+    if (totalMeals === 0) {
+      toast.error('Please add at least one meal to the diet plan');
+      return;
+    }
+
     // Create the final plan object
+    const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
     const newPlan = {
       name: planName,
       privacyMode: privacyMode,
       weeklyPlan: weeklyPlan,
-      // Add a temporary ID usually backend handles this
-      _id: Date.now().toString()
+      assignedMembers: selectedMembers.map(m => m._id),
+      trainerId: adminInfo?._id
     };
 
     onCreate(newPlan);
+  };
+
+  const toggleMemberSelection = (member) => {
+    setSelectedMembers(prev => {
+      const isSelected = prev.some(m => m._id === member._id);
+      if (isSelected) {
+        return prev.filter(m => m._id !== member._id);
+      } else {
+        return [...prev, member];
+      }
+    });
   };
 
   return (
@@ -747,12 +915,45 @@ const CreateDietPlanDetailsModal = ({ isOpen, onClose, isDarkMode, planName, pri
               <input
                 type="text"
                 placeholder="Search Members"
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
                 className={`w-full bg-transparent text-[13px] font-bold outline-none ${isDarkMode ? 'text-white' : 'text-gray-700 placeholder-gray-400'}`}
               />
             </div>
-            <p className="text-[11px] text-gray-400 font-medium pl-1">Search members from here</p>
 
-            <div className={`mt-6 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}></div>
+            {/* Search Results */}
+            <div className="mt-2 max-h-[200px] overflow-y-auto">
+              {isSearchingMembers && <p className="text-[11px] text-center py-2">Searching...</p>}
+              {!isSearchingMembers && memberResults.length > 0 && (
+                <div className="space-y-1">
+                  {memberResults.map(member => (
+                    <div
+                      key={member._id}
+                      onClick={() => toggleMemberSelection(member)}
+                      className={`p-2 rounded cursor-pointer text-[12px] flex justify-between items-center ${selectedMembers.some(m => m._id === member._id)
+                        ? 'bg-[#f97316] text-white'
+                        : isDarkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'
+                        }`}
+                    >
+                      <span>{member.firstName} {member.lastName}</span>
+                      <span className="opacity-70 text-[10px]">{member.memberId}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className={`mt-6 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+              <p className="text-[12px] font-bold mb-3">Selected Members ({selectedMembers.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedMembers.map(member => (
+                  <div key={member._id} className="bg-orange-100 text-[#f97316] px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1">
+                    {member.firstName}
+                    <X size={10} className="cursor-pointer" onClick={() => toggleMemberSelection(member)} />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1038,7 +1239,7 @@ const DietPlanManagement = () => {
     try {
       setLoading(true);
       const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
-      const response = await fetch('http://localhost:5000/api/admin/diet-plans', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/diet-plans`, {
         headers: {
           'Authorization': `Bearer ${adminInfo?.token}`
         }
@@ -1049,6 +1250,7 @@ const DietPlanManagement = () => {
       }
     } catch (err) {
       console.error('Error fetching plans:', err);
+      toast.error('Failed to fetch diet plans');
     } finally {
       setLoading(false);
     }
@@ -1078,14 +1280,34 @@ const DietPlanManagement = () => {
     setIsCreateDetailsModalOpen(true);
   };
 
-  const handleFinalCreate = (newPlan) => {
-    // Ideally post to backend here
-    setPlans(prev => [newPlan, ...prev]);
-    setIsCreateDetailsModalOpen(false);
-    if (newPlan.privacyMode === 'Public') {
-      setActiveTab('Public');
-    } else {
-      setActiveTab('Private');
+  const handleFinalCreate = async (newPlan) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const response = await fetch(`${API_BASE_URL}/api/admin/diet-plans`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminInfo?.token}`
+        },
+        body: JSON.stringify(newPlan)
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setPlans(prev => [data, ...prev]);
+        setIsCreateDetailsModalOpen(false);
+        if (data.privacyMode === 'Public') {
+          setActiveTab('Public');
+        } else {
+          setActiveTab('Private');
+        }
+        toast.success('Diet plan created successfully');
+      } else {
+        toast.error(data.message || 'Failed to create diet plan');
+      }
+    } catch (err) {
+      console.error('Error creating plan:', err);
+      toast.error('Error creating diet plan');
     }
   };
 
@@ -1094,32 +1316,56 @@ const DietPlanManagement = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleUpdatePlan = (updatedPlan) => {
-    setPlans(prev => prev.map(p => p._id === updatedPlan._id ? updatedPlan : p));
-    // Optional: Add backend call here to persist changes
+  const handleUpdatePlan = async (updatedPlan) => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const response = await fetch(`${API_BASE_URL}/api/admin/diet-plans/${updatedPlan._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminInfo?.token}`
+        },
+        body: JSON.stringify(updatedPlan)
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setPlans(prev => prev.map(p => p._id === data._id ? data : p));
+        toast.success('Diet plan updated successfully');
+      } else {
+        toast.error(data.message || 'Failed to update diet plan');
+      }
+    } catch (err) {
+      console.error('Error updating plan:', err);
+      toast.error('Error updating diet plan');
+    }
   };
 
   const confirmDelete = async () => {
     if (!planToDelete) return;
 
-    // Optimistic update for UI demo
-    setPlans(prev => prev.filter(p => p._id !== planToDelete._id));
-    setIsDeleteModalOpen(false);
-    setPlanToDelete(null);
-
-    // Backend call would go here
-    /*
     try {
       const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
-      await fetch(`http://localhost:5000/api/admin/diet-plans/${planToDelete._id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/diet-plans/${planToDelete._id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${adminInfo?.token}` }
+        headers: {
+          'Authorization': `Bearer ${adminInfo?.token}`
+        }
       });
+
+      if (response.ok) {
+        setPlans(prev => prev.filter(p => p._id !== planToDelete._id));
+        setIsDeleteModalOpen(false);
+        setPlanToDelete(null);
+        toast.success('Diet plan deleted successfully');
+      } else {
+        const data = await response.json();
+        toast.error(data.message || 'Failed to delete diet plan');
+      }
     } catch (err) {
-      console.error(err);
-      // Revert if failed
+      console.error('Error deleting plan:', err);
+      toast.error('Error deleting diet plan');
     }
-    */
   };
 
   const publicPlans = plans.filter(p => p.privacyMode === 'Public');
@@ -1248,5 +1494,153 @@ const DietPlanManagement = () => {
     </div>
   );
 };
+
+const AssignMembersModal = ({ isOpen, onClose, isDarkMode, plan, onUpdate }) => {
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberResults, setMemberResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    const searchMembers = async () => {
+      if (memberSearch.trim().length < 2) {
+        setMemberResults([]);
+        return;
+      }
+
+      try {
+        setIsSearching(true);
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const response = await fetch(`${API_BASE_URL}/api/admin/members?keyword=${memberSearch}`, {
+          headers: {
+            'Authorization': `Bearer ${adminInfo?.token}`
+          }
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setMemberResults(data.members || []);
+        }
+      } catch (err) {
+        console.error('Error searching members:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timer = setTimeout(searchMembers, 500);
+    return () => clearTimeout(timer);
+  }, [memberSearch]);
+
+  const handleAssign = (member) => {
+    const isAlreadyAssigned = plan.assignedMembers?.some(m => (m._id || m) === member._id);
+    if (isAlreadyAssigned) {
+      toast.error('Member already assigned');
+      return;
+    }
+
+    const updatedPlan = {
+      ...plan,
+      assignedMembers: [...(plan.assignedMembers || []).map(m => m._id || m), member._id]
+    };
+
+    onUpdate(updatedPlan);
+    setMemberSearch('');
+  };
+
+  const handleRemove = (memberId) => {
+    const updatedPlan = {
+      ...plan,
+      assignedMembers: plan.assignedMembers.filter(m => (m._id || m) !== memberId).map(m => m._id || m)
+    };
+    onUpdate(updatedPlan);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`w-[500px] rounded-2xl shadow-2xl ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        <div className="p-6 border-b dark:border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-[#f97316]/10 p-2 rounded-lg">
+              <Plus size={20} className="text-[#f97316]" />
+            </div>
+            <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Assign Members</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-black dark:hover:text-white">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="relative">
+            <label className={`block text-xs font-bold mb-2 uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Search Member
+            </label>
+            <div className={`flex items-center border rounded-xl px-4 py-3 transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200 focus-within:border-[#f97316]'}`}>
+              <Search size={18} className="text-gray-400 mr-3" />
+              <input
+                type="text"
+                placeholder="Enter member name or ID..."
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                className="w-full bg-transparent text-sm font-bold outline-none placeholder:font-medium"
+              />
+            </div>
+
+            {isSearching && <p className="text-xs mt-2 text-center text-gray-400 animate-pulse">Searching...</p>}
+
+            {memberResults.length > 0 && (
+              <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl shadow-xl border z-20 max-h-[200px] overflow-y-auto ${isDarkMode ? 'bg-[#252525] border-white/10' : 'bg-white border-gray-100'}`}>
+                {memberResults.map(member => (
+                  <div
+                    key={member._id}
+                    onClick={() => handleAssign(member)}
+                    className={`p-4 cursor-pointer flex justify-between items-center transition-colors ${isDarkMode ? 'hover:bg-white/5 border-b border-white/5' : 'hover:bg-orange-50 border-b border-gray-50 hover:text-[#f97316]'}`}
+                  >
+                    <div>
+                      <p className="text-sm font-bold">{member.firstName} {member.lastName}</p>
+                      <p className="text-[10px] opacity-60">ID: {member.memberId}</p>
+                    </div>
+                    <Plus size={16} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Assigned Members ({plan.assignedMembers?.length || 0})
+            </label>
+            <div className="flex flex-wrap gap-2 max-h-[150px] overflow-y-auto pr-2">
+              {plan.assignedMembers?.map((member, idx) => (
+                <div key={idx} className="bg-[#f97316]/5 border border-[#f97316]/20 px-3 py-1.5 rounded-full flex items-center gap-2 group transition-all hover:bg-[#f97316]/10">
+                  <span className="text-[13px] font-bold text-[#f97316]">
+                    {typeof member === 'object' ? `${member.firstName} ${member.lastName}` : 'Member'}
+                  </span>
+                  <button onClick={() => handleRemove(member._id || member)}>
+                    <X size={14} className="text-[#f97316] hover:text-red-500 transition-colors" />
+                  </button>
+                </div>
+              ))}
+              {(!plan.assignedMembers || plan.assignedMembers.length === 0) && (
+                <p className="text-[12px] text-gray-500 italic">No members assigned yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t dark:border-white/10 flex justify-end">
+          <button
+            onClick={onClose}
+            className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-3 rounded-xl text-sm font-black shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default DietPlanManagement;

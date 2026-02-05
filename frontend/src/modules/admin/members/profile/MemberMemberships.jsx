@@ -266,8 +266,123 @@ const AddOnDaysModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) 
     );
 };
 
+const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => {
+    const [amount, setAmount] = useState('');
+    const [paymentMode, setPaymentMode] = useState('Cash');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (membership && isOpen) {
+            setAmount(membership.dueAmount || '');
+        }
+    }, [membership, isOpen]);
+
+    if (!isOpen || !membership) return null;
+
+    const handleSubmit = async () => {
+        if (!amount || amount <= 0) return;
+        setIsSubmitting(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/subscriptions/${membership._id}/pay-due`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    amount: Number(amount),
+                    paymentMode,
+                    closedBy: adminInfo?._id
+                })
+            });
+            if (res.ok) {
+                onSuccess();
+                onClose();
+            } else {
+                const err = await res.json();
+                alert(err.message || 'Failed to record payment');
+            }
+        } catch (error) {
+            console.error('Error paying due:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+            <div className={`relative w-full max-w-lg rounded-xl shadow-2xl animate-in zoom-in duration-200 ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+                <div className="p-4 py-3 border-b dark:border-white/10 border-gray-100 flex items-center justify-between">
+                    <h3 className={`text-base font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Pay Due Balance</h3>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
+                </div>
+                <div className="p-8 space-y-6">
+                    <div className="flex justify-between items-center p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 mb-4">
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-orange-500 tracking-wider">Current Due</p>
+                            <p className="text-xl font-black text-orange-600">₹{membership.dueAmount}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Package</p>
+                            <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{membership.packageName}</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Amount to Pay*</label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-3.5 text-gray-400 font-bold">₹</span>
+                                <input
+                                    type="number"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    placeholder="Enter amount"
+                                    max={membership.dueAmount}
+                                    className={`w-full pl-10 pr-4 py-3 rounded-lg border text-sm font-bold outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white focus:border-orange-500/50' : 'bg-white border-gray-300 focus:border-orange-500'}`}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Payment Mode</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {['Cash', 'Online', 'Card'].map(mode => (
+                                    <button
+                                        key={mode}
+                                        onClick={() => setPaymentMode(mode)}
+                                        className={`py-2.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${paymentMode === mode
+                                            ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
+                                            : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
+                                            }`}
+                                    >
+                                        {mode}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-6 flex items-center justify-end gap-3 border-t dark:border-white/10 border-gray-100">
+                    <button onClick={onClose} className={`px-8 py-2.5 rounded-lg text-sm font-bold ${isDarkMode ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>Cancel</button>
+                    <button
+                        disabled={isSubmitting || !amount || amount <= 0}
+                        onClick={handleSubmit}
+                        className="px-8 py-2.5 bg-emerald-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                    >
+                        {isSubmitting ? 'Processing...' : 'Record Payment'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const MemberMemberships = () => {
-    const { isDarkMode, memberData } = useOutletContext();
+    const { isDarkMode, memberData, refreshProfile } = useOutletContext();
     const navigate = useNavigate();
     const { id } = useParams();
 
@@ -275,6 +390,7 @@ const MemberMemberships = () => {
     const [activeMenu, setActiveMenu] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showAddOnModal, setShowAddOnModal] = useState(false);
+    const [showPayDueModal, setShowPayDueModal] = useState(false);
     const [selectedMembership, setSelectedMembership] = useState(null);
     const [subscriptions, setSubscriptions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -332,8 +448,9 @@ const MemberMemberships = () => {
         setSelectedMembership(item);
         if (opt === 'Add-On Days') setShowAddOnModal(true);
         if (opt === 'Change Start Date') setShowEditModal(true);
+        if (opt === 'Pay Due') setShowPayDueModal(true);
         if (opt === 'Renew') navigate(`/admin/members/profile/${id}/membership/renew`);
-        if (opt === 'Transfer') navigate(`/admin/members/profile/${id}/membership/transfer`);
+
         if (opt === 'Freeze') navigate(`/admin/members/profile/${id}/membership/freeze`);
         if (opt === 'Upgrade') navigate(`/admin/members/profile/${id}/membership/upgrade`);
         if (opt === 'Resale') navigate(`/admin/members/profile/${id}/membership/resale`);
@@ -384,10 +501,10 @@ const MemberMemberships = () => {
 
                                     {activeMenu === idx && (
                                         <div ref={menuRef} className={`absolute right-10 top-0 w-48 rounded-md shadow-xl border z-50 py-1 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                                            {['Renew', 'Add-On Days', 'Change Start Date', 'Transfer', 'Freeze', 'Upgrade', 'Resale'].map((opt, i) => (
+                                            {['Renew', 'Pay Due', 'Add-On Days', 'Change Start Date', 'Freeze', 'Upgrade', 'Resale'].map((opt, i) => (
                                                 <div
                                                     key={i}
-                                                    className={`px-4 py-3 text-[13px] font-bold cursor-pointer transition-all ${isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'}`}
+                                                    className={`px-4 py-3 text-[13px] font-bold cursor-pointer transition-all ${isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'} ${opt === 'Pay Due' && item.dueAmount <= 0 ? 'hidden' : ''}`}
                                                     onClick={() => handleActionClick(opt, item)}
                                                 >
                                                     {opt}
@@ -504,6 +621,17 @@ const MemberMemberships = () => {
                 onClose={() => setShowAddOnModal(false)}
                 isDarkMode={isDarkMode}
                 onSuccess={fetchSubscriptions}
+            />
+
+            <PayDueModal
+                isOpen={showPayDueModal}
+                membership={selectedMembership}
+                onClose={() => setShowPayDueModal(false)}
+                isDarkMode={isDarkMode}
+                onSuccess={() => {
+                    fetchSubscriptions();
+                    if (refreshProfile) refreshProfile();
+                }}
             />
         </div>
     );

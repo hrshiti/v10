@@ -378,9 +378,7 @@ const Memberships = () => {
       case 'Freeze Plan':
         navigate(`/admin/members/profile/${member._id}/membership/freeze`);
         break;
-      case 'Transfer':
-        navigate(`/admin/members/profile/${member._id}/membership/transfer`);
-        break;
+
       case 'View Documents':
         navigate(`/admin/members/profile/${member._id}/documents`);
         break;
@@ -396,7 +394,7 @@ const Memberships = () => {
     { label: 'Renew Plan', icon: RotateCcw },
     { label: 'Upgrade Plan', icon: TrendingUp },
     { label: 'Freeze Plan', icon: Snowflake },
-    { label: 'Transfer', icon: ArrowLeftRight },
+
     { label: 'View Documents', icon: FileText },
   ];
 

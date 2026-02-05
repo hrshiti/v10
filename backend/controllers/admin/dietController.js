@@ -13,15 +13,21 @@ const createDietPlan = asyncHandler(async (req, res) => {
         throw new Error('Please provide a name and weekly plan');
     }
 
-    const dietPlan = await DietPlan.create({
-        name,
-        privacyMode,
-        assignedMembers,
-        trainerId,
-        weeklyPlan
-    });
+    try {
+        const dietPlan = await DietPlan.create({
+            name,
+            privacyMode,
+            assignedMembers: assignedMembers && assignedMembers.length > 0 ? assignedMembers : [],
+            trainerId: trainerId || null,
+            weeklyPlan
+        });
 
-    res.status(201).json(dietPlan);
+        res.status(201).json(dietPlan);
+    } catch (error) {
+        console.error('Diet Plan Creation Error:', error);
+        res.status(500);
+        throw new Error(error.message);
+    }
 });
 
 // @desc    Get all diet plans
@@ -63,8 +69,14 @@ const updateDietPlan = asyncHandler(async (req, res) => {
         dietPlan.weeklyPlan = req.body.weeklyPlan || dietPlan.weeklyPlan;
         dietPlan.status = req.body.status || dietPlan.status;
 
-        const updatedPlan = await dietPlan.save();
-        res.json(updatedPlan);
+        try {
+            const updatedPlan = await dietPlan.save();
+            res.json(updatedPlan);
+        } catch (error) {
+            console.error('Diet Plan Update Error:', error);
+            res.status(500);
+            throw new Error(error.message);
+        }
     } else {
         res.status(404);
         throw new Error('Diet plan not found');

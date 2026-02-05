@@ -19,7 +19,7 @@ const dietPlanSchema = new mongoose.Schema({
                     foodType: { type: String }, // Veg, Non-Veg, etc.
                     mealType: { type: String }, // Breakfast, Lunch, etc.
                     itemName: { type: String, required: true },
-                    quantity: { type: Number },
+                    quantity: { type: String },
                     unit: { type: String }, // g, ml, pieces
                     timing: { type: String }, // hh:mm
                     description: { type: String }

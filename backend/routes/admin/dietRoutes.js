@@ -7,6 +7,9 @@ const {
     updateDietPlan,
     deleteDietPlan
 } = require('../../controllers/admin/dietController');
+const { protect } = require('../../middlewares/authMiddleware');
+
+router.use(protect);
 
 router.route('/')
     .post(createDietPlan)

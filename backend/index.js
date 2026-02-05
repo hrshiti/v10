@@ -34,10 +34,12 @@ app.use('/api/admin/employees', require('./routes/admin/employeeRoutes'));
 app.use('/api/admin/diet-plans', require('./routes/admin/dietRoutes'));
 app.use('/api/admin/follow-ups', require('./routes/admin/followUpRoutes'));
 app.use('/api/admin/expenses', require('./routes/admin/expenseRoutes'));
+app.use('/api/admin/gym-details', require('./routes/admin/gymRoutes'));
 
 // User Routes
 app.use('/api/user/auth', require('./routes/user/authRoutes'));
 app.use('/api/user', require('./routes/user/userRoutes'));
+app.use('/api/user/water-intake', require('./routes/user/waterIntakeRoutes'));
 
 // Basic route
 app.get('/', (req, res) => {

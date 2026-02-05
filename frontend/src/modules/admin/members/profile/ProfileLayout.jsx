@@ -14,9 +14,134 @@ import {
     Edit,
     History,
     ChevronLeft,
-    Plus
+    Plus,
+    X,
+    CheckCircle2
 } from 'lucide-react';
 
+
+const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) => {
+    const [amount, setAmount] = useState('');
+    const [paymentMode, setPaymentMode] = useState('Cash');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (member && isOpen) {
+            setAmount(member.dueAmount || '');
+        }
+    }, [member, isOpen]);
+
+    if (!isOpen || !member) return null;
+
+    const handleSubmit = async () => {
+        if (!amount || amount <= 0) return;
+        setIsSubmitting(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/${member._id}/pay-due`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    amount: Number(amount),
+                    paymentMode,
+                    closedBy: adminInfo?._id
+                })
+            });
+            if (res.ok) {
+                onSuccess();
+                onClose();
+            } else {
+                const err = await res.json();
+                alert(err.message || 'Failed to record payment');
+            }
+        } catch (error) {
+            console.error('Error paying due:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+            <div className={`relative w-full max-w-lg rounded-xl shadow-2xl animate-in zoom-in duration-200 ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+                <div className="p-4 py-3 border-b dark:border-white/10 border-gray-100 flex items-center justify-between">
+                    <h3 className={`text-base font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Pay Outstanding Dues</h3>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
+                </div>
+                <div className="p-8 space-y-6">
+                    <div className="flex justify-between items-center p-5 rounded-xl bg-red-500/5 border border-red-500/10 mb-4">
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-red-500 tracking-wider">Total Outstanding</p>
+                            <p className="text-2xl font-black text-red-600">₹{member.dueAmount}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Member</p>
+                            <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{member.firstName} {member.lastName}</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Amount to Pay*</label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-3.5 text-gray-400 font-bold">₹</span>
+                                <input
+                                    type="number"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    placeholder="Enter amount"
+                                    max={member.dueAmount}
+                                    className={`w-full pl-10 pr-4 py-3 rounded-lg border text-sm font-bold outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white focus:border-red-500/50' : 'bg-white border-gray-300 focus:border-red-500'}`}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Payment Mode</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {['Cash', 'Online', 'Card'].map(mode => (
+                                    <button
+                                        key={mode}
+                                        onClick={() => setPaymentMode(mode)}
+                                        className={`py-2.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${paymentMode === mode
+                                            ? 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/20'
+                                            : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
+                                            }`}
+                                    >
+                                        {mode}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Balance Preview */}
+                        {amount > 0 && (
+                            <div className={`p-4 rounded-lg flex justify-between items-center ${isDarkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
+                                <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Remaining Balance After Payment</p>
+                                <p className="text-sm font-black text-orange-500">₹{Math.max(0, member.dueAmount - Number(amount))}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div className="p-6 flex items-center justify-end gap-3 border-t dark:border-white/10 border-gray-100">
+                    <button onClick={onClose} className={`px-8 py-2.5 rounded-lg text-sm font-bold ${isDarkMode ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>Cancel</button>
+                    <button
+                        disabled={isSubmitting || !amount || amount <= 0}
+                        onClick={handleSubmit}
+                        className="px-8 py-2.5 bg-emerald-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                    >
+                        {isSubmitting ? 'Processing...' : 'Collect Payment'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const ProfileLayout = () => {
     const { id } = useParams();
@@ -51,6 +176,7 @@ const ProfileLayout = () => {
     const memberDataFromState = location.state?.member;
     const [memberData, setMemberData] = useState(memberDataFromState || null);
     const [isLoading, setIsLoading] = useState(!memberData);
+    const [isPayDueModalOpen, setIsPayDueModalOpen] = useState(false);
 
     const fetchMember = async () => {
         if (!id) return;
@@ -135,12 +261,23 @@ const ProfileLayout = () => {
 
                     {/* User Card */}
                     <div className="bg-white dark:bg-[#1e1e1e] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-yellow-400 overflow-hidden flex items-center justify-center text-xl font-bold text-black border-2 border-white shadow-sm">
-                            <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(memberName)}&background=random`} alt="User" />
+                        <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center border-2 border-white shadow-sm shrink-0">
+                            {memberData?.photo ? (
+                                <img src={memberData.photo} alt="User" className="w-full h-full object-cover" />
+                            ) : (
+                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(memberName)}&background=random`} alt="User" className="w-full h-full object-cover" />
+                            )}
                         </div>
-                        <div>
-                            <h3 className="text-sm font-bold dark:text-white text-gray-900 uppercase">{memberName}</h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Client ID : {displayId}</p>
+                        <div className="min-w-0">
+                            <h3 className="text-sm font-bold dark:text-white text-gray-900 uppercase truncate">{memberName}</h3>
+                            <div className="flex items-center gap-2">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">ID: {displayId}</p>
+                                {memberData?.dueAmount > 0 && (
+                                    <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[10px] font-black uppercase">
+                                        Due: ₹{memberData.dueAmount}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -152,6 +289,17 @@ const ProfileLayout = () => {
                         <Plus size={18} />
                         Add to New Sale
                     </button>
+
+                    {/* Pay Due Button (Visible only if balance > 0) */}
+                    {memberData?.dueAmount > 0 && (
+                        <button
+                            onClick={() => setIsPayDueModalOpen(true)}
+                            className="w-full bg-[#ef4444] hover:bg-red-600 text-white font-black py-4 rounded-xl shadow-lg shadow-red-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 text-[13px] uppercase tracking-wider"
+                        >
+                            <CreditCard size={18} />
+                            Pay Outstanding Dues
+                        </button>
+                    )}
 
                     {/* Navigation Menu */}
                     <div className="bg-white dark:bg-[#1e1e1e] rounded-xl shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden py-2">
@@ -194,6 +342,16 @@ const ProfileLayout = () => {
                     }} />
                 </div>
             </div>
+
+            <PayDueMemberModal
+                isOpen={isPayDueModalOpen}
+                onClose={() => setIsPayDueModalOpen(false)}
+                member={memberData}
+                isDarkMode={isDarkMode}
+                onSuccess={() => {
+                    refreshProfile();
+                }}
+            />
         </div>
     );
 };

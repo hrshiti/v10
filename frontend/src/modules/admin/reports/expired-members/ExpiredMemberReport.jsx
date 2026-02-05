@@ -63,9 +63,15 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
 const ExpiredMemberReport = () => {
   const { isDarkMode } = useOutletContext();
   const navigate = useNavigate();
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  const todayStr = `${dd}-${mm}-${yyyy}`;
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [fromDate, setFromDate] = useState('01-01-2026');
-  const [toDate, setToDate] = useState('30-01-2026');
+  const [fromDate, setFromDate] = useState(todayStr);
+  const [toDate, setToDate] = useState(todayStr);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 

@@ -40,7 +40,7 @@ const Sidebar = ({ isOpen, isDarkMode }) => {
                 { title: 'Subscriptions', path: '/admin/members/memberships' },
                 { title: 'Workout Cards', path: '/admin/members/workout-cards' },
                 { title: 'Analytics', path: '/admin/members/analytics' },
-                { title: 'Mark Attendance', path: '/admin/members/attendance' },
+                // { title: 'Mark Attendance', path: '/admin/members/attendance' },
             ]
         },
         { title: 'Feedback Management', path: '/admin/feedback', icon: <MessageSquare size={20} /> },
@@ -49,7 +49,7 @@ const Sidebar = ({ isOpen, isDarkMode }) => {
             icon: <BarChartBig size={20} />,
             subItems: [
                 { title: 'Balance Due', path: '/admin/reports/balance-due' },
-                { title: 'Sales Report', path: '/admin/reports/sales' },
+                // { title: 'Sales Report', path: '/admin/reports/sales' },
                 { title: 'Expired Members', path: '/admin/reports/expired' },
                 { title: 'Report Cards', path: '/admin/reports/members' },
                 { title: 'Due Membership', path: '/admin/reports/due' },
@@ -69,7 +69,7 @@ const Sidebar = ({ isOpen, isDarkMode }) => {
         },
         { title: 'Payments', path: '/admin/business/payments', icon: <CircleDollarSign size={20} /> },
         { title: 'Expense Management', path: '/admin/business/expenses', icon: <WalletCards size={20} /> },
-        { title: 'Slot Management', path: '/admin/business/slots', icon: <Grid size={20} /> },
+        // { title: 'Slot Management', path: '/admin/business/slots', icon: <Grid size={20} /> },
         { header: 'Setting' },
         { title: 'Biometric', path: '/admin/settings/biometric', icon: <Fingerprint size={20} /> },
         { title: 'Gym Details', path: '/admin/settings/gym', icon: <Info size={20} /> },

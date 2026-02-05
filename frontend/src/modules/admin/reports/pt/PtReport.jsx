@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ChevronDown,
   Calendar,
@@ -49,6 +49,65 @@ const PtReport = () => {
   }, []);
 
   const [ptData, setPtData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchPtData = async () => {
+    setIsLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const queryParams = new URLSearchParams({
+        type: 'PT',
+        fromDate: fromDate?.split('-').reverse().join('-') || '',
+        toDate: toDate?.split('-').reverse().join('-') || '',
+        search: searchQuery
+      });
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/sales?${queryParams.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const transformed = (data.sales || []).map(sale => ({
+          trainerName: sale.trainerId ? `${sale.trainerId.firstName} ${sale.trainerId.lastName}` : 'N/A',
+          customerName: sale.memberId ? `${sale.memberId.firstName} ${sale.memberId.lastName}` : 'N/A',
+          customerNumber: sale.memberId ? sale.memberId.mobile : 'N/A',
+          startDate: sale.memberId?.startDate ? new Date(sale.memberId.startDate).toLocaleDateString() : 'N/A',
+          endDate: sale.memberId?.endDate ? new Date(sale.memberId.endDate).toLocaleDateString() : 'N/A',
+          totalSession: '-',
+          attendedSession: '-',
+          amount: sale.amount,
+          status: 'Paid'
+        }));
+        setPtData(transformed);
+      }
+    } catch (error) {
+      console.error("Error fetching PT data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPtData();
+  }, [fromDate, toDate]);
+
+  const handleApply = () => {
+    fetchPtData();
+  };
+
+  const handleClear = () => {
+    setSearchQuery('');
+    setFromDate('01-01-2026');
+    setToDate('31-01-2026');
+    setSelectedTrainer('Select Trainer');
+    setTimeout(fetchPtData, 100);
+  };
 
   const filteredData = ptData.filter(item =>
     item.trainerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -57,7 +116,7 @@ const PtReport = () => {
   );
 
   const stats = [
-    { label: 'Total PT', value: filteredData.length.toString(), icon: User, theme: 'blue' },
+    { label: 'Total PT', value: ptData.length.toString(), icon: User, theme: 'blue' },
   ];
 
   const themeConfig = {
@@ -147,8 +206,8 @@ const PtReport = () => {
             )}
           </div>
 
-          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-black transition-none active:scale-95 shadow-md hover:bg-orange-600">Apply</button>
-          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-black transition-none active:scale-95 shadow-md hover:bg-orange-600">Clear</button>
+          <button onClick={handleApply} className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-black transition-none active:scale-95 shadow-md hover:bg-orange-600">Apply</button>
+          <button onClick={handleClear} className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-black transition-none active:scale-95 shadow-md hover:bg-orange-600">Clear</button>
         </div>
 
         <div className="flex justify-between items-center transition-none gap-4">
@@ -202,25 +261,31 @@ const PtReport = () => {
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {filteredData.slice(0, rowsPerPage).map((row, idx) => (
-                <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                  <td className="px-6 py-8">{row.trainerName}</td>
-                  <td className="px-6 py-8">
-                    <div className="flex flex-col transition-none">
-                      <span className="text-[#3b82f6] uppercase font-black">{row.customerName}</span>
-                      <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.customerNumber}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-8">{row.startDate}</td>
-                  <td className="px-6 py-8">{row.endDate}</td>
-                  <td className="px-6 py-8 text-center font-black">{row.totalSession}</td>
-                  <td className="px-6 py-8 text-center font-black">{row.attendedSession}</td>
-                  <td className="px-6 py-8 font-black">{row.amount}</td>
-                  <td className="px-6 py-8">
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[11px] font-black uppercase">{row.status}</span>
-                  </td>
-                </tr>
-              ))}
+              {isLoading ? (
+                <tr><td colSpan="8" className="text-center py-10">Loading PT data...</td></tr>
+              ) : filteredData.length === 0 ? (
+                <tr><td colSpan="8" className="text-center py-10">No PT records found</td></tr>
+              ) : (
+                filteredData.slice(0, rowsPerPage).map((row, idx) => (
+                  <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                    <td className="px-6 py-8">{row.trainerName}</td>
+                    <td className="px-6 py-8">
+                      <div className="flex flex-col transition-none">
+                        <span className="text-[#3b82f6] uppercase font-black">{row.customerName}</span>
+                        <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.customerNumber}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-8">{row.startDate}</td>
+                    <td className="px-6 py-8">{row.endDate}</td>
+                    <td className="px-6 py-8 text-center font-black">{row.totalSession}</td>
+                    <td className="px-6 py-8 text-center font-black">{row.attendedSession}</td>
+                    <td className="px-6 py-8 font-black">₹{row.amount?.toFixed(2)}</td>
+                    <td className="px-6 py-8">
+                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[11px] font-black uppercase">{row.status}</span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

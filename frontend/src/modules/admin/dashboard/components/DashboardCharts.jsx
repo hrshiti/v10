@@ -1,55 +1,62 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
     AreaChart, Area
 } from 'recharts';
 import { User, Flame, ThermometerSun, Snowflake, ChevronDown } from 'lucide-react';
+import { API_BASE_URL } from '../../../../config/api';
 
 const DashboardCharts = ({ isDarkMode }) => {
-    const [timePeriod, setTimePeriod] = React.useState('This year');
+    const [timePeriod, setTimePeriod] = useState('This year');
+    const [leadData, setLeadData] = useState([]);
+    const [memberTrendData, setMemberTrendData] = useState([]);
+    const [financialData, setFinancialData] = useState([]);
+    const [summaryStats, setSummaryStats] = useState({ revenue: 0, pending: 0, expenses: 0, profit: 0 });
 
     // Theme-aware colors
     const chartTextColor = isDarkMode ? '#6B7280' : '#94A3B8';
     const chartGridColor = isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
 
-    // Data for Donut Chart
-    const leadData = [
-        { name: 'Hot Leads', value: 10, color: '#ef4444' },
-        { name: 'Warm Leads', value: 33, color: '#f97316' },
-        { name: 'Cold Leads', value: 649, color: '#3b82f6' },
-    ];
+    useEffect(() => {
+        const fetchCharts = async () => {
+            try {
+                const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+                const token = adminInfo?.token;
 
-    // Data for Stacked Bar Chart
-    const memberTrendData = [
-        { name: 'Jan', active: 58, inactive: 4, upcoming: 0 },
-        { name: 'Feb', active: 20, inactive: 10, upcoming: 5 },
-        { name: 'Mar', active: 45, inactive: 15, upcoming: 10 },
-        { name: 'Apr', active: 80, inactive: 20, upcoming: 15 },
-        { name: 'May', active: 60, inactive: 25, upcoming: 20 },
-        { name: 'Jun', active: 90, inactive: 30, upcoming: 25 },
-        { name: 'Jul', active: 70, inactive: 35, upcoming: 30 },
-        { name: 'Aug', active: 110, inactive: 40, upcoming: 35 },
-        { name: 'Sep', active: 85, inactive: 45, upcoming: 40 },
-        { name: 'Oct', active: 100, inactive: 50, upcoming: 45 },
-        { name: 'Nov', active: 95, inactive: 55, upcoming: 50 },
-        { name: 'Dec', active: 120, inactive: 60, upcoming: 55 },
-    ];
+                // Fetch Chart Data
+                const res = await fetch(`${API_BASE_URL}/api/admin/dashboard/charts`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
 
-    const financialData = [
-        { name: 'Jan', revenue: 343600, pending: 11500, expenses: 80000, profit: 263600 },
-        { name: 'Feb', revenue: 210000, pending: 45000, expenses: 95000, profit: 115000 },
-        { name: 'Mar', revenue: 450000, pending: 10000, expenses: 120000, profit: 330000 },
-        { name: 'Apr', revenue: 380000, pending: 55000, expenses: 110000, profit: 270000 },
-        { name: 'May', revenue: 520000, pending: 12000, expenses: 140000, profit: 380000 },
-        { name: 'Jun', revenue: 440000, pending: 30000, expenses: 130000, profit: 310000 },
-        { name: 'Jul', revenue: 610000, pending: 8000, expenses: 160000, profit: 450000 },
-        { name: 'Aug', revenue: 580000, pending: 25000, expenses: 150000, profit: 430000 },
-        { name: 'Sep', revenue: 720000, pending: 15000, expenses: 180000, profit: 540000 },
-        { name: 'Oct', revenue: 650000, pending: 40000, expenses: 170000, profit: 480000 },
-        { name: 'Nov', revenue: 810000, pending: 18000, expenses: 200000, profit: 610000 },
-        { name: 'Dec', revenue: 780000, pending: 35000, expenses: 190000, profit: 590000 },
-    ];
+                setLeadData(data.leadTypes || []);
+                setMemberTrendData(data.memberTrendData || []);
+                setFinancialData(data.financialData || []);
+
+                // Calculate Totals from Chart Data where possible
+                const rev = (data.financialData || []).reduce((acc, curr) => acc + (curr.revenue || 0), 0);
+                const exp = (data.financialData || []).reduce((acc, curr) => acc + (curr.expenses || 0), 0);
+
+                // Fetch Global Stats for accurate 'Pending' (Accounts Receivable)
+                const statsRes = await fetch(`${API_BASE_URL}/api/admin/dashboard/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const statsData = await statsRes.json();
+
+                setSummaryStats({
+                    revenue: rev,
+                    expenses: exp,
+                    profit: rev - exp,
+                    pending: statsData.financial?.pendingPayment || 0
+                });
+
+            } catch (error) {
+                console.error('Error fetching dashboard charts:', error);
+            }
+        };
+        fetchCharts();
+    }, []);
 
     return (
         <div className="space-y-12 animate-in fade-in duration-1000">
@@ -110,7 +117,9 @@ const DashboardCharts = ({ isDarkMode }) => {
                             </PieChart>
                         </ResponsiveContainer>
                         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                            <div className={`text-4xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>692</div>
+                            <div className={`text-4xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {leadData.reduce((acc, curr) => acc + curr.value, 0)}
+                            </div>
                             <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Total</div>
                         </div>
                     </div>
@@ -268,16 +277,16 @@ const DashboardCharts = ({ isDarkMode }) => {
 
                 <div className={`grid grid-cols-2 lg:grid-cols-4 gap-10 border-t pt-10 transition-colors ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
                     {[
-                        { label: 'Cumulative Revenue', value: '₹61,48,261', color: 'emerald' },
-                        { label: 'Accounts Receivable', value: '₹2,34,500', color: 'orange' },
-                        { label: 'Operational Costs', value: '₹14,20,000', color: 'rose' },
-                        { label: 'Projected Earnings', value: '₹75,00,000', color: 'indigo' }
+                        { label: 'Cumulative Revenue', value: `₹${summaryStats.revenue.toLocaleString('en-IN')}`, color: 'emerald' },
+                        { label: 'Accounts Receivable', value: `₹${summaryStats.pending.toLocaleString('en-IN')}`, color: 'orange' },
+                        { label: 'Operational Costs', value: `₹${summaryStats.expenses.toLocaleString('en-IN')}`, color: 'rose' },
+                        { label: 'Total Earnings', value: `₹${summaryStats.profit.toLocaleString('en-IN')}`, color: 'indigo' }
                     ].map((stat, idx) => (
                         <div key={idx} className="flex flex-col items-center text-center group">
                             <div className="flex items-center gap-2 mb-2">
                                 <div className={`w-2 h-2 rounded-full shadow-lg transition-all group-hover:scale-150 ${stat.color === 'emerald' ? 'bg-emerald-500 shadow-emerald-500/40' :
-                                        stat.color === 'orange' ? 'bg-orange-500 shadow-orange-500/40' :
-                                            stat.color === 'rose' ? 'bg-rose-500 shadow-rose-500/40' : 'bg-indigo-500 shadow-indigo-500/40'
+                                    stat.color === 'orange' ? 'bg-orange-500 shadow-orange-500/40' :
+                                        stat.color === 'rose' ? 'bg-rose-500 shadow-rose-500/40' : 'bg-indigo-500 shadow-indigo-500/40'
                                     }`}></div>
                                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">{stat.label}</span>
                             </div>

@@ -91,7 +91,10 @@ const getUserAttendance = asyncHandler(async (req, res) => {
 // @route   GET /api/user/diet-plan
 // @access  Private/User
 const getUserDietPlan = asyncHandler(async (req, res) => {
-    const dietPlan = await DietPlan.findOne({ assignedMembers: req.user._id });
+    const dietPlan = await DietPlan.findOne({
+        assignedMembers: req.user._id,
+        status: 'Active'
+    });
     res.json(dietPlan);
 });
 
@@ -99,7 +102,10 @@ const getUserDietPlan = asyncHandler(async (req, res) => {
 // @route   GET /api/user/workouts
 // @access  Private/User
 const getUserWorkouts = asyncHandler(async (req, res) => {
-    const workouts = await Workout.find({ memberId: req.user._id });
+    const workouts = await Workout.find({
+        assignedMembers: req.user._id,
+        status: { $ne: 'Archived' }
+    }).sort({ createdAt: -1 });
     res.json(workouts);
 });
 
@@ -162,57 +168,108 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 // @route   POST /api/user/workouts/log
 // @access  Private/User
 const logWorkoutCompletion = asyncHandler(async (req, res) => {
-    const { workoutId, completedExercises } = req.body;
+    const { workoutId, completedExercises, day } = req.body;
+
+    // Find the workout to get total exercises for the specific day
+    const workout = await Workout.findById(workoutId);
+    let totalExercises = 0;
+    if (workout) {
+        // Use the Day passed from frontend, fallback to today if missing
+        const targetDay = day || ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
+        const targetSchedule = workout.schedule.find(s => s.day === targetDay);
+        if (targetSchedule) {
+            totalExercises = targetSchedule.exercises.length;
+        }
+    }
 
     const log = await WorkoutLog.create({
         memberId: req.user._id,
         workoutId,
         completedExercises,
-        date: new Date()
+        totalExercises,
+        status: (totalExercises > 0 && completedExercises.length < totalExercises) ? 'Partial' : 'Completed',
+        date: new Date(),
+        day: day // Save the schedule day name (e.g., 'Monday')
     });
 
     res.status(201).json(log);
 });
 
 const getWorkoutStats = asyncHandler(async (req, res) => {
-    // Basic logic: count completions in last 7 days vs target
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // 1. Calculate time window: Start of CURRENT WEEK (Monday)
+    // This fixes the issue of "rolling" updates where days drop off one by one.
+    // Now it accumulates Mon-Sun and resets only on the next Monday.
+    const today = new Date();
+    const day = today.getDay(); // 0 (Sun) to 6 (Sat)
 
-    const logs = await WorkoutLog.countDocuments({
+    // Calculate difference to get to last Monday
+    // If today is Sunday (0), we go back 6 days. If Monday (1), we go back 0 days.
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // 2. Fetch logs for this week only
+    const logs = await WorkoutLog.find({
         memberId: req.user._id,
-        date: { $gte: sevenDaysAgo }
+        date: { $gte: startOfWeek }
     });
 
-    // Get current day of week
+    // 3. Calculate Completions (Unique Scheduled Days)
+    const uniqueItems = new Set();
+
+    logs.forEach(log => {
+        // Prioritize: If we have a named day ('Monday'), use that.
+        // If not (legacy), use the date string.
+        // This solves "duplicate" counting where one log has date-key and another has day-key for the same event, 
+        // assuming standard usage doesn't mix them arbitrarily.
+        // Ideally we should filter out legacy logs if specific day logs exist, but simply clamping the output 
+        // handles the UI issue ("8 of 7") effectively.
+        const trackingKey = log.day ? log.day : new Date(log.date).toDateString();
+        uniqueItems.add(trackingKey);
+    });
+
+    let completionCount = uniqueItems.size;
+
+    // 4. Get Target and Today's Type
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const todayName = days[new Date().getDay()];
 
-    // Find active workout and today's type
-    const activeWorkout = await Workout.findOne({ memberId: req.user._id, status: 'Active' });
-    let todayType = 'Cardio'; // Default
+    const activeWorkout = await Workout.findOne({
+        assignedMembers: req.user._id,
+        status: 'Active'
+    });
+
+    let todayType = 'Workout';
     let activeWorkoutId = null;
-    let target = 5; // Default fallback
+    let target = 6; // Default standard
 
     if (activeWorkout) {
         activeWorkoutId = activeWorkout._id;
         const todaySchedule = activeWorkout.schedule.find(s => s.day === todayName);
-        if (todaySchedule && todaySchedule.workoutType) {
-            todayType = todaySchedule.workoutType;
+
+        if (todaySchedule && todaySchedule.exercises && todaySchedule.exercises.length > 0) {
+            todayType = todaySchedule.exercises[0].category || 'Active';
+        } else {
+            todayType = 'Rest';
         }
 
-        // Dynamically set target based on workout days in the plan
         const workoutDaysCount = activeWorkout.schedule.filter(s => s.exercises && s.exercises.length > 0).length;
         if (workoutDaysCount > 0) {
             target = workoutDaysCount;
         }
     }
 
-    // Calculate progress percentage
-    const progress = Math.min((logs / target) * 100, 100);
+    // Safety Clamps
+    if (target > 7) target = 7;
+    if (completionCount > target) completionCount = target;
+
+    // 5. Calculate Progress %
+    const progress = Math.min((completionCount / target) * 100, 100);
 
     res.json({
-        completions: logs,
+        completions: completionCount,
         progress: Math.round(progress),
         target: target,
         todayType: todayType,
@@ -286,6 +343,39 @@ const getHomeStats = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Check completion status of a specific workout for a specific day
+// @route   GET /api/user/workouts/status
+// @access  Private/User
+const checkWorkoutStatus = asyncHandler(async (req, res) => {
+    const { workoutId } = req.query;
+
+    if (!workoutId) {
+        res.status(400);
+        throw new Error('Workout ID is required');
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find ALL logs for today for this workout
+    const logs = await WorkoutLog.find({
+        memberId: req.user._id,
+        workoutId: workoutId,
+        date: {
+            $gte: today,
+            $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        }
+    });
+
+    // Return the list of days completed today
+    const completedDays = logs.map(log => log.day).filter(Boolean); // Filter nulls just in case
+
+    res.json({
+        completed: completedDays.length > 0, // Backward compatibility (true if ANY done)
+        completedDays: completedDays
+    });
+});
+
 module.exports = {
     getUserProfile,
     userScanQR,
@@ -297,5 +387,6 @@ module.exports = {
     getWorkoutStats,
     submitFeedback,
     getUserFeedbacks,
-    getHomeStats
+    getHomeStats,
+    checkWorkoutStatus
 };

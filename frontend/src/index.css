@@ -30,3 +30,15 @@ html {
         /* Light mode bg-gray-50 */
     }
 }
+
+/* Utilities */
+@layer h-utility {
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}

@@ -7,7 +7,8 @@ import {
   X,
   Target,
   TrendingUp,
-  Users
+  Users,
+  CheckCircle
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';

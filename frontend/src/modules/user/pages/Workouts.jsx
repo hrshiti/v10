@@ -34,14 +34,14 @@ const Workouts = () => {
 
     // Mock Database
     const workoutsData = [
-        { id: 1, title: 'Full Body HIIT', category: 'HIIT', duration: '25 min', intensity: 'High', image: 'https://images.unsplash.com/photo-1517963879466-dbbcd8ebb0a9?auto=format&fit=crop&q=80&w=400' },
-        { id: 2, title: 'Yoga Flow', category: 'Yoga', duration: '45 min', intensity: 'Low', image: 'https://images.unsplash.com/photo-1544367563-121955b75268?auto=format&fit=crop&q=80&w=400' },
-        { id: 3, title: 'Upper Body Power', category: 'Strength', duration: '30 min', intensity: 'Medium', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&q=80&w=400' },
-        { id: 4, title: 'Cardio Blast', category: 'Cardio', duration: '20 min', intensity: 'High', image: 'https://images.unsplash.com/photo-1609899309242-a87a8de7d469?auto=format&fit=crop&q=80&w=400' },
-        { id: 5, title: 'Pilates Core', category: 'Strength', duration: '40 min', intensity: 'Low', image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=400' },
-        { id: 6, title: 'Extreme Shred', category: 'HIIT', duration: '35 min', intensity: 'Very High', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400' },
-        { id: 7, title: 'Generic Runner', category: 'Cardio', duration: '15 min', intensity: 'Medium', image: 'https://images.unsplash.com/photo-1606902965551-dce093cda6e7?auto=format&fit=crop&q=80&w=400' },
-        { id: 8, title: 'Power Lifting', category: 'Strength', duration: '60 min', intensity: 'High', image: 'https://images.unsplash.com/photo-1534367507873-d2d7e24c797f?auto=format&fit=crop&q=80&w=400' },
+        { id: 1, title: 'Full Body HIIT', category: 'HIIT', duration: '25 min', intensity: 'High', image: 'https://images.unsplash.com/photo-1601422407692-ec4eeec1d9b3?q=80&w=400&auto=format&fit=crop' },
+        { id: 2, title: 'Yoga Flow', category: 'Yoga', duration: '45 min', intensity: 'Low', image: 'https://images.unsplash.com/photo-1544367563-121955b75268?q=80&w=400&auto=format&fit=crop' },
+        { id: 3, title: 'Upper Body Power', category: 'Strength', duration: '30 min', intensity: 'Medium', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=400&auto=format&fit=crop' },
+        { id: 4, title: 'Cardio Blast', category: 'Cardio', duration: '20 min', intensity: 'High', image: 'https://images.unsplash.com/photo-1538805060504-d1d52d9557a0?q=80&w=400&auto=format&fit=crop' },
+        { id: 5, title: 'Pilates Core', category: 'Strength', duration: '40 min', intensity: 'Low', image: 'https://images.unsplash.com/photo-1518602164578-cd0074062767?q=80&w=400&auto=format&fit=crop' },
+        { id: 6, title: 'Extreme Shred', category: 'HIIT', duration: '35 min', intensity: 'Very High', image: 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=400&auto=format&fit=crop' },
+        { id: 7, title: 'Runner High', category: 'Cardio', duration: '15 min', intensity: 'Medium', image: 'https://images.unsplash.com/photo-1552674605-46d536d2325c?q=80&w=400&auto=format&fit=crop' },
+        { id: 8, title: 'Power Lifting', category: 'Strength', duration: '60 min', intensity: 'High', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&auto=format&fit=crop' },
     ];
 
     // Filter Logic
@@ -93,20 +93,25 @@ const Workouts = () => {
                                 <div
                                     key={plan._id}
                                     onClick={() => navigate(`/workout-details/${plan._id}`)}
-                                    className="bg-emerald-500 text-white p-5 rounded-3xl shadow-lg relative overflow-hidden group cursor-pointer"
+                                    className="bg-emerald-500 text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden group cursor-pointer transition-transform hover:scale-[1.02]"
                                 >
-                                    <div className="relative z-10">
-                                        <h3 className="text-lg font-black leading-tight mb-1">{plan.name}</h3>
-                                        <div className="flex items-center gap-3 text-white/80 text-[10px] font-bold uppercase tracking-wider">
-                                            <span>Starts: {new Date(plan.startDate).toLocaleDateString()}</span>
-                                            {plan.endDate && <span>• Ends: {new Date(plan.endDate).toLocaleDateString()}</span>}
+                                    <div className="relative z-10 flex justify-between items-center">
+                                        <div>
+                                            <span className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-3 inline-block">Active Plan</span>
+                                            <h3 className="text-2xl font-black leading-tight mb-1">{plan.name}</h3>
+                                            <div className="flex items-center gap-2 text-white/90 text-xs font-medium mt-2">
+                                                <Clock size={14} />
+                                                <span>Starts: {new Date(plan.startDate).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white text-emerald-600 p-3 rounded-full shadow-lg group-hover:scale-110 transition-transform">
+                                            <PlayCircle size={28} fill="currentColor" stroke="none" />
                                         </div>
                                     </div>
-                                    <div className="absolute top-1/2 right-6 -translate-y-1/2 p-3 bg-white/20 rounded-2xl group-hover:translate-x-2 transition-transform">
-                                        <PlayCircle size={24} fill="currentColor" />
-                                    </div>
-                                    {/* Abstract Design */}
-                                    <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+
+                                    {/* Abstract Design Elements */}
+                                    <div className="absolute top-[-30%] right-[-10%] w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
+                                    <div className="absolute bottom-[-10%] left-[-10%] w-32 h-32 bg-black/5 rounded-full blur-xl"></div>
                                 </div>
                             ))}
                         </div>

@@ -1,19 +1,28 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { ArrowLeft, ChevronDown, Plus, Check } from 'lucide-react';
 import { API_BASE_URL } from '../../../../config/api';
 
 const UpgradePlan = () => {
     const context = useOutletContext();
     const isDarkMode = context?.isDarkMode || false;
     const navigate = useNavigate();
-    const { id, memberName, memberId: mId, memberMobile, memberEmail, packageName: currentPkg, durationMonths: currentDur, startDate: currentStart, endDate: currentEnd, assignedTrainer: currentTrainer, paidAmount: currentPaid } = context || {};
+    const { id } = useParams();
+
+    const memberName = context?.memberName || '';
+    const memberId = context?.memberId || '';
+    const memberMobile = context?.memberMobile || '';
+    const memberEmail = context?.memberEmail || '';
 
     const [isLoading, setIsLoading] = useState(false);
     const [packages, setPackages] = useState([]);
     const [trainers, setTrainers] = useState([]);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [selectedTrainer, setSelectedTrainer] = useState('');
+    const [currentSubscription, setCurrentSubscription] = useState(null);
 
     const [form, setForm] = useState({
-        clientId: mId || '',
+        clientId: memberId || '',
         mobile: memberMobile || '',
         email: (memberEmail !== '-' && memberEmail) ? memberEmail : '',
         emergencyName: '',
@@ -24,13 +33,13 @@ const UpgradePlan = () => {
         invoiceDate: new Date().toISOString().split('T')[0],
         firmAddress: '',
 
-        packageName: currentPkg || '-',
-        duration: `${currentDur || 0} Month`,
+        packageName: '-',
+        duration: '-',
         totalSessions: '-',
-        startDate: currentStart ? new Date(currentStart).toLocaleDateString('en-GB') : '-',
-        endDate: currentEnd ? new Date(currentEnd).toLocaleDateString('en-GB') : '-',
-        assignedTrainer: currentTrainer?.firstName ? `${currentTrainer.firstName} ${currentTrainer.lastName || ''}` : '-',
-        paidAmount: currentPaid || 0,
+        startDate: '-',
+        endDate: '-',
+        assignedTrainer: '-',
+        paidAmount: 0,
 
         paymentMethod: 'Online',
         comment: '',
@@ -52,31 +61,53 @@ const UpgradePlan = () => {
                 const token = adminInfo?.token;
                 if (!token) return;
 
-                const [pkgRes, trainerRes] = await Promise.all([
+                const [pkgRes, trainerRes, memberRes] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/admin/packages`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${API_BASE_URL}/api/admin/employees?role=Trainer`, { headers: { 'Authorization': `Bearer ${token}` } })
+                    fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_BASE_URL}/api/admin/members/${id}`, { headers: { 'Authorization': `Bearer ${token}` } })
                 ]);
 
                 if (pkgRes.ok) {
                     const pkgData = await pkgRes.json();
-                    setPackages(pkgData.packages || []);
+                    setPackages(Array.isArray(pkgData) ? pkgData : pkgData.packages || []);
                 }
                 if (trainerRes.ok) {
                     const trainerData = await trainerRes.json();
                     setTrainers(trainerData.employees || trainerData || []);
+                }
+                if (memberRes.ok) {
+                    const memberData = await memberRes.json();
+                    // Update form with member data
+                    setForm(prev => ({
+                        ...prev,
+                        clientId: memberData.memberId || '',
+                        mobile: memberData.mobile || '',
+                        email: memberData.email || '',
+                        packageName: memberData.packageName || '-',
+                        duration: memberData.durationMonths ? `${memberData.durationMonths} Month` : '-',
+                        startDate: memberData.startDate ? new Date(memberData.startDate).toLocaleDateString('en-GB') : '-',
+                        endDate: memberData.endDate ? new Date(memberData.endDate).toLocaleDateString('en-GB') : '-',
+                        assignedTrainer: memberData.assignedTrainer ? `${memberData.assignedTrainer.firstName} ${memberData.assignedTrainer.lastName || ''}` : '-',
+                        paidAmount: memberData.paidAmount || 0,
+                    }));
+
+                    if (memberData.assignedTrainer?._id) {
+                        setSelectedTrainer(memberData.assignedTrainer._id);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
         };
         fetchData();
-    }, []);
+    }, [id]);
 
     const filteredPackages = packages.filter(p => {
         if (!p.active) return false;
-        if (activeTab === 'General Training') return p.type === 'Membership';
-        if (activeTab === 'Personal Training') return p.activity === 'Personal Training' || p.type === 'PT';
-        return true;
+        // console.log('Checking package:', p.name, p.type, activeTab);
+        if (activeTab === 'General Training') return p.type === 'general';
+        if (activeTab === 'Personal Training') return p.type === 'pt';
+        return false;
     });
 
     const [showTaxDropdown, setShowTaxDropdown] = useState(false);
@@ -105,21 +136,23 @@ const UpgradePlan = () => {
             // Calculate End Date
             const start = new Date(form.invoiceDate);
             const end = new Date(start);
+            const duration = selectedPlan.durationValue || selectedPlan.duration;
+
             if (selectedPlan.durationType === 'Months') {
-                end.setMonth(end.getMonth() + selectedPlan.duration);
+                end.setMonth(end.getMonth() + duration);
             } else {
-                end.setDate(end.getDate() + selectedPlan.duration);
+                end.setDate(end.getDate() + duration);
             }
 
             const payload = {
                 packageName: selectedPlan.name,
-                durationMonths: selectedPlan.duration,
+                durationMonths: duration, // Normalize to duration for backend
                 startDate: start,
                 endDate: end,
                 amount: payableAmount,
                 subTotal: form.selectedPlansTotal + parseFloat(form.subtotal || 0),
                 taxAmount: form.applyTaxes ? taxes.total : 0,
-                paidAmount: payableAmount, // Assuming full payment in upgrade for now
+                paidAmount: payableAmount, // Assuming full payment in upgrade payment
                 discount: form.totalDiscount,
                 paymentMode: form.paymentMethod,
                 assignedTrainer: selectedTrainer,
@@ -162,10 +195,10 @@ const UpgradePlan = () => {
                     value={value}
                     readOnly={readonly}
                     onChange={onChange}
-                    className={`w-full px-4 py-2.5 rounded-lg border text-sm outline-none transition-all ${isDarkMode
-                        ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-600 focus:border-orange-500/50'
-                        : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-orange-500'
-                        } ${readonly ? 'opacity-70 cursor-not-allowed bg-gray-50' : ''}`}
+                    className={`w-full px-4 py-2.5 rounded-lg border text-sm font-bold outline-none transition-all ${isDarkMode
+                        ? `${readonly ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-[#1a1a1a] border-white/10 text-white'} placeholder:text-gray-600 focus:border-orange-500/50`
+                        : `${readonly ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-white border-gray-200 text-gray-900'} placeholder:text-gray-400 focus:border-orange-500`
+                        } ${readonly ? 'cursor-not-allowed' : ''}`}
                 />
                 {(type === 'date' || label.includes('Date')) && <ChevronDown size={14} className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" />}
             </div>
@@ -292,7 +325,7 @@ const UpgradePlan = () => {
                                         </div>
                                         {plan.name}
                                     </td>
-                                    <td className="px-8 py-5">{plan.duration} {plan.durationType}</td>
+                                    <td className="px-8 py-5">{plan.durationValue || plan.duration} {plan.durationType}</td>
                                     <td className="px-8 py-5">
                                         <select
                                             className={`flex items-center justify-between px-4 py-2 border rounded-lg w-48 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a] text-white' : 'border-gray-200 bg-[#f9f9f9] text-gray-900'}`}

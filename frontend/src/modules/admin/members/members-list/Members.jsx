@@ -148,7 +148,7 @@ const VaccinationModal = ({ isOpen, onClose, isDarkMode, onConfirm }) => {
   );
 };
 
-const ScheduleFollowUpModal = ({ isOpen, onClose, isDarkMode, onSubmit }) => {
+const ScheduleFollowUpModal = ({ isOpen, onClose, isDarkMode, onSubmit, trainers }) => {
   const [formData, setFormData] = useState({
     followUpDate: '',
     allocate: '',
@@ -164,7 +164,6 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, isDarkMode, onSubmit }) => {
   const typeRef = useRef(null);
   const convertibilityRef = useRef(null);
 
-  const allocateOptions = ['Abdulla Pathan', 'ANJALI KANWAR', 'PARI PANDYA'];
   const typeOptions = ['Balance Due', 'Enquiry', 'Feedback'];
   const convertibilityOptions = ['Hot', 'Warm', 'Cold'];
 
@@ -216,16 +215,21 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, isDarkMode, onSubmit }) => {
           {/* Follow Up Date */}
           <div>
             <label className={`block text-[14px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Follow Up Date*</label>
-            <div className="relative">
-              <Calendar size={18} className="absolute left-4 top-3.5 text-gray-400" />
+            <div className="relative group">
+              <Calendar
+                size={18}
+                className="absolute left-4 top-3.5 text-gray-400 group-hover:text-orange-500 transition-colors pointer-events-none"
+              />
               <input
-                type="text"
-                placeholder="dd/mm/yyyy"
+                type="date"
                 value={formData.followUpDate}
                 onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
-                className={`w-full pl-12 pr-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 shadow-sm placeholder:text-gray-400'}`}
+                onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()}
+                className={`w-full pl-12 pr-4 py-3 border rounded-lg text-[14px] outline-none transition-all ${isDarkMode
+                  ? 'bg-[#1a1a1a] border-white/10 text-white [color-scheme:dark]'
+                  : 'bg-white border-gray-300 shadow-sm text-gray-900'
+                  } focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20`}
               />
-              <ChevronDown size={16} className="absolute right-4 top-4 text-gray-400" />
             </div>
           </div>
 
@@ -238,22 +242,22 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, isDarkMode, onSubmit }) => {
                 className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none cursor-pointer flex justify-between items-center ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : showAllocateDropdown ? 'bg-white border-[#f97316] text-[#f97316]' : 'bg-white border-gray-300 shadow-sm'}`}
               >
                 <span className={formData.allocate ? (isDarkMode ? 'text-white' : 'text-black') : 'text-[#f97316]'}>
-                  {formData.allocate || 'Select'}
+                  {trainers.find(t => t._id === formData.allocate) ? `${trainers.find(t => t._id === formData.allocate).firstName} ${trainers.find(t => t._id === formData.allocate).lastName}` : 'Select'}
                 </span>
                 <ChevronDown size={16} className={`transition-transform ${showAllocateDropdown ? 'rotate-180 text-[#f97316]' : 'text-[#f97316]'}`} />
               </div>
               {showAllocateDropdown && (
                 <div className={`absolute top-full left-0 right-0 mt-1 max-h-[200px] overflow-y-auto rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
-                  {allocateOptions.map((option) => (
+                  {trainers.map((trainer) => (
                     <div
-                      key={option}
+                      key={trainer._id}
                       onClick={() => {
-                        setFormData({ ...formData, allocate: option });
+                        setFormData({ ...formData, allocate: trainer._id });
                         setShowAllocateDropdown(false);
                       }}
                       className={`px-4 py-3 text-[14px] font-medium cursor-pointer ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'}`}
                     >
-                      {option}
+                      {trainer.firstName} {trainer.lastName}
                     </div>
                   ))}
                 </div>
@@ -533,6 +537,33 @@ const Members = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalMembers, setTotalMembers] = useState(0);
 
+  const toggleStatus = async (memberId, currentStatus) => {
+    // If requesting to activate, always set to Active. If Active, set to Inactive.
+    // Note: status 'Expired' or others logic might be needed, but sticking to simple toggle for now.
+    const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${memberId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (res.ok) {
+        setMembers(prev => prev.map(m => m._id === memberId ? { ...m, status: newStatus } : m));
+        // Optionally refresh stats
+        // fetchMembers(); // Might be heavy, local update is faster
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
   const fetchMembers = async () => {
     setIsLoading(true);
     try {
@@ -671,6 +702,7 @@ const Members = () => {
         status: formData.convertibility || 'Hot',
         comment: formData.toDo,
         memberId: member._id,
+        handledBy: formData.allocate || undefined,
         createdBy: 'Admin'
       };
 
@@ -768,6 +800,13 @@ const Members = () => {
       {/* Header */}
       <div className="flex justify-between items-center transition-none">
         <h1 className="text-[28px] font-black tracking-tight">Membership Management</h1>
+        <button
+          onClick={() => navigate('/admin/members/add')}
+          className="bg-emerald-500 text-white px-8 py-3 rounded-lg flex items-center gap-3 text-[15px] font-bold shadow-lg active:scale-95 transition-none hover:bg-emerald-600"
+        >
+          <UserPlus size={22} strokeWidth={3} />
+          Create New Member
+        </button>
       </div>
 
       {/* Stats Grid */}
@@ -894,11 +933,11 @@ const Members = () => {
             </button>
           </div>
         </div>
-        <div className="overflow-x-visible">
+        <div className="overflow-x-auto">
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-[#fcfcfc] border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
-                <th className="px-6 py-6 w-10">
+                <th className="px-4 py-6 w-10">
                   <input
                     type="checkbox"
                     className="w-5 h-5 rounded accent-[#f97316] cursor-pointer"
@@ -906,20 +945,21 @@ const Members = () => {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-6 uppercase tracking-wider">Member ID</th>
-                <th className="px-6 py-6 uppercase tracking-wider">Name & Mob. No.</th>
-                <th className="px-6 py-6 uppercase tracking-wider text-center">Gender</th>
-                <th className="px-6 py-6 uppercase tracking-wider text-center">Status</th>
-                <th className="px-6 py-6 uppercase tracking-wider">Package</th>
-                <th className="px-6 py-6 uppercase tracking-wider text-center">Expiry Date</th>
-                <th className="px-6 py-6 border-l dark:border-white/5 w-[80px] text-center">Action</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-[11px]">Member ID</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-[11px]">Name & Mob. No.</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Gender</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Status</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-[11px]">Package</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-center text-red-500 text-[11px]">Due</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Expiry Date</th>
+                <th className={`px-4 py-6 border-l dark:border-white/5 w-[80px] text-center text-[11px] sticky right-0 z-20 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-[#fcfcfc]'}`}>Action</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
               {members.length > 0 ? (
                 members.map((row, idx) => (
                   <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                    <td className="px-6 py-8">
+                    <td className="px-4 py-6">
                       <input
                         type="checkbox"
                         className="w-5 h-5 rounded accent-[#f97316] cursor-pointer"
@@ -927,32 +967,44 @@ const Members = () => {
                         onChange={() => toggleSelectMember(row._id)}
                       />
                     </td>
-                    <td className="px-6 py-8">{row.memberId}</td>
-                    <td className="px-6 py-8">
+                    <td className="px-4 py-6">{row.memberId}</td>
+                    <td className="px-4 py-6">
                       <div
                         className="flex flex-col transition-none cursor-pointer"
                         onClick={() => navigate(`/admin/members/profile/${row._id}/edit`, { state: { member: row } })}
                       >
-                        <span className="text-[#3b82f6] text-[15px] font-black hover:underline uppercase">{row.firstName} {row.lastName}</span>
-                        <span className="text-[#3b82f6] text-[13px] mt-0.5 font-bold">{row.mobile}</span>
+                        <span className="text-[#3b82f6] text-[14px] font-black hover:underline uppercase">{row.firstName} {row.lastName}</span>
+                        <span className="text-[#3b82f6] text-[12px] mt-0.5 font-bold">{row.mobile}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-8 text-center">{row.gender}</td>
-                    <td className="px-6 py-8 text-center">
-                      <div className={`px-5 py-2 rounded-lg text-[13px] font-black border ${row.status === 'Active' ? 'border-[#10b981]/30 bg-[#10b981]/10 text-[#10b981]' : 'border-[#ef4444]/30 bg-[#ef4444]/10 text-[#ef4444]'} inline-block uppercase tracking-wider`}>
-                        {row.status}
+                    <td className="px-4 py-6 text-center">{row.gender}</td>
+                    <td className="px-4 py-6 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className={`w-10 h-5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${row.status === 'Active' ? 'bg-[#10b981]' : (row.status === 'Expired' ? 'bg-red-500' : 'bg-gray-300')}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleStatus(row._id, row.status);
+                          }}
+                        >
+                          <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${row.status === 'Active' ? 'translate-x-5' : ''}`}></div>
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase ${row.status === 'Active' ? 'text-[#10b981]' : (row.status === 'Expired' ? 'text-red-500' : 'text-gray-400')}`}>
+                          {row.status}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-6 py-8">{row.packageName}</td>
-                    <td className="px-6 py-8 text-center">
+                    <td className="px-4 py-6">{row.packageName}</td>
+                    <td className="px-4 py-6 text-center text-red-500 font-black">₹{row.dueAmount || 0}</td>
+                    <td className="px-4 py-6 text-center">
                       {new Date(row.endDate).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-8 text-center relative border-l dark:border-white/5" ref={el => actionRef.current[idx] = el}>
+                    <td className={`px-4 py-6 text-center relative border-l dark:border-white/5 sticky right-0 z-10 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-white'}`} ref={el => actionRef.current[idx] = el}>
                       <button
                         onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
                         className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-90"
                       >
-                        <MoreVertical size={22} />
+                        <MoreVertical size={20} />
                       </button>
 
                       {activeActionRow === idx && (
@@ -1088,6 +1140,7 @@ const Members = () => {
         }}
         isDarkMode={isDarkMode}
         onSubmit={handleScheduleFollowUpSubmit}
+        trainers={trainers}
       />
 
       <AssignTrainerModal

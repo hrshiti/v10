@@ -261,19 +261,68 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
     const pageSize = Number(req.query.pageSize) || 10;
     const page = Number(req.query.pageNumber) || 1;
 
-    // Default dates to today if not provided
-    const start = fromDate ? new Date(fromDate) : new Date(new Date().setHours(0, 0, 0, 0));
-    const end = toDate ? new Date(toDate) : new Date(new Date().setHours(23, 59, 59, 999));
+    // Parse dates properly - fromDate and toDate come as YYYY-MM-DD
+    let start, end;
+
+    if (fromDate) {
+        start = new Date(fromDate);
+        start.setHours(0, 0, 0, 0);
+    } else {
+        start = new Date();
+        start.setHours(0, 0, 0, 0);
+    }
+
+    if (toDate) {
+        end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+    } else {
+        end = new Date();
+        end.setHours(23, 59, 59, 999);
+    }
 
     // Lazy load MemberAttendance
     const MemberAttendance = require('../../models/MemberAttendance');
 
     let result = { members: [], page, pages: 0, total: 0 };
 
-    if (view === 'attendance') {
-        // Find attendance records first
-        // We want to list members who were present
-        // Aggregation to get unique members and their latest check-in in the range
+    if (view === 'audit') {
+        const query = {
+            date: { $gte: start, $lte: end },
+            status: 'Present'
+        };
+
+        console.log('Audit Query:', {
+            start: start.toISOString(),
+            end: end.toISOString(),
+            query
+        });
+
+        const count = await MemberAttendance.countDocuments(query);
+        console.log('Audit Count:', count);
+
+        const logs = await MemberAttendance.find(query)
+            .populate('memberId', 'firstName lastName mobile packageName endDate assignedTrainer')
+            .sort({ date: -1 })
+            .limit(pageSize)
+            .skip(pageSize * (page - 1));
+
+        console.log('Audit Logs Found:', logs.length);
+
+        result.members = logs.map(log => ({
+            _id: log.memberId?._id,
+            firstName: log.memberId?.firstName || 'Unknown',
+            lastName: log.memberId?.lastName || '',
+            mobile: log.memberId?.mobile || 'N/A',
+            packageName: log.memberId?.packageName || 'N/A',
+            endDate: log.memberId?.endDate,
+            checkIn: log.checkIn,
+            method: log.method,
+            trainingType: log.trainingType
+        }));
+        result.total = count;
+        result.pages = Math.ceil(count / pageSize);
+
+    } else if (view === 'attendance') {
         const attendanceAgg = await MemberAttendance.aggregate([
             {
                 $match: {
@@ -282,13 +331,13 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
                 }
             },
             {
-                $sort: { date: -1 } // Latest first
+                $sort: { date: -1 }
             },
             {
                 $group: {
                     _id: "$memberId",
-                    lastMarked: { $first: "$date" }, // Latest checkin
-                    attendedCount: { $sum: 1 } // Checkins in this period? Or total info needs lookup
+                    lastMarked: { $first: "$date" },
+                    attendedCount: { $sum: 1 }
                 }
             },
             {
@@ -300,6 +349,15 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
                 }
             },
             { $unwind: "$memberInfo" },
+            {
+                $lookup: {
+                    from: "employees",
+                    localField: "memberInfo.assignedTrainer",
+                    foreignField: "_id",
+                    as: "trainerInfo"
+                }
+            },
+            { $unwind: { path: "$trainerInfo", preserveNullAndEmptyArrays: true } },
             {
                 $match: {
                     $or: [
@@ -320,9 +378,6 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
         const data = attendanceAgg[0].data;
         const total = attendanceAgg[0].metadata[0]?.total || 0;
 
-        // Transform data for UI
-        // We might need to fetch TOTAL historical attendance for "Attended Sessions" column if that's what UI wants
-        // For now, let's map what we have.
         result.members = data.map(item => ({
             _id: item.memberInfo._id,
             firstName: item.memberInfo.firstName,
@@ -330,22 +385,19 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
             mobile: item.memberInfo.mobile,
             packageName: item.memberInfo.packageName,
             endDate: item.memberInfo.endDate,
-            assignedTrainer: item.memberInfo.assignedTrainer, // This is ID, ideally lookup detailed
+            trainerName: item.trainerInfo ? `${item.trainerInfo.firstName} ${item.trainerInfo.lastName}` : 'N/A',
             lastMarked: item.lastMarked,
-            attended: item.attendedCount // This is count in range
+            attended: item.attendedCount
         }));
         result.total = total;
         result.pages = Math.ceil(total / pageSize);
 
     } else if (view === 'absent') {
-        // Find Active members NOT in attendance
-        // 1. Get IDs of present members
         const presentMemberIds = await MemberAttendance.find({
             date: { $gte: start, $lte: end },
             status: 'Present'
         }).distinct('memberId');
 
-        // 2. Find Members NOT in that list
         const query = {
             status: 'Active',
             _id: { $nin: presentMemberIds }

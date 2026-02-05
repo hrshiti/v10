@@ -27,11 +27,11 @@ const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, t
 
                 <div className="flex items-center gap-2 lg:gap-3">
                     <img
-                        src="/gymowl_logo.png"
-                        alt="FlexCore"
+                        src="/v10_logo.png"
+                        alt="V10 Fitness Gym"
                         className="h-8 lg:h-9 object-contain"
                     />
-                    <span className="text-xl lg:text-2xl font-black tracking-tight text-[#f97316]">FlexCore</span>
+                    <span className="text-xl lg:text-2xl font-black tracking-tight text-[#f97316]">V10 Fitness Gym</span>
                 </div>
             </div>
 
@@ -50,12 +50,12 @@ const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, t
                         <div className="w-9 h-9 lg:w-11 lg:h-11 rounded-full overflow-hidden border border-gray-200 shadow-sm bg-white">
                             <img
                                 src="/v10_logo.png"
-                                alt="V-10 Fitness"
+                                alt="V10 Fitness Gym"
                                 className="w-full h-full object-contain p-1"
                             />
                         </div>
                         <div className="hidden sm:block leading-none text-left">
-                            <h4 className={`text-[14px] lg:text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>V-10 Fitness ...</h4>
+                            <h4 className={`text-[14px] lg:text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>V10 Fitness Gym</h4>
                             <p className="text-[11px] lg:text-[13px] text-gray-500 font-bold mt-1 uppercase tracking-tight">{adminName}</p>
                         </div>
                         <ChevronDown size={16} className="text-gray-400" />

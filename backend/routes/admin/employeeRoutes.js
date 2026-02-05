@@ -14,6 +14,10 @@ const {
 } = require('../../controllers/admin/employeeAttendanceController');
 
 const upload = require('../../middlewares/uploadMiddleware');
+const { protect } = require('../../middlewares/authMiddleware');
+
+router.use(protect); // Protect all routes
+
 
 router.route('/')
     .get(getEmployees)

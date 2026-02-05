@@ -65,9 +65,15 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
 
 const SalesReport = () => {
   const { isDarkMode } = useOutletContext();
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  const todayStr = `${dd}-${mm}-${yyyy}`;
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [fromDate, setFromDate] = useState('01-02-2026');
-  const [toDate, setToDate] = useState('01-02-2026');
+  const [fromDate, setFromDate] = useState(todayStr);
+  const [toDate, setToDate] = useState(todayStr);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
@@ -97,14 +103,14 @@ const SalesReport = () => {
 
         if (trainerRes.ok) {
           const data = await trainerRes.json();
-          setTrainers(data.map(t => `${t.firstName} ${t.lastName}`));
+          setTrainers(data); // Store objects
         }
 
         if (empRes.ok) {
           const data = await empRes.json();
           // Assuming employees api returns { employees: [...] } or [...]
           const empList = Array.isArray(data) ? data : (data.employees || []);
-          setEmployees(empList.map(e => `${e.firstName} ${e.lastName}`));
+          setEmployees(empList); // Store objects
         }
 
       } catch (error) {
@@ -127,14 +133,18 @@ const SalesReport = () => {
   const filterOptions = {
     'Select Tax Type': ['Without GST', 'With GST'],
     'Select Membership Type': ['General Training', 'Personal Training', 'Group Ex'],
-    'Select Sale Type': ['New Sale', 'Renewal', 'Upgrade'],
-    'Select Trainer': trainers.length > 0 ? trainers : ['No Trainers Found'],
-    'Select Closed By': employees.length > 0 ? employees : ['No Employees Found'],
-    'Select Handled By': employees.length > 0 ? employees : ['No Employees Found'],
+    'Select Sale Type': ['New Membership', 'Renewal', 'Upgrade', 'PT'],
+    'Select Trainer': trainers.length > 0 ? trainers.map(t => `${t.firstName} ${t.lastName}`) : ['No Trainers Found'],
+    'Select Closed By': employees.length > 0 ? employees.map(e => `${e.firstName} ${e.lastName}`) : ['No Employees Found'],
+    'Select Handled By': employees.length > 0 ? employees.map(e => `${e.firstName} ${e.lastName}`) : ['No Employees Found'],
     'Payment Mode': ['Cash', 'UPI', 'Google Pay', 'Card', 'Cheque'],
   };
 
   const [salesData, setSalesData] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+
   const [stats, setStats] = useState({
     invoiceCount: 0,
     totalAmount: 0,
@@ -142,9 +152,15 @@ const SalesReport = () => {
     cashTotal: 0,
     taxAmount: 0
   });
-  const [totalPages, setTotalPages] = useState(1);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const toggleFilter = (filter) => {
+    setActiveFilter(activeFilter === filter ? null : filter);
+  };
+
+  const handleFilterSelect = (filter, val) => {
+    setFilterValues({ ...filterValues, [filter]: val });
+    setActiveFilter(null);
+  };
 
   // Fetch Sales Data
   const fetchSalesData = async () => {
@@ -166,9 +182,15 @@ const SalesReport = () => {
       if (filterValues['Select Sale Type']) queryParams.append('type', filterValues['Select Sale Type']);
       if (filterValues['Payment Mode']) queryParams.append('paymentMode', filterValues['Payment Mode']);
 
-      // Handle ID based filters if we had IDs, currently using names so might need adjustment or rely on backend search
-      // Ideally UI should store ID in filterValues, here assuming filterValues stores name strings as per current UI
-      // TODO: Update Filter Dropdowns to store IDs to pass to backend for more accuracy
+      // Map names back to IDs for the backend
+      if (filterValues['Select Trainer']) {
+        const t = trainers.find(t => `${t.firstName} ${t.lastName}` === filterValues['Select Trainer']);
+        if (t) queryParams.append('trainer', t._id);
+      }
+      if (filterValues['Select Closed By']) {
+        const e = employees.find(e => `${e.firstName} ${e.lastName}` === filterValues['Select Closed By']);
+        if (e) queryParams.append('closedBy', e._id);
+      }
 
       const res = await fetch(`${API_BASE_URL}/api/admin/reports/sales?${queryParams.toString()}`, {
         headers: {

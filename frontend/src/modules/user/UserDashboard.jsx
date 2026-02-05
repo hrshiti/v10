@@ -1,27 +1,28 @@
 import React from 'react';
-import { 
-  Dumbbell, 
-  Calendar, 
-  User, 
-  Home, 
-  LayoutGrid, 
-  TrendingUp, 
-  Users, 
-  Clock, 
-  Trophy, 
+import {
+  Dumbbell,
+  Calendar,
+  User,
+  Home,
+  LayoutGrid,
+  TrendingUp,
+  Users,
+  Clock,
+  Trophy,
   ArrowRight,
   Apple,
   Beef,
   Cherry,
   Soup
 } from 'lucide-react';
+import WaterTracker from './components/WaterTracker';
 
 const UserDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       {/* Container simulating a mobile device */}
       <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl overflow-hidden relative border-8 border-gray-900 border-opacity-10">
-        
+
         {/* Header Section */}
         <div className="bg-[#121212] text-white p-8 pb-32 rounded-b-[2.5rem]">
           <div className="flex justify-between items-start">
@@ -34,9 +35,9 @@ const UserDashboard = () => {
               <p className="text-gray-400 mb-6">Jordan Eagle</p>
             </div>
             <div className="w-14 h-14 rounded-full border-2 border-white overflow-hidden">
-              <img 
-                src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=200&auto=format&fit=crop" 
-                alt="Profile" 
+              <img
+                src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=200&auto=format&fit=crop"
+                alt="Profile"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -64,7 +65,7 @@ const UserDashboard = () => {
           <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 flex flex-col gap-4 relative overflow-hidden">
             {/* Background pattern/circles subtle decoration */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-10 -mt-10 opacity-50"></div>
-            
+
             <div className="flex justify-between items-center relative">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold text-gray-800">Progress</span>
@@ -80,7 +81,7 @@ const UserDashboard = () => {
                   Cardio
                 </span>
                 <h2 className="text-2xl font-bold text-gray-900 leading-tight">Lower Body</h2>
-                
+
                 <div className="flex items-center gap-4 mt-1">
                   <div className="flex items-center gap-1.5 text-gray-500">
                     <Clock size={16} />
@@ -131,12 +132,14 @@ const UserDashboard = () => {
               </div>
             </button>
           </div>
+
+          <WaterTracker />
         </div>
 
         {/* Diet Plan Section */}
         <div className="px-6 py-10">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Diet Plan</h2>
-          
+
           <div className="grid grid-cols-2 gap-4">
             {/* Breakfast */}
             <div className="bg-[#E8F5E9] p-6 rounded-[2rem] flex flex-col items-center justify-center gap-3 border border-green-100/50">
@@ -190,7 +193,7 @@ const UserDashboard = () => {
             </button>
           </div>
         </div>
-        
+
         {/* Fill bottom space due to fixed nav padding */}
         <div className="h-24"></div>
       </div>

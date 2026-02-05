@@ -16,13 +16,20 @@ const {
     upgradeMembership,
     transferMembership,
     bulkDeactivateMembers,
-    bulkAssignTrainer
+    bulkAssignTrainer,
+    payDue,
+    payDueMember
 } = require('../../controllers/admin/memberController');
 
 const {
     scanQRCode,
     getMemberAttendanceLogs
 } = require('../../controllers/admin/memberAttendanceController');
+
+const { protect } = require('../../middlewares/authMiddleware');
+
+// Protect all routes
+router.use(protect);
 
 // Attendance
 router.post('/attendance/scan', scanQRCode);
@@ -37,6 +44,8 @@ router.put('/:id/change-start-date', changeStartDate);
 router.post('/:id/freeze', freezeMembership);
 router.post('/:id/upgrade', upgradeMembership);
 router.post('/:id/transfer', transferMembership);
+router.put('/subscriptions/:subscriptionId/pay-due', payDue);
+router.put('/:id/pay-due', payDueMember);
 
 router.route('/')
     .get(getMembers)
