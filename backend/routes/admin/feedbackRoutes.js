@@ -8,7 +8,7 @@ const {
     getMyFeedbacks
 } = require('../../controllers/admin/feedbackController');
 
-const { protect } = require('../../middlewares/authMiddleware');
+const { protect, userProtect } = require('../../middlewares/authMiddleware');
 
 // Admin Routes
 router.get('/', protect, getFeedbacks);
@@ -17,6 +17,6 @@ router.put('/:id/reply', protect, replyToFeedback);
 router.get('/user/:userId', protect, getMyFeedbacks);
 
 // Public/User Route (To submit)
-router.post('/submit', createFeedback);
+router.post('/submit', userProtect, createFeedback);
 
 module.exports = router;

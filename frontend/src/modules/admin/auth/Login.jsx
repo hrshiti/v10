@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, X } from 'lucide-react';
+import { API_BASE_URL } from '../../../config/api';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -19,7 +20,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:5000/api/admin/auth/login', {
+            const response = await fetch(`${API_BASE_URL}/api/admin/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -46,7 +47,7 @@ const Login = () => {
         e.preventDefault();
         // Call API for forgot password
         try {
-            const response = await fetch('http://localhost:5000/api/admin/auth/forgot-password', {
+            const response = await fetch(`${API_BASE_URL}/api/admin/auth/forgot-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: forgotEmail })

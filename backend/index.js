@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const path = require('path');
 const cors = require('cors');
+const mongoose = require('mongoose');
 
 // Load env vars
 // Load env vars
@@ -15,7 +16,32 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+    'https://v10-fitness.netlify.app',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:3000'
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+        } else {
+            console.log('Origin not allowed by CORS:', origin);
+            callback(null, false);
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -46,6 +72,24 @@ app.get('/', (req, res) => {
     res.send('API is running...');
 });
 
+app.get('/api/status', (req, res) => {
+    res.json({
+        status: 'online',
+        timestamp: new Date().toISOString(),
+        env: process.env.NODE_ENV || 'development',
+        db: {
+            state: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+            code: mongoose.connection.readyState,
+            host: mongoose.connection.host || 'none'
+        },
+        config: {
+            jwt: process.env.JWT_SECRET ? 'configured' : 'missing',
+            mongo_uri: process.env.MONGO_URI ? 'present' : 'using_fallback',
+            port: process.env.PORT || 5000
+        }
+    });
+});
+
 // Error Handling Middleware
 app.use((err, req, res, next) => {
     const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
@@ -58,7 +102,18 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+    console.log('Allowed Origins:', allowedOrigins);
 });
 
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err, promise) => {
+    console.log(`Error: ${err.message}`);
+    // Close server & exit process
+    // server.close(() => process.exit(1));
+});
+
+process.on('uncaughtException', (err) => {
+    console.log(`Uncaught Exception: ${err.message}`);
+});

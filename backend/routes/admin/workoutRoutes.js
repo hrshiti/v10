@@ -7,6 +7,9 @@ const {
     deleteWorkout,
     getMemberWorkout
 } = require('../../controllers/admin/workoutController');
+const { protect } = require('../../middlewares/authMiddleware');
+
+router.use(protect);
 
 router.route('/')
     .post(createWorkout)

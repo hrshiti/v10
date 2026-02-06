@@ -49,26 +49,33 @@ This is the backend API for the Fitness Lab Gym Management System. It handles Au
 
 ## 📚 API Documentation
 
-### **1. Authentication**
-*   `POST /api/admin/auth/login` - Admin Login
+For the full detailed list of all Admin and User APIs, see the [Root README.md](../README.md).
 
-### **2. Enquiries**
-*   `GET /api/admin/enquiries` - List all enquiries (supports pagination & search)
-*   `POST /api/admin/enquiries` - Create new enquiry
-*   `GET /api/admin/enquiries/stats` - Get status counts
+### Quick Reference (Admin)
 
-### **3. Members**
-*   `GET /api/admin/members` - List all members
-*   `POST /api/admin/members` - Register new member (Auto-creates Sale)
-*   `GET /api/admin/members/stats` - Active vs Expired stats
+| Category | Base Path |
+| :--- | :--- |
+| **Auth** | `/api/admin/auth` |
+| **Dashboard** | `/api/admin/dashboard` |
+| **Members** | `/api/admin/members` |
+| **Enquiries** | `/api/admin/enquiries` |
+| **Packages** | `/api/admin/packages` |
+| **Workouts** | `/api/admin/workouts` |
+| **Diet Plans** | `/api/admin/diet-plans` |
+| **Employees** | `/api/admin/employees` |
+| **Sales** | `/api/admin/sales` |
+| **Reports** | `/api/admin/reports` |
+| **Expenses** | `/api/admin/expenses` |
+| **Gym Details**| `/api/admin/gym-details` |
 
-### **4. Packages**
-*   `GET /api/admin/packages` - List all active plans
-*   `POST /api/admin/packages` - Create new membership package
+### Quick Reference (User)
 
-### **5. Workouts**
-*   `POST /api/admin/workouts` - Assign workout plan to member
-*   `GET /api/admin/workouts/member/:id` - View member's plan
+| Category | Base Path |
+| :--- | :--- |
+| **Auth** | `/api/user/auth` |
+| **Profile & Stats** | `/api/user` |
+| **Water Intake** | `/api/user/water-intake` |
+
 
 ## 📂 Project Structure
 

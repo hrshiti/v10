@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, User, CheckCircle, Calendar, Clock, RotateCcw, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { API_BASE_URL } from '../../../config/api';
 
 const AttendanceSuccess = () => {
     const navigate = useNavigate();
@@ -28,7 +29,7 @@ const AttendanceSuccess = () => {
         const fetchStats = async () => {
             try {
                 const token = localStorage.getItem('userToken');
-                const response = await fetch('http://localhost:5000/api/user/stats', {
+                const response = await fetch(`${API_BASE_URL}/api/user/stats`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -41,7 +42,7 @@ const AttendanceSuccess = () => {
         const fetchHistory = async () => {
             try {
                 const token = localStorage.getItem('userToken');
-                const response = await fetch('http://localhost:5000/api/user/attendance', {
+                const response = await fetch(`${API_BASE_URL}/api/user/attendance`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();

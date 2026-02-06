@@ -17,20 +17,29 @@ const generateToken = (id) => {
 // @access  Public
 const authAdmin = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
+    console.log(`Login attempt for email: ${email}`);
 
-    const admin = await Admin.findOne({ email });
+    try {
+        const admin = await Admin.findOne({ email });
 
-    if (admin && (await admin.matchPassword(password))) {
-        res.json({
-            _id: admin._id,
-            name: admin.name,
-            email: admin.email,
-            role: admin.role,
-            token: generateToken(admin._id),
-        });
-    } else {
-        res.status(401);
-        throw new Error('Invalid email or password');
+        if (admin && (await admin.matchPassword(password))) {
+            console.log('Login successful');
+            res.json({
+                _id: admin._id,
+                name: admin.name,
+                email: admin.email,
+                role: admin.role,
+                token: generateToken(admin._id),
+            });
+        } else {
+            console.log('Invalid credentials');
+            res.status(401);
+            throw new Error('Invalid email or password');
+        }
+    } catch (error) {
+        console.error('Error during login process:', error);
+        res.status(res.statusCode === 200 ? 500 : res.statusCode);
+        throw error;
     }
 });
 

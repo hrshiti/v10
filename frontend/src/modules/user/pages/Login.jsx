@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Smartphone, ArrowRight } from 'lucide-react';
+import { API_BASE_URL } from '../../../config/api';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -20,11 +21,7 @@ const Login = () => {
         setError('');
 
         try {
-            const backendUrl = window.location.hostname === 'localhost'
-                ? 'http://localhost:5000'
-                : `http://${window.location.hostname}:5000`;
-
-            const response = await fetch(`${backendUrl}/api/user/auth/send-otp`, {
+            const response = await fetch(`${API_BASE_URL}/api/user/auth/send-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mobile })

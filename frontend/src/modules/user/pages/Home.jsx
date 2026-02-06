@@ -10,6 +10,7 @@ import RecommendationCard from '../components/RecommendationCard';
 import WaterTracker from '../components/WaterTracker';
 import DietPlanSection from '../components/DietPlanSection';
 import logo from '../../../assets/logo.jpg';
+import { API_BASE_URL } from '../../../config/api';
 
 const Home = () => {
     const [stats, setStats] = useState({
@@ -36,7 +37,7 @@ const Home = () => {
             const token = localStorage.getItem('userToken');
             if (!token) return;
 
-            const response = await fetch('http://localhost:5000/api/user/stats', {
+            const response = await fetch(`${API_BASE_URL}/api/user/stats`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();

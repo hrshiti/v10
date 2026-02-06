@@ -11,6 +11,7 @@ import {
     RefreshCw,
     Scan
 } from 'lucide-react';
+import { API_BASE_URL } from '../../../config/api';
 
 const MarkAttendance = () => {
     const { isDarkMode } = useOutletContext();
@@ -27,7 +28,7 @@ const MarkAttendance = () => {
 
     const fetchRecentAttendance = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/admin/members/attendance?limit=5', {
+            const response = await fetch(`${API_BASE_URL}/api/admin/members/attendance?limit=5`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
                 }
@@ -56,7 +57,7 @@ const MarkAttendance = () => {
         setSuccess(null);
 
         try {
-            const response = await fetch('http://localhost:5000/api/admin/members/attendance/scan', {
+            const response = await fetch(`${API_BASE_URL}/api/admin/members/attendance/scan`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -124,8 +125,8 @@ const MarkAttendance = () => {
                     <button
                         onClick={() => setIsScanning(!isScanning)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${isScanning
-                                ? 'bg-red-500 hover:bg-red-600 text-white'
-                                : 'bg-green-500 hover:bg-green-600 text-white'
+                            ? 'bg-red-500 hover:bg-red-600 text-white'
+                            : 'bg-green-500 hover:bg-green-600 text-white'
                             }`}
                     >
                         {isScanning ? <XCircle size={18} /> : <Scan size={18} />}

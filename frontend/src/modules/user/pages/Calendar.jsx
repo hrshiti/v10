@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Clock, Info, ChevronDown } from 'lucide-react';
 import DietItemModal from '../components/DietItemModal';
+import { API_BASE_URL } from '../../../config/api';
 
 const Calendar = () => {
     // State
@@ -18,8 +19,8 @@ const Calendar = () => {
             try {
                 const token = localStorage.getItem('userToken');
                 const [wRes, dRes] = await Promise.all([
-                    fetch('http://localhost:5000/api/user/workouts', { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch('http://localhost:5000/api/user/diet-plan', { headers: { 'Authorization': `Bearer ${token}` } })
+                    fetch(`${API_BASE_URL}/api/user/workouts`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_BASE_URL}/api/user/diet-plan`, { headers: { 'Authorization': `Bearer ${token}` } })
                 ]);
 
                 const wData = await wRes.json();

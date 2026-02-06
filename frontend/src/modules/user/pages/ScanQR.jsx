@@ -7,6 +7,7 @@ import Webcam from 'react-webcam';
 import jsQR from 'jsqr';
 import toast, { Toaster } from 'react-hot-toast';
 import ManualEntryModal from '../components/ManualEntryModal';
+import { API_BASE_URL } from '../../../config/api';
 
 const ScanQR = () => {
     const navigate = useNavigate();
@@ -128,7 +129,7 @@ const ScanQR = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:5000/api/user/attendance/scan', {
+            const response = await fetch(`${API_BASE_URL}/api/user/attendance/scan`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -4,7 +4,7 @@ const { authAdmin, registerAdmin, forgotPassword } = require('../../controllers/
 const { protect } = require('../../middlewares/authMiddleware');
 
 router.post('/login', authAdmin);
-router.post('/register', registerAdmin);
+router.post('/register', protect, registerAdmin);
 router.post('/forgot-password', forgotPassword);
 
 // Example of protected route check

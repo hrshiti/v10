@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Settings, Award, Shield, ChevronRight, Weight, Ruler, Lock, Flame, Pencil, Calendar as CalendarIcon, HelpCircle, FileText, Info, MessageSquare, LogOut, User } from 'lucide-react';
 import EditProfileModal from '../components/EditProfileModal';
+import { API_BASE_URL } from '../../../config/api';
 
 const Profile = () => {
     // State
@@ -29,7 +30,7 @@ const Profile = () => {
             const token = localStorage.getItem('userToken');
             if (!token) return;
 
-            const response = await fetch('http://localhost:5000/api/user/profile', {
+            const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
@@ -63,7 +64,7 @@ const Profile = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:5000/api/user/profile', {
+            const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: data

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Grid, Clock, Crown, ArrowRight } from 'lucide-react';
+import { API_BASE_URL } from '../../../config/api';
 
 const ProgressCard = () => {
     const navigate = useNavigate();
@@ -10,7 +11,7 @@ const ProgressCard = () => {
 
     const fetchStats = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/user/workouts/stats', {
+            const response = await fetch(`${API_BASE_URL}/api/user/workouts/stats`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('userToken')}`
                 }
