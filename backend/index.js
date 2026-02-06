@@ -17,7 +17,6 @@ const app = express();
 
 // Middleware
 const allowedOrigins = [
-    'https://v10-fitness.netlify.app',
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:3000',
@@ -25,7 +24,7 @@ const allowedOrigins = [
     'http://127.0.0.1:5174',
     'http://127.0.0.1:3000',
     process.env.FRONTEND_URL
-].filter(Boolean); // Remote null/undefined if FRONTEND_URL is not set
+].filter(Boolean);
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -45,6 +44,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 
 // Routes
 // Admin Routes
