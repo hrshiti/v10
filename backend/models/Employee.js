@@ -19,6 +19,7 @@ const employeeSchema = new mongoose.Schema({
     state: { type: String },
     city: { type: String },
     employeeType: { type: String, enum: ['Full Time', 'Shift Time'], default: 'Full Time' },
+    experience: { type: Number, default: 0 }, // Years of experience
     active: { type: Boolean, default: true }
 }, { timestamps: true });
 

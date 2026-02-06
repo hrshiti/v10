@@ -10,7 +10,9 @@ const {
 } = require('../../controllers/admin/employeeController');
 const {
     getAttendanceLogs,
-    markAttendance
+    markAttendance,
+    punchIn,
+    punchOut
 } = require('../../controllers/admin/employeeAttendanceController');
 
 const upload = require('../../middlewares/uploadMiddleware');
@@ -28,6 +30,8 @@ router.get('/role/:role', getEmployeesByRole);
 // Attendance
 router.get('/attendance', getAttendanceLogs);
 router.post('/attendance/manual', markAttendance);
+router.post('/attendance/punch-in', punchIn);
+router.post('/attendance/punch-out', punchOut);
 
 router.route('/:id')
     .put(upload.single('photo'), updateEmployee)

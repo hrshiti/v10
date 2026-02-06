@@ -411,8 +411,9 @@ const EmployeeAttendance = () => {
     try {
       const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
       const emp = employees.find(e => e._id === employeeId);
+      const endpoint = type === 'in' ? 'punch-in' : 'punch-out';
 
-      const res = await fetch(`${API_BASE_URL}/api/admin/employees/attendance/manual`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/employees/attendance/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -420,15 +421,13 @@ const EmployeeAttendance = () => {
         },
         body: JSON.stringify({
           employeeId,
-          date: new Date().toISOString().split('T')[0],
-          [type === 'in' ? 'inTime' : 'outTime']: new Date().toISOString(),
           shift: emp?.employeeType || 'Full Time'
         })
       });
 
       if (res.ok) {
         setToast({ message: `Punch ${type.toUpperCase()} done.`, type: 'success' });
-        if (activeView === 'Attendance Log') fetchLogs();
+        fetchLogs();
       } else {
         const data = await res.json();
         setToast({ message: data.message || `Error punching ${type}`, type: 'error' });

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Award, Shield, ChevronRight, Weight, Ruler, Lock, Flame, Pencil, Calendar as CalendarIcon, HelpCircle, FileText, Info, MessageSquare, LogOut, User } from 'lucide-react';
+import { Settings, Award, Shield, ChevronRight, Weight, Ruler, Lock, Flame, Pencil, Calendar as CalendarIcon, HelpCircle, FileText, Info, MessageSquare, LogOut, User, Users, Crown } from 'lucide-react';
 import EditProfileModal from '../components/EditProfileModal';
+import TrainerDetailModal from '../components/TrainerDetailModal';
 import { API_BASE_URL } from '../../../config/api';
 
 const Profile = () => {
     // State
     const navigate = useNavigate();
     const [showEditModal, setShowEditModal] = useState(false);
+    const [selectedTrainer, setSelectedTrainer] = useState(null);
     const storedData = localStorage.getItem('userData');
     const parsedData = storedData ? JSON.parse(storedData) : null;
 
@@ -18,12 +20,45 @@ const Profile = () => {
         height: parsedData?.height || '178',
         age: parsedData?.age || '30',
         mobile: parsedData?.mobile || '',
-        photo: parsedData?.photo || null
+        photo: parsedData?.photo || null,
+        endDate: parsedData?.endDate || null
     });
+    const [presentTrainers, setPresentTrainers] = useState([]);
+
+    const getRemainingDays = () => {
+        if (!userData.endDate) return 'Plan not active';
+        const today = new Date();
+        const expiryDate = new Date(userData.endDate);
+        const diffTime = expiryDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) return 'Expired';
+        if (diffDays === 0) return 'Expires Today';
+        return `${diffDays} days left`;
+    };
 
     useEffect(() => {
         fetchProfile();
+        fetchPresentTrainers();
     }, []);
+
+    const fetchPresentTrainers = async () => {
+        try {
+            const token = localStorage.getItem('userToken');
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/user/trainers/present`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setPresentTrainers(data);
+            }
+        } catch (error) {
+            console.error('Error fetching trainers:', error);
+        }
+    };
+
 
     const fetchProfile = async () => {
         try {
@@ -192,6 +227,96 @@ const Profile = () => {
                     </div>
                 </div>
 
+                {/* Subscription Status Section */}
+                <div className="mb-6 px-1">
+                    <div className="bg-gradient-to-br from-[#1A1F2B] to-[#2D3446] rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Crown size={64} className="text-amber-400" />
+                        </div>
+                        <div className="relative z-10">
+                            <h3 className="text-amber-400 text-[10px] font-black uppercase tracking-widest mb-1">Current Membership</h3>
+                            <div className="flex items-end justify-between">
+                                <div>
+                                    <p className="text-xl font-black text-white leading-none mb-1">
+                                        {userData.packageName || 'Active Plan'}
+                                    </p>
+                                    <p className="text-xs font-bold text-gray-400">
+                                        Expires on: {userData.endDate ? new Date(userData.endDate).toLocaleDateString() : 'N/A'}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="px-3 py-1 bg-white/10 rounded-full border border-white/10">
+                                        <p className="text-[11px] font-black text-white uppercase tracking-tighter">
+                                            {getRemainingDays()}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Progress bar for subscription */}
+                            <div className="mt-4 h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-amber-400 rounded-full"
+                                    style={{
+                                        width: userData.endDate ? `${Math.max(0, Math.min(100, (Math.ceil((new Date(userData.endDate) - new Date()) / (1000 * 60 * 60 * 24)) / 30) * 100))}%` : '0%'
+                                    }}
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Trainers Section */}
+                <div className="mb-6">
+                    <div className="flex items-center justify-between mb-3 px-1">
+                        <h2 className="text-[17px] font-black text-gray-900 dark:text-white flex items-center gap-2">
+                            <Users size={18} className="text-emerald-500" />
+                            Trainers in Gym
+                            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse ml-1"></span>
+                        </h2>
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{presentTrainers.length} Active</span>
+                    </div>
+
+                    {presentTrainers.length > 0 ? (
+                        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+                            {presentTrainers.map((trainer) => (
+                                <div
+                                    key={trainer._id}
+                                    className="flex-shrink-0 flex flex-col items-center gap-2 group cursor-pointer"
+                                    onClick={() => setSelectedTrainer(trainer)}
+                                >
+                                    <div className="relative w-16 h-16 transition-transform group-hover:scale-105">
+                                        <div className="w-full h-full rounded-full p-0.5 border-2 border-emerald-500/30 group-hover:border-emerald-500 transition-colors shadow-sm">
+                                            <div className="w-full h-full rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
+                                                {trainer.photo ? (
+                                                    <img src={trainer.photo} alt={trainer.firstName} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-emerald-500/50">
+                                                        <User size={24} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-[#121212] rounded-full"></div>
+                                    </div>
+                                    <div className="text-center w-20">
+                                        <p className="text-[11px] font-bold text-gray-900 dark:text-white truncate leading-none mb-1">
+                                            {trainer.firstName}
+                                        </p>
+                                        <span className="text-[9px] text-gray-400 font-medium truncate block">
+                                            {trainer.gymActivities?.[0] || 'Trainer'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="bg-white dark:bg-[#1A1F2B] rounded-2xl p-6 text-center border border-dashed border-gray-200 dark:border-gray-800">
+                            <p className="text-xs text-gray-400 font-medium">No trainers currently present in gym</p>
+                        </div>
+                    )}
+                </div>
+
                 {/* Menu List */}
                 <div className="bg-white dark:bg-[#1A1F2B] rounded-[1.5rem] p-2 shadow-sm border border-gray-100 dark:border-gray-800 mb-20 transition-colors duration-300">
                     <button onClick={() => handleMenuClick('Settings')} className="w-full p-4 flex items-center justify-between group border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
@@ -242,14 +367,6 @@ const Profile = () => {
                         <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
                     </button>
 
-                    <button onClick={() => handleMenuClick('Achievements')} className="w-full p-4 flex items-center justify-between group border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
-                        <div className="flex items-center gap-4">
-                            <Award size={20} className="text-gray-400" />
-                            <span className="font-bold text-gray-700 dark:text-gray-200 text-sm">Achievements</span>
-                        </div>
-                        <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
-                    </button>
-
                     <button
                         onClick={() => {
                             localStorage.removeItem('userToken');
@@ -283,6 +400,11 @@ const Profile = () => {
                     onSave={handleSave}
                 />
             )}
+
+            <TrainerDetailModal
+                trainer={selectedTrainer}
+                onClose={() => setSelectedTrainer(null)}
+            />
         </div>
     );
 };

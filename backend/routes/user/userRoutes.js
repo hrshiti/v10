@@ -15,13 +15,16 @@ const {
     getHomeStats,
     checkWorkoutStatus
 } = require('../../controllers/user/userController');
+const { getPresentTrainers } = require('../../controllers/user/trainerController');
 
 const upload = require('../../middlewares/uploadMiddleware');
 
 // All user routes are protected
 router.use(userProtect);
 
+router.get('/trainers/present', getPresentTrainers);
 router.get('/profile', getUserProfile);
+
 router.put('/profile', upload.single('photo'), updateUserProfile);
 router.post('/attendance/scan', userScanQR);
 router.get('/attendance', getUserAttendance);
