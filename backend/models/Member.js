@@ -22,6 +22,11 @@ const memberSchema = new mongoose.Schema({
     },
 
     // Membership Details
+    membershipType: {
+        type: String,
+        enum: ['General Training', 'Personal Training'],
+        default: 'General Training'
+    },
     packageName: { type: String, required: true }, // e.g. "Yearly Gold"
     durationMonths: { type: Number, default: 1 },
     startDate: { type: Date, required: true },

@@ -59,7 +59,7 @@ const getMemberById = asyncHandler(async (req, res) => {
 const createMember = asyncHandler(async (req, res) => {
     const {
         firstName, lastName, mobile, email, gender, dob, address,
-        packageName, durationMonths, startDate, endDate,
+        membershipType, packageName, durationMonths, startDate, endDate,
         totalAmount, paidAmount, discount, assignedTrainer, closedBy,
         emergencyContactName, emergencyContactNumber,
         enquiryId
@@ -73,6 +73,7 @@ const createMember = asyncHandler(async (req, res) => {
 
     const member = await Member.create({
         firstName, lastName, mobile, email, gender, dob, address,
+        membershipType: membershipType || 'General Training',
         packageName, durationMonths, startDate, endDate,
         totalAmount, paidAmount, discount, assignedTrainer, closedBy,
         emergencyContact: {
@@ -86,6 +87,7 @@ const createMember = asyncHandler(async (req, res) => {
         // Create Subscription record
         await Subscription.create({
             memberId: member._id,
+            membershipType: membershipType || 'General Training',
             packageName,
             duration: durationMonths,
             startDate,
@@ -106,6 +108,7 @@ const createMember = asyncHandler(async (req, res) => {
             trainerId: assignedTrainer || null,
             closedBy: closedBy || null,
             type: 'New Membership',
+            membershipType: membershipType || 'General Training',
             memberId: member._id,
             description: `New Membership: ${packageName}`
         });
@@ -221,6 +224,7 @@ const getMemberStats = asyncHandler(async (req, res) => {
 const renewMembership = asyncHandler(async (req, res) => {
     const {
         memberId,
+        membershipType,
         packageName,
         durationMonths,
         startDate,
@@ -242,6 +246,7 @@ const renewMembership = asyncHandler(async (req, res) => {
     }
 
     // Update Member details with new subscription
+    member.membershipType = membershipType || 'General Training';
     member.packageName = packageName;
     member.durationMonths = durationMonths;
     member.startDate = startDate;
@@ -266,6 +271,7 @@ const renewMembership = asyncHandler(async (req, res) => {
     // Create a new Subscription record
     await Subscription.create({
         memberId: member._id,
+        membershipType: membershipType || 'General Training',
         packageName,
         duration: durationMonths,
         startDate,
@@ -290,6 +296,7 @@ const renewMembership = asyncHandler(async (req, res) => {
         trainerId: assignedTrainer || null,
         closedBy: closedBy || null,
         type: 'Renewal',
+        membershipType: membershipType || 'General Training',
         description: `Renewed: ${packageName} (${durationMonths} Months)`
     });
 
@@ -334,6 +341,7 @@ const createFreshSale = asyncHandler(async (req, res) => {
 
         await Subscription.create({
             memberId: member._id,
+            membershipType: plan.membershipType || 'General Training',
             packageName: plan.name,
             duration: plan.durationValue,
             durationType: plan.durationType,
@@ -351,6 +359,7 @@ const createFreshSale = asyncHandler(async (req, res) => {
     // Update member profile with the LAST selected plan info
     const lastPlan = selectedPlans[selectedPlans.length - 1];
     if (lastPlan) {
+        member.membershipType = lastPlan.membershipType || 'General Training';
         member.packageName = lastPlan.name;
         member.durationMonths = lastPlan.durationType === 'Months' ? lastPlan.durationValue : 0;
         member.startDate = lastPlan.startDate;
@@ -384,6 +393,7 @@ const createFreshSale = asyncHandler(async (req, res) => {
         date: new Date(),
         paymentMode: paymentMethod || 'Online',
         type: 'New Membership',
+        membershipType: lastPlan?.membershipType || 'General Training',
         description: `Fresh Sale: ${selectedPlans.map(p => p.name).join(', ')}. ${comment || ''}`,
         closedBy: closedBy || null
     });

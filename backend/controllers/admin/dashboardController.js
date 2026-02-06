@@ -37,7 +37,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const salesStats = await Sale.aggregate([
         {
             $group: {
-                _id: "$type",
+                _id: {
+                    type: "$type",
+                    membershipType: "$membershipType"
+                },
                 count: { $sum: 1 },
                 amount: { $sum: "$amount" }
             }
@@ -54,28 +57,39 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     let transferSales = { number: 0, amount: 0 };
 
     salesStats.forEach(stat => {
+        const type = stat._id.type;
+        const membershipType = stat._id.membershipType;
+        const isPT = membershipType === 'Personal Training';
+
         totalRevenue += stat.amount;
         totalSalesCount += stat.count;
 
-        switch (stat._id) {
-            case 'New Membership':
-                freshSales = { number: stat.count, amount: stat.amount };
-                break;
-            case 'Renewal':
-                renewalSales = { number: stat.count, amount: stat.amount };
-                break;
-            case 'PT':
-                ptSales = { number: stat.count, amount: stat.amount };
-                break;
-            case 'PT Renewal':
-                ptRenewalSales = { number: stat.count, amount: stat.amount };
-                break;
-            case 'Upgrade':
-                upgradeSales = { number: stat.count, amount: stat.amount };
-                break;
-            case 'Transfer':
-                transferSales = { number: stat.count, amount: stat.amount };
-                break;
+        if (isPT) {
+            if (type === 'New Membership' || type === 'PT') {
+                ptSales.number += stat.count;
+                ptSales.amount += stat.amount;
+            } else if (type === 'Renewal' || type === 'PT Renewal') {
+                ptRenewalSales.number += stat.count;
+                ptRenewalSales.amount += stat.amount;
+            }
+        } else {
+            // General Training or others
+            if (type === 'New Membership') {
+                freshSales.number += stat.count;
+                freshSales.amount += stat.amount;
+            } else if (type === 'Renewal') {
+                renewalSales.number += stat.count;
+                renewalSales.amount += stat.amount;
+            }
+        }
+
+        // Always categorize these if present
+        if (type === 'Upgrade') {
+            upgradeSales.number += stat.count;
+            upgradeSales.amount += stat.amount;
+        } else if (type === 'Transfer') {
+            transferSales.number += stat.count;
+            transferSales.amount += stat.amount;
         }
     });
 

@@ -15,6 +15,11 @@ const saleSchema = new mongoose.Schema({
 
     // Meta
     type: { type: String, required: true }, // 'New Membership', 'Renewal', 'PT', 'Product'
+    membershipType: {
+        type: String,
+        enum: ['General Training', 'Personal Training'],
+        default: 'General Training'
+    },
     date: { type: Date, default: Date.now },
     paymentMode: { type: String, default: 'Cash' }, // Cash, UPI, Card
 
