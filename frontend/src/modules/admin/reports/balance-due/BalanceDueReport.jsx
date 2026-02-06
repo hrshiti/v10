@@ -9,7 +9,9 @@ import {
 import { useOutletContext } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
+import PayDueModal from './PayDueModal';
 import { API_BASE_URL } from '../../../../config/api';
+import { CreditCard } from 'lucide-react';
 
 const BalanceDueReport = () => {
   const { isDarkMode } = useOutletContext();
@@ -24,6 +26,8 @@ const BalanceDueReport = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
 
   const fetchBalanceDueData = async () => {
     setIsLoading(true);
@@ -168,6 +172,7 @@ const BalanceDueReport = () => {
                 <th className="px-6 py-5">Total Amount</th>
                 <th className="px-6 py-5">Paid Amount</th>
                 <th className="px-6 py-5">Due Amount</th>
+                <th className="px-6 py-5 text-center">Action</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -189,6 +194,20 @@ const BalanceDueReport = () => {
                     <td className="px-6 py-8 font-black">₹{member.totalAmount?.toFixed(2)}</td>
                     <td className="px-6 py-8 font-black">₹{member.paidAmount?.toFixed(2)}</td>
                     <td className="px-6 py-8 font-black text-red-600">₹{member.dueAmount?.toFixed(2)}</td>
+                    <td className="px-6 py-8">
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => {
+                            setSelectedMember(member);
+                            setIsPayModalOpen(true);
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-black uppercase transition-all shadow-md active:scale-95"
+                        >
+                          <CreditCard size={14} />
+                          Pay Due
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -229,6 +248,19 @@ const BalanceDueReport = () => {
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         isDarkMode={isDarkMode}
+      />
+
+      <PayDueModal
+        isOpen={isPayModalOpen}
+        onClose={() => {
+          setIsPayModalOpen(false);
+          setSelectedMember(null);
+        }}
+        member={selectedMember}
+        isDarkMode={isDarkMode}
+        onSuccess={() => {
+          fetchBalanceDueData();
+        }}
       />
     </div>
   );

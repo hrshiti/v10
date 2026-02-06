@@ -46,6 +46,8 @@ const userProtect = asyncHandler(async (req, res, next) => {
     ) {
         try {
             token = req.headers.authorization.split(' ')[1];
+            console.log('Authorization Header:', req.headers.authorization);
+            console.log('Token extracted:', token);
             if (!process.env.JWT_SECRET) {
                 throw new Error('JWT_SECRET environment variable is not defined');
             }

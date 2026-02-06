@@ -51,7 +51,7 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
                 : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600 border-b border-gray-50 last:border-0'
                 }`}
             >
-              {opt}
+              {typeof opt === 'object' ? opt.name : opt}
             </div>
           ))}
         </div>
@@ -101,13 +101,13 @@ const ExpiredMemberReport = () => {
 
         if (trainerRes.ok) {
           const data = await trainerRes.json();
-          setTrainers(data.map(t => `${t.firstName} ${t.lastName}`));
+          setTrainers(data.map(t => ({ id: t._id, name: `${t.firstName} ${t.lastName}` })));
         }
 
         if (empRes.ok) {
           const data = await empRes.json();
           const empList = Array.isArray(data) ? data : (data.employees || []);
-          setEmployees(empList.map(e => `${e.firstName} ${e.lastName}`));
+          setEmployees(empList.map(e => ({ id: e._id, name: `${e.firstName} ${e.lastName}` })));
         }
 
       } catch (error) {
@@ -128,9 +128,9 @@ const ExpiredMemberReport = () => {
   }, []);
 
   const filterOptions = {
-    'Select Membership Type': ['General Training', 'Personal Training', 'Group Ex'],
-    'Select Trainer': trainers.length > 0 ? trainers : ['No Trainers Found'],
-    'Select Closed By': employees.length > 0 ? employees : ['No Employees Found'],
+    'Select Membership Type': ['All', 'General Training', 'Personal Training', 'Group Ex'],
+    'Select Trainer': trainers.length > 0 ? [{ id: 'All', name: 'All' }, ...trainers] : [{ id: 'none', name: 'No Trainers Found' }],
+    'Select Closed By': employees.length > 0 ? [{ id: 'All', name: 'All' }, ...employees] : [{ id: 'none', name: 'No Employees Found' }],
   };
 
   const [memberData, setMemberData] = useState([]);
@@ -153,7 +153,10 @@ const ExpiredMemberReport = () => {
         search: searchQuery,
         status: isExpiredReport ? 'Expired' : 'ExpiringSoon',
         fromDate: fromDate?.split('-').reverse().join('-') || '',
-        toDate: toDate?.split('-').reverse().join('-') || ''
+        toDate: toDate?.split('-').reverse().join('-') || '',
+        membershipType: filterValues['Select Membership Type'] || '',
+        trainer: filterValues['Select Trainer']?.id || '',
+        closedBy: filterValues['Select Closed By']?.id || ''
       });
 
       const res = await fetch(`${API_BASE_URL}/api/admin/reports/membership-expiry?${queryParams.toString()}`, {
@@ -200,6 +203,12 @@ const ExpiredMemberReport = () => {
   const handleFilterSelect = (label, val) => {
     setFilterValues({ ...filterValues, [label]: val });
     setActiveFilter(null);
+  };
+
+  const getActiveVal = (label) => {
+    const val = filterValues[label];
+    if (!val) return null;
+    return typeof val === 'object' ? val.name : val;
   };
 
   const statsRender = [
@@ -281,7 +290,7 @@ const ExpiredMemberReport = () => {
               isOpen={activeFilter === label}
               onToggle={() => toggleFilter(label)}
               onSelect={(val) => handleFilterSelect(label, val)}
-              activeVal={filterValues[label]}
+              activeVal={getActiveVal(label)}
             />
           ))}
 

@@ -1,15 +1,29 @@
+
+
 const getBackendUrl = () => {
-    // 1. Priority: Environment Variable from .env file
-    const envUrl = import.meta.env.VITE_API_BASE_URL;
-    if (envUrl) return envUrl;
+  // 1️⃣ Environment variable (required for prod)
+  if (
+    typeof import.meta !== "undefined" &&
+    import.meta.env?.VITE_API_BASE_URL
+  ) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
 
-    // 2. Fallback: Check if running on localhost
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocal) return 'http://localhost:5000';
+  // 2️⃣ Development fallback
+  const hostname = window.location.hostname;
+  const isLocalhost =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "0.0.0.0";
 
-    // 3. Final Fallback: Default Production URL
-    return 'https://v10-fitness-gym.onrender.com';
+  if (isLocalhost) {
+    return "http://localhost:5000";
+  }
+
+  // 3️⃣ Safety fallback (no prod URL leaked)
+  throw new Error(
+    "VITE_API_BASE_URL is not defined. Please set it in the environment variables."
+  );
 };
 
 export const API_BASE_URL = getBackendUrl();
-

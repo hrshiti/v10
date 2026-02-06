@@ -58,6 +58,7 @@ const AddMember = () => {
         totalAmount: 0,
         paidAmount: 0,
         discount: 0,
+        membershipType: 'General Training',
         assignedTrainer: '',
         closedBy: ''
     });
@@ -289,6 +290,28 @@ const AddMember = () => {
                 {/* Membership & Financials */}
                 <div className={`p-8 rounded-2xl border ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 shadow-xl shadow-gray-200/50'}`}>
                     <SectionHeader icon={Package} title="Plan & Financials" isDarkMode={isDarkMode} />
+
+                    <div className="mb-8 p-4 rounded-xl border-2 border-dashed dark:border-white/10 border-gray-100">
+                        <label className={`text-[13px] font-black uppercase tracking-[2px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} block mb-4`}>
+                            Select Training Category*
+                        </label>
+                        <div className="flex gap-4">
+                            {['General Training', 'Personal Training'].map(type => (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, membershipType: type })}
+                                    className={`flex-1 py-4 rounded-xl border-2 font-black text-xs uppercase tracking-widest transition-all ${formData.membershipType === type
+                                        ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
+                                        : (isDarkMode ? 'bg-[#111] border-white/10 text-gray-500' : 'bg-gray-50 border-gray-200 text-gray-400')
+                                        }`}
+                                >
+                                    {type}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className={`text-[13px] font-black uppercase tracking-tight ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -305,9 +328,14 @@ const AddMember = () => {
                                     required
                                 >
                                     <option value="">Choose a Package</option>
-                                    {packages.map(pkg => (
-                                        <option key={pkg._id} value={pkg._id}>{pkg.name} - ₹{pkg.baseRate}</option>
-                                    ))}
+                                    {packages
+                                        .filter(pkg => {
+                                            const category = formData.membershipType === 'Personal Training' ? 'pt' : 'general';
+                                            return pkg.type === category;
+                                        })
+                                        .map(pkg => (
+                                            <option key={pkg._id} value={pkg._id}>{pkg.name} - ₹{pkg.baseRate}</option>
+                                        ))}
                                 </select>
                                 <ChevronDown size={18} className="absolute right-4 top-3.5 text-gray-400 pointer-events-none" />
                             </div>

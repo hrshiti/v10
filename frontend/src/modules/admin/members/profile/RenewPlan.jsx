@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useOutletContext, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, Upload, Plus, ArrowLeft, Check } from 'lucide-react';
 
 import { API_BASE_URL } from '../../../../config/api';
 
 const RenewPlan = () => {
     const context = useOutletContext();
+    const location = useLocation();
     const isDarkMode = context?.isDarkMode || false;
     const navigate = useNavigate();
     const { id, memberName, memberId, memberMobile, memberEmail } = context || {};
 
-    const [activeTab, setActiveTab] = useState('General Training');
+    const [activeTab, setActiveTab] = useState(location.state?.category || 'General Training');
     const tabs = ['General Training', 'Personal Training', 'Complete Fitness', 'Group EX'];
 
     const [packages, setPackages] = useState([]);
@@ -165,6 +166,7 @@ const RenewPlan = () => {
 
             const payload = {
                 memberId: id,
+                membershipType: activeTab === 'Personal Training' ? 'Personal Training' : 'General Training',
                 packageName: selectedPlan.name,
                 durationMonths: selectedPlan.durationValue, // Backend expects this but we adapt
                 startDate: start,

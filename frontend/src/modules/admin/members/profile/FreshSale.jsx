@@ -102,6 +102,7 @@ const FreshSale = () => {
             setSelectedPlans([...selectedPlans, {
                 packageId: pkg._id,
                 name: pkg.name,
+                membershipType: activeTab === 'Personal Training' ? 'Personal Training' : 'General Training',
                 durationValue: pkg.durationValue,
                 durationType: pkg.durationType,
                 cost: pkg.baseRate,
