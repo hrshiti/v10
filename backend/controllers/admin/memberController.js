@@ -408,30 +408,56 @@ const extendMembership = asyncHandler(async (req, res) => {
     const { days } = req.body;
     const member = await Member.findById(req.params.id);
 
-    if (member) {
-        // Add days to endDate
-        const currentEndDate = new Date(member.endDate);
-        currentEndDate.setDate(currentEndDate.getDate() + Number(days));
-        member.endDate = currentEndDate;
-
-        // Ensure status is valid
-        if (member.endDate > new Date()) {
-            member.status = 'Active';
-        }
-
-        await member.save();
-
-        // Also update current subscription
-        await Subscription.findOneAndUpdate(
-            { memberId: member._id, isCurrent: true },
-            { endDate: member.endDate, status: member.status }
-        );
-
-        res.json(member);
-    } else {
+    if (!member) {
         res.status(404);
         throw new Error('Member not found');
     }
+
+    if (!days || Number(days) <= 0) {
+        res.status(400);
+        throw new Error('Please provide a valid number of days to add');
+    }
+
+    // Add days to endDate
+    const currentEndDate = new Date(member.endDate);
+    currentEndDate.setDate(currentEndDate.getDate() + Number(days));
+    member.endDate = currentEndDate;
+
+    // Ensure status is valid
+    if (member.endDate > new Date()) {
+        member.status = 'Active';
+    }
+
+    await member.save();
+
+    // Also update current subscription with recalculated duration
+    const subscription = await Subscription.findOne({ memberId: member._id, isCurrent: true });
+
+    if (subscription) {
+        subscription.endDate = member.endDate;
+        subscription.status = member.status;
+
+        // Recalculate total duration in days for accurate validation
+        const startDate = new Date(subscription.startDate);
+        const endDate = new Date(subscription.endDate);
+        const totalDurationInDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+        // If duration type is Days, update the duration value
+        if (subscription.durationType === 'Days') {
+            subscription.duration = totalDurationInDays;
+        } else if (subscription.durationType === 'Months') {
+            // Keep original month duration, but the endDate reflects the extension
+            // This preserves the original package info while extending validity
+        }
+
+        await subscription.save();
+    }
+
+    res.json({
+        message: `Membership extended by ${days} days successfully`,
+        member,
+        subscription
+    });
 });
 
 // @desc    Change Start Date (and shift End Date)

@@ -310,6 +310,16 @@ const getSubscriptionAnalytics = asyncHandler(async (req, res) => {
         { $sort: { "_id": 1 } }
     ]);
 
+    // 5. Expiring Soon (Next 7 days)
+    const today = new Date();
+    const next7Days = new Date();
+    next7Days.setDate(today.getDate() + 7);
+
+    const expiringMembers = await Member.find({
+        status: 'Active',
+        endDate: { $gte: today, $lte: next7Days }
+    }).select('firstName lastName mobile endDate packageName memberId').sort({ endDate: 1 }).limit(50);
+
     res.json({
         packagePerformance: salesAgg,
         conversion: {
@@ -318,7 +328,8 @@ const getSubscriptionAnalytics = asyncHandler(async (req, res) => {
             conversionRate: totalEnquiries > 0 ? (convertedMembers / totalEnquiries) * 100 : 0
         },
         statusBreakdown,
-        revenueOverTime
+        revenueOverTime,
+        expiringMembers
     });
 });
 

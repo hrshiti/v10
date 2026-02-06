@@ -5,10 +5,7 @@ import {
   Download,
   User,
   X,
-  Target,
-  TrendingUp,
-  Users,
-  CheckCircle
+  TrendingUp
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
@@ -112,24 +109,6 @@ const CustomDatePicker = ({ value, onChange, isDarkMode }) => {
     </div>
   );
 };
-
-const AnalystCard = ({ title, value, subValue, icon: Icon, isDarkMode, colorClass }) => (
-  <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-    <div className="flex items-center justify-between mb-4">
-      <div className={`p-3 rounded-xl ${colorClass}`}>
-        <Icon size={24} className="text-white" />
-      </div>
-      <div className={`text-[12px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-        Relation Analysis
-      </div>
-    </div>
-    <h3 className={`text-[14px] font-black uppercase tracking-tight mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{title}</h3>
-    <div className="flex items-baseline gap-2">
-      <span className={`text-[28px] font-black leading-none ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{value}</span>
-      {subValue && <span className="text-[14px] font-bold text-emerald-500">{subValue}</span>}
-    </div>
-  </div>
-);
 
 const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -266,37 +245,91 @@ const MembershipAnalytics = () => {
         </button>
       </div>
 
-      {/* Relation Analysis Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <AnalystCard
-          title="Total Enquiries"
-          value={analyticsData?.conversion?.totalEnquiries || 0}
-          icon={Users}
-          colorClass="bg-blue-500"
-          isDarkMode={isDarkMode}
-        />
-        <AnalystCard
-          title="Converted Members"
-          value={analyticsData?.conversion?.convertedMembers || 0}
-          subValue={analyticsData?.conversion?.conversionRate ? `${analyticsData.conversion.conversionRate.toFixed(1)}% Rate` : ''}
-          icon={Target}
-          colorClass="bg-emerald-500"
-          isDarkMode={isDarkMode}
-        />
-        <AnalystCard
-          title="Active Subscriptions"
-          value={analyticsData?.statusBreakdown?.find(s => s._id === 'Active')?.count || 0}
-          icon={CheckCircle}
-          colorClass="bg-purple-500"
-          isDarkMode={isDarkMode}
-        />
-        <AnalystCard
-          title="Total Revenue"
-          value={`₹${analyticsData?.revenueOverTime?.reduce((acc, curr) => acc + curr.revenue, 0).toLocaleString() || 0}`}
-          icon={TrendingUp}
-          colorClass="bg-[#f97316]"
-          isDarkMode={isDarkMode}
-        />
+      {/* Expiring Soon Section */}
+      <div className={`border rounded-xl overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
+        <div className="px-8 py-6 border-b flex items-center justify-between transition-none bg-white dark:bg-white/5">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-red-500/20 text-red-500' : 'bg-red-50 text-red-500'}`}>
+              <TrendingUp size={20} />
+            </div>
+            <h2 className="text-[14px] font-black uppercase tracking-wider">Expiring Soon (Next 7 Days)</h2>
+          </div>
+          <span className={`text-[12px] font-bold px-3 py-1 rounded-full ${isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+            {analyticsData?.expiringMembers?.length || 0} Members
+          </span>
+        </div>
+
+        <div className="overflow-x-auto max-h-[400px] scroll-smooth custom-scrollbar">
+          <table className="w-full text-left whitespace-nowrap">
+            <thead className="sticky top-0 z-10">
+              <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-[#1e1e1e] border-white/5 text-gray-400' : 'bg-[#fcfcfc] border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
+                <th className="px-8 py-5 uppercase tracking-wider">Member Name</th>
+                <th className="px-8 py-5 uppercase tracking-wider">Package</th>
+                <th className="px-8 py-5 uppercase tracking-wider">Mobile</th>
+                <th className="px-8 py-5 uppercase tracking-wider">Expiry Date</th>
+                <th className="px-8 py-5 uppercase tracking-wider text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody className={`text-[14px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="5" className="px-8 py-12 text-center">
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-gray-500 text-[12px] uppercase">Loading...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (!analyticsData?.expiringMembers || analyticsData.expiringMembers.length === 0) ? (
+                <tr>
+                  <td colSpan="5" className="px-8 py-12 text-center text-gray-500 text-[13px]">
+                    No memberships expiring in the next 7 days
+                  </td>
+                </tr>
+              ) : (
+                analyticsData.expiringMembers.map((member, idx) => {
+                  const today = new Date();
+                  const end = new Date(member.endDate);
+                  const diffTime = end - today;
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                  return (
+                    <tr key={member._id || idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black ${isDarkMode ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                            {member.firstName?.charAt(0)}{member.lastName?.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="block text-[14px] font-bold">{member.firstName} {member.lastName}</span>
+                            <span className="text-[11px] text-gray-400 font-medium">#{member.memberId || 'N/A'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-[13px] font-medium text-gray-500 dark:text-gray-400">{member.packageName}</td>
+                      <td className="px-8 py-5 font-mono text-[13px]">{member.mobile}</td>
+                      <td className="px-8 py-5 text-[13px]">
+                        {new Date(member.endDate).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </td>
+                      <td className="px-8 py-5 text-center">
+                        <span className={`px-3 py-1 rounded-md text-[11px] font-black uppercase tracking-wide ${diffDays <= 3
+                          ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400'
+                          : 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400'
+                          }`}>
+                          {diffDays <= 0 ? 'Today' : `${diffDays} Days Left`}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Table Section */}

@@ -501,7 +501,7 @@ const MemberMemberships = () => {
 
                                     {activeMenu === idx && (
                                         <div ref={menuRef} className={`absolute right-10 top-0 w-48 rounded-md shadow-xl border z-50 py-1 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                                            {['Renew', 'Pay Due', 'Add-On Days', 'Change Start Date', 'Freeze', 'Upgrade', 'Resale'].map((opt, i) => (
+                                            {['Renew', 'Pay Due', 'Add-On Days', 'Change Start Date', 'Freeze', 'Upgrade'].map((opt, i) => (
                                                 <div
                                                     key={i}
                                                     className={`px-4 py-3 text-[13px] font-bold cursor-pointer transition-all ${isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'} ${opt === 'Pay Due' && item.dueAmount <= 0 ? 'hidden' : ''}`}

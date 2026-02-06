@@ -412,10 +412,10 @@ const Dashboard = () => {
                         </div>
                     </div>
                 </div>
-            </section>
+            </section >
 
             {/* Overview Section */}
-            <section className="space-y-3">
+            < section className="space-y-3" >
                 <p className={`text-[13px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Overview</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
