@@ -396,6 +396,37 @@ const Enquiries = () => {
     }
   };
 
+  const handleDeleteEnquiry = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this enquiry? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/enquiries/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setToastMessage('Enquiry deleted successfully');
+        setShowToast(true);
+        fetchData();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to delete enquiry');
+      }
+    } catch (error) {
+      console.error('Error deleting enquiry:', error);
+      alert('Error deleting enquiry');
+    }
+  };
+
   // Auto-Close Action Menu on Selection
   const handleActionSelect = (action, row) => {
     setSelectedEnquiry(row);
@@ -411,6 +442,8 @@ const Enquiries = () => {
       updateEnquiryStatus(row._id, "Call Done");
     } else if (action === "Not Interested") {
       updateEnquiryStatus(row._id, "Not Interested");
+    } else if (action === "Delete") {
+      handleDeleteEnquiry(row._id);
     }
     setActiveActionRow(null); // Close the menu
   };
@@ -690,7 +723,7 @@ const Enquiries = () => {
                           {["Sale Enquiry", "Edit Enquiry", "Not Interested", "Call Done", "Call Not Connected"].map((action, i) => (
                             <div
                               key={i}
-                              className={`px-4 py-3 text-[14px] font-medium border-b last:border-0 cursor-pointer ${isDarkMode
+                              className={`px-4 py-3 text-[14px] font-medium border-b cursor-pointer ${isDarkMode
                                 ? 'text-gray-300 border-white/5 hover:bg-white/5'
                                 : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
                                 }`}
@@ -700,14 +733,23 @@ const Enquiries = () => {
                             </div>
                           ))}
                           <div
-                            className={`px-4 py-3 text-[14px] font-medium cursor-pointer flex items-center gap-2 ${isDarkMode
-                              ? 'text-gray-300 hover:bg-white/5'
-                              : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                            className={`px-4 py-3 text-[14px] font-medium cursor-pointer flex items-center gap-2 border-b ${isDarkMode
+                              ? 'text-gray-300 hover:bg-white/5 border-white/5'
+                              : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600 border-gray-50'
                               }`}
                             onClick={() => handleActionSelect("Schedule Follow Up", row)}
                           >
                             <RefreshCcw size={14} className="" />
                             Schedule Follow Up
+                          </div>
+                          <div
+                            className={`px-4 py-3 text-[14px] font-medium cursor-pointer ${isDarkMode
+                              ? 'text-red-400 hover:bg-red-500/10'
+                              : 'text-red-600 hover:bg-red-50'
+                              }`}
+                            onClick={() => handleActionSelect("Delete", row)}
+                          >
+                            Delete
                           </div>
                         </div>
                       )}

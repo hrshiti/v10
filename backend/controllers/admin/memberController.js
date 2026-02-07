@@ -563,6 +563,40 @@ const freezeMembership = asyncHandler(async (req, res) => {
     res.json({ message: 'Membership frozen successfully', subscription });
 });
 
+// @desc    Unfreeze Membership
+// @route   POST /api/admin/members/:id/unfreeze
+// @access  Private/Admin
+const unfreezeMembership = asyncHandler(async (req, res) => {
+    const member = await Member.findById(req.params.id);
+
+    if (!member) {
+        res.status(404);
+        throw new Error('Member not found');
+    }
+
+    const subscription = await Subscription.findOne({ memberId: member._id, isCurrent: true });
+    if (!subscription) {
+        res.status(400);
+        throw new Error('No subscription found to unfreeze');
+    }
+
+    if (member.status !== 'Frozen') {
+        res.status(400);
+        throw new Error('Member is not frozen');
+    }
+
+    // Update Subscription
+    subscription.status = 'Active';
+    // Update End Date by the number of days it was frozen (optional logic, but let's just make it active)
+    await subscription.save();
+
+    // Update Member
+    member.status = 'Active';
+    await member.save();
+
+    res.json({ message: 'Membership resumed successfully', subscription });
+});
+
 // @desc    Upgrade Membership
 // @route   POST /api/admin/members/:id/upgrade
 // @access  Private/Admin
@@ -898,6 +932,7 @@ module.exports = {
     bulkDeactivateMembers,
     bulkAssignTrainer,
     payDue,
-    payDueMember
+    payDueMember,
+    unfreezeMembership
 };
 

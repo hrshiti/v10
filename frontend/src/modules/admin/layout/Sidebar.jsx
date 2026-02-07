@@ -14,7 +14,9 @@ import {
     Grid,
     Fingerprint,
     ChevronDown,
-    Info
+    Info,
+    Trophy,
+    Dumbbell
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, isDarkMode }) => {
@@ -58,6 +60,8 @@ const Sidebar = ({ isOpen, isDarkMode }) => {
             ]
         },
         { title: 'DietPlan Management', path: '/admin/diet-plan', icon: <Utensils size={20} /> },
+        { title: 'Success Story Lab', path: '/admin/success-stories', icon: <Trophy size={20} /> },
+        { title: 'Workout Library', path: '/admin/workout-library', icon: <Dumbbell size={20} /> },
         { header: 'Business Setting' },
         {
             title: 'Team',

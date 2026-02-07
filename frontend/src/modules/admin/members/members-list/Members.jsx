@@ -795,6 +795,58 @@ const Members = () => {
     }
   };
 
+  const handleDeleteMember = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this member? This action cannot be undone.')) return;
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setSuccessMessage('Member deleted successfully!');
+        setShowSuccessNotification(true);
+        setTimeout(() => setShowSuccessNotification(false), 3000);
+        fetchMembers();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to delete member');
+      }
+    } catch (error) {
+      console.error('Error deleting member:', error);
+    }
+  };
+
+  const handleUnfreeze = async (id) => {
+    if (!window.confirm('Are you sure you want to resume this membership?')) return;
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}/unfreeze`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setSuccessMessage('Membership resumed successfully!');
+        setShowSuccessNotification(true);
+        setTimeout(() => setShowSuccessNotification(false), 3000);
+        fetchMembers();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to unfreeze member');
+      }
+    } catch (error) {
+      console.error('Error unfreezing member:', error);
+    }
+  };
+
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>
       {/* Header */}
@@ -857,9 +909,6 @@ const Members = () => {
             >
               Assign Trainer
             </button>
-            <button className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-black shadow-md hover:bg-orange-600 active:scale-95 transition-all flex items-center gap-2">
-              Send SMS
-            </button>
             <button
               onClick={handleBulkDeactivate}
               className="bg-red-500 text-white px-6 py-2 rounded-lg text-[13px] font-black shadow-md hover:bg-red-600 active:scale-95 transition-all flex items-center gap-2"
@@ -920,18 +969,6 @@ const Members = () => {
       <div className={`mt-8 border rounded-xl overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
         <div className="p-6 border-b flex justify-between items-center transition-none bg-white dark:bg-white/5">
           <span className="text-[14px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Memberships</span>
-          <div className="flex gap-4">
-            <button className={`flex items-center gap-3 px-8 py-2.5 rounded-full text-[13px] font-black transition-none shadow-sm border ${isDarkMode ? 'bg-white/5 text-white border-white/10' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'}`}>
-              <MessageSquare size={16} className="fill-current text-gray-400" />
-              Send SMS (4998)
-              <Send size={16} className="text-gray-400" />
-            </button>
-            <button className={`flex items-center gap-3 px-8 py-2.5 rounded-full text-[13px] font-black transition-none shadow-sm border ${isDarkMode ? 'bg-white/5 text-white border-white/10' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'}`}>
-              <Bell size={16} className="text-gray-400" />
-              Send Notification
-              <Send size={16} className="text-gray-400" />
-            </button>
-          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left whitespace-nowrap">
@@ -1013,8 +1050,10 @@ const Members = () => {
                             {[
                               'View Profile',
                               'Vaccination',
-                              'Schedule Followup'
-                            ].map((action, i) => (
+                              'Schedule Followup',
+                              row.status === 'Frozen' ? 'Unfreeze' : null,
+                              'Delete'
+                            ].filter(Boolean).map((action, i) => (
                               <div key={i}>
                                 {action === 'View Profile' ? (
                                   <div
@@ -1046,6 +1085,26 @@ const Members = () => {
                                     }}
                                     className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
                                       }`}
+                                  >
+                                    {action}
+                                  </div>
+                                ) : action === 'Unfreeze' ? (
+                                  <div
+                                    onClick={() => {
+                                      setActiveActionRow(null);
+                                      handleUnfreeze(row._id);
+                                    }}
+                                    className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 ${isDarkMode ? 'border-white/5' : 'border-gray-50'}`}
+                                  >
+                                    {action}
+                                  </div>
+                                ) : action === 'Delete' ? (
+                                  <div
+                                    onClick={() => {
+                                      setActiveActionRow(null);
+                                      handleDeleteMember(row._id);
+                                    }}
+                                    className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 ${isDarkMode ? 'border-white/5' : 'border-gray-50'}`}
                                   >
                                     {action}
                                   </div>

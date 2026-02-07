@@ -92,10 +92,26 @@ const getMyFeedbacks = asyncHandler(async (req, res) => {
     res.json(feedbacks);
 });
 
+// @desc    Delete Feedback
+// @route   DELETE /api/admin/feedback/:id
+// @access  Private/Admin
+const deleteFeedback = asyncHandler(async (req, res) => {
+    const feedback = await Feedback.findById(req.params.id);
+
+    if (feedback) {
+        await feedback.deleteOne();
+        res.json({ message: 'Feedback removed' });
+    } else {
+        res.status(404);
+        throw new Error('Feedback not found');
+    }
+});
+
 module.exports = {
     createFeedback,
     getFeedbacks,
     replyToFeedback,
     getFeedbackStats,
-    getMyFeedbacks
+    getMyFeedbacks,
+    deleteFeedback
 };

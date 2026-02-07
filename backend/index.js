@@ -46,6 +46,10 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Static Folders
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/v10_profiles', express.static(path.join(__dirname, 'v10_profiles')));
+
 
 // Routes
 // Admin Routes
@@ -63,6 +67,8 @@ app.use('/api/admin/diet-plans', require('./routes/admin/dietRoutes'));
 app.use('/api/admin/follow-ups', require('./routes/admin/followUpRoutes'));
 app.use('/api/admin/expenses', require('./routes/admin/expenseRoutes'));
 app.use('/api/admin/gym-details', require('./routes/admin/gymRoutes'));
+app.use('/api/admin/stories', require('./routes/admin/storyRoutes'));
+app.use('/api/admin/workout-library', require('./routes/admin/workoutLibraryRoutes'));
 
 // User Routes
 app.use('/api/user/auth', require('./routes/user/authRoutes'));

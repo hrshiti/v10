@@ -5,7 +5,8 @@ import {
   Download,
   User,
   X,
-  TrendingUp
+  TrendingUp,
+  Trash2
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
@@ -195,6 +196,30 @@ const MembershipAnalytics = () => {
     }
   };
 
+  const handleDeleteMember = async (memberId) => {
+    if (!window.confirm('Are you sure you want to delete this member?')) return;
+
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${memberId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        alert('Member deleted successfully');
+        fetchAnalytics(); // Refresh data
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to delete member');
+      }
+    } catch (error) {
+      console.error('Error deleting member:', error);
+    }
+  };
+
   useEffect(() => {
     fetchAnalytics();
   }, []);
@@ -322,6 +347,15 @@ const MembershipAnalytics = () => {
                           }`}>
                           {diffDays <= 0 ? 'Today' : `${diffDays} Days Left`}
                         </span>
+                        <div className="flex justify-center mt-2">
+                          <button
+                            onClick={() => handleDeleteMember(member._id)}
+                            className="p-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 transition-all shadow-sm active:scale-95 bg-white"
+                            title="Delete Member"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

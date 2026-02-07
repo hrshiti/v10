@@ -1,159 +1,204 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Zap, Target, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+    ChevronLeft, X, Play, Clock, Zap, Target,
+    CheckCircle, BarChart3, Flame, Dumbbell
+} from 'lucide-react';
+import { API_BASE_URL } from '../../../config/api';
 
 const WorkoutDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [workout, setWorkout] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
 
-    // Mock workout details with multiple images
-    const workoutDetails = {
-        title: 'Full Body HIIT',
-        description: 'A high-intensity interval training session designed to burn calories and boost your metabolism. No equipment needed. This workout targets multiple muscle groups and improves cardiovascular endurance.',
-        images: [
-            'https://images.unsplash.com/photo-1517963879466-dbbcd8ebb0a9?auto=format&fit=crop&q=80&w=800',
-            'https://images.unsplash.com/photo-1601422407692-ec4eeec1d9b3?auto=format&fit=crop&q=80&w=800',
-            'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?auto=format&fit=crop&q=80&w=800'
-        ],
-        duration: '25 min',
-        intensity: 'High',
-        level: 'Intermediate',
-        calories: '320 kcal',
-        category: 'HIIT',
-        tags: ['Cardio', 'Full Body', 'No Equipment']
-    };
-
-    const nextImage = () => {
-        setCurrentImageIndex((prev) => (prev + 1) % workoutDetails.images.length);
-    };
-
-    const prevImage = () => {
-        setCurrentImageIndex((prev) => (prev - 1 + workoutDetails.images.length) % workoutDetails.images.length);
-    };
+    useEffect(() => {
+        const fetchWorkout = async () => {
+            try {
+                const token = localStorage.getItem('userToken');
+                const response = await fetch(`${API_BASE_URL}/api/user/workout-library/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    setWorkout(data);
+                }
+            } catch (err) {
+                console.error('Error fetching workout:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchWorkout();
+    }, [id]);
 
     const handleComplete = () => {
         setIsCompleted(true);
-
-        // Update local storage progress
-        const currentProgress = parseInt(localStorage.getItem('dailyWorkoutProgress') || '0', 10);
-        const newProgress = Math.min(currentProgress + 20, 100);
-        localStorage.setItem('dailyWorkoutProgress', newProgress.toString());
-
-        // Dispatch event for same-window updates
-        window.dispatchEvent(new Event('storage'));
-
-        setTimeout(() => {
-            navigate('/', { state: { workoutCompleted: true } });
-        }, 1500);
+        setTimeout(() => navigate('/workouts'), 1500);
     };
 
+    const getImageUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith('http')) return path;
+        const normalizedPath = path.replace(/\\/g, '/');
+        const cleanPath = normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath;
+        return `${API_BASE_URL}/${cleanPath}`;
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-white dark:bg-[#121212] flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    if (!workout) {
+        return (
+            <div className="min-h-screen bg-white dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center">
+                <h2 className="text-xl font-bold dark:text-white">Workout not found</h2>
+                <button onClick={() => navigate(-1)} className="mt-4 text-blue-500 font-bold">Go Back</button>
+            </div>
+        );
+    }
+
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#121212] transition-colors duration-300 font-sans">
-            {/* Constrain width for desktop view */}
-            <div className="w-full max-w-md mx-auto bg-gray-50 dark:bg-[#121212] min-h-screen relative shadow-2xl overflow-hidden flex flex-col">
+        <div className="min-h-screen bg-[#F8F9FD] dark:bg-[#0D1117] flex flex-col">
+            {/* Header */}
+            <div className="p-6 flex items-center justify-between bg-white/50 dark:bg-black/20 backdrop-blur-md sticky top-0 z-30">
+                <button onClick={() => navigate(-1)} className="p-2 text-indigo-900 dark:text-gray-300">
+                    <ChevronLeft size={28} />
+                </button>
+                <h1 className="text-lg font-black text-indigo-950 dark:text-white uppercase tracking-tight">
+                    {workout.title}
+                </h1>
+                <button onClick={() => navigate('/workouts')} className="p-2 text-indigo-900 dark:text-gray-300">
+                    <X size={24} />
+                </button>
+            </div>
 
-                {/* Header / Image Carousel Area */}
-                <div className="relative w-full h-96 bg-gray-200 dark:bg-gray-900 group">
-                    <div className="w-full h-full relative overflow-hidden">
+            {/* Visual Area */}
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+                {workout.images?.length > 0 ? (
+                    <>
                         <img
-                            src={workoutDetails.images[currentImageIndex]}
-                            alt={`Workout ${currentImageIndex + 1}`}
-                            className="w-full h-full object-cover transition-all duration-500"
+                            src={getImageUrl(workout.images[currentImageIndex])}
+                            alt={workout.title}
+                            className="w-full h-full object-cover"
                         />
-                        {/* Gradient Overlay for Text Readability Logic */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-gray-50 via-transparent to-black/30 dark:from-[#121212] dark:via-transparent dark:to-black/50"></div>
-                    </div>
-
-                    {/* Back Button */}
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="absolute top-4 left-4 p-2 rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md text-white hover:bg-white/40 dark:hover:bg-black/50 transition-colors z-20 shadow-sm"
-                    >
-                        <ArrowLeft size={24} />
-                    </button>
-
-                    {/* Image Navigation Controls */}
-                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                        <button onClick={prevImage} className="p-2 rounded-full bg-white/20 dark:bg-black/30 backdrop-blur-md text-white pointer-events-auto hover:bg-white/30 dark:hover:bg-black/50">
-                            <ChevronLeft size={24} />
-                        </button>
-                        <button onClick={nextImage} className="p-2 rounded-full bg-white/20 dark:bg-black/30 backdrop-blur-md text-white pointer-events-auto hover:bg-white/30 dark:hover:bg-black/50">
-                            <ChevronRight size={24} />
-                        </button>
-                    </div>
-
-                    {/* Image Indicators */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-                        {workoutDetails.images.map((_, idx) => (
-                            <div
-                                key={idx}
-                                className={`w-2 h-2 rounded-full transition-all duration-300 shadow-sm ${idx === currentImageIndex
-                                        ? 'bg-emerald-500 w-4'
-                                        : 'bg-white/70'
-                                    }`}
-                            ></div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Content Body */}
-                <div className="flex-1 px-6 -mt-4 relative z-10 text-gray-900 dark:text-white transition-colors duration-300">
-                    <div className="flex items-start justify-between mb-2">
-                        <h1 className="text-3xl font-bold leading-tight">{workoutDetails.title}</h1>
-                    </div>
-
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mb-6">
-                        {workoutDetails.tags.map((tag, idx) => (
-                            <span key={idx} className="bg-white dark:bg-[#1A1F2B] text-gray-500 dark:text-gray-300 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider border border-gray-200 dark:border-white/5 shadow-sm">
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-3 mb-8">
-                        <div className="bg-white dark:bg-[#1A1F2B] p-4 rounded-2xl border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center gap-1.5 shadow-sm transition-colors duration-300">
-                            <Zap size={20} className="text-amber-500" />
-                            <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{workoutDetails.intensity}</span>
-                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wide">Intensity</span>
+                        {/* Play Overlay matching image vibe */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-20 h-20 bg-indigo-900/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-2xl scale-90 opacity-90 border border-white/10">
+                                <Play size={32} className="text-white fill-white ml-1" />
+                            </div>
                         </div>
-                        <div className="bg-white dark:bg-[#1A1F2B] p-4 rounded-2xl border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center gap-1.5 shadow-sm transition-colors duration-300">
-                            <Target size={20} className="text-blue-500" />
-                            <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{workoutDetails.level}</span>
-                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wide">Level</span>
+                    </>
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                        <Zap size={64} />
+                    </div>
+                )}
+
+                {/* Dots */}
+                {workout.images?.length > 1 && (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5">
+                        {workout.images.map((_, i) => (
+                            <div
+                                key={i}
+                                onClick={() => setCurrentImageIndex(i)}
+                                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${i === currentImageIndex ? 'w-6 bg-emerald-400' : 'w-1.5 bg-white/50 hover:bg-white'
+                                    }`}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-1 bg-white dark:bg-[#121212] rounded-t-[3rem] -mt-10 relative z-10 px-8 pt-10 pb-32 shadow-[0_-20px_40px_rgba(0,0,0,0.05)]">
+                <div className="space-y-6">
+                    <div>
+                        <h2 className="text-2xl font-black text-indigo-950 dark:text-white uppercase tracking-tight italic">
+                            {workout.title}
+                        </h2>
+                        <div className="flex gap-2 mt-2">
+                            <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-indigo-100 dark:border-indigo-900/50">
+                                {workout.category}
+                            </span>
+                            <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-900/50">
+                                {workout.intensity}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Main Stats Row */}
+                    <div className="flex gap-4">
+                        <div className="flex-1 p-5 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-[2rem] border border-indigo-100/50 dark:border-indigo-900/30 flex flex-col items-center gap-1">
+                            <Dumbbell size={20} className="text-indigo-600 mb-1" />
+                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Sets</span>
+                            <span className="text-sm font-black text-indigo-950 dark:text-white">{workout.sets || '3 Sets'}</span>
+                        </div>
+                        <div className="flex-1 p-5 bg-amber-50/50 dark:bg-amber-950/20 rounded-[2rem] border border-amber-100/50 dark:border-amber-900/30 flex flex-col items-center gap-1">
+                            <Zap size={20} className="text-amber-600 mb-1" />
+                            <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Reps</span>
+                            <span className="text-sm font-black text-indigo-950 dark:text-white">{workout.reps || '12 Reps'}</span>
+                        </div>
+                        <div className="flex-1 p-5 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-[2rem] border border-emerald-100/50 dark:border-emerald-900/30 flex flex-col items-center gap-1">
+                            <Flame size={20} className="text-emerald-600 mb-1" />
+                            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Burn</span>
+                            <span className="text-sm font-black text-indigo-950 dark:text-white">{workout.calories || '150'}kcal</span>
                         </div>
                     </div>
 
                     {/* Description */}
-                    <div className="mb-24">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 transition-colors duration-300">About Workout</h3>
-                        <p className="text-gray-500 dark:text-gray-400 leading-7 text-sm transition-colors duration-300">
-                            {workoutDetails.description}
+                    <div className="space-y-3">
+                        <h3 className="text-lg font-black text-indigo-950 dark:text-white uppercase tracking-tight italic">
+                            About Workout
+                        </h3>
+                        <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm font-medium">
+                            {workout.description || 'Start in all fours, then prop yourself up on your forearms and toes, with your chin tucked in. Lift up your body, creating a straight line with your body. Maintain the position without arching the lower back.'}
                         </p>
                     </div>
-                </div>
 
-                {/* Bottom Action Button */}
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent dark:from-[#121212] dark:via-[#121212]/95 dark:to-transparent z-20 transition-colors duration-300">
-                    {!isCompleted ? (
-                        <button
-                            onClick={handleComplete}
-                            className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white dark:text-black font-bold py-4 rounded-2xl shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                        >
-                            <CheckCircle size={20} />
-                            <span>Mark as Complete</span>
-                        </button>
-                    ) : (
-                        <div className="w-full bg-white dark:bg-[#1A1F2B] text-gray-900 dark:text-white font-bold py-4 rounded-2xl border border-emerald-500/30 flex items-center justify-center gap-2 animate-in slide-in-from-bottom-5 fade-in shadow-md">
-                            <CheckCircle size={20} className="text-emerald-500" />
-                            <span className="text-emerald-500">Marked Completed!</span>
+                    {/* Grid Stats for more info */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-gray-50 dark:bg-[#1A1F2B] rounded-2xl flex items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
+                                <Zap size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Level</p>
+                                <p className="text-sm font-bold text-indigo-950 dark:text-white">{workout.level || 'Beginner'}</p>
+                            </div>
                         </div>
-                    )}
+                        <div className="p-4 bg-gray-50 dark:bg-[#1A1F2B] rounded-2xl flex items-center gap-3">
+                            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
+                                <Clock size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Time</p>
+                                <p className="text-sm font-bold text-indigo-950 dark:text-white">{workout.duration || '20 Mins'}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
+            {/* Footer Button */}
+            <div className="fixed bottom-0 left-0 right-0 p-6 bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl z-30">
+                <button
+                    onClick={handleComplete}
+                    disabled={isCompleted}
+                    className={`w-full py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${isCompleted
+                        ? 'bg-emerald-500 text-white cursor-default'
+                        : 'bg-[#14C38E] hover:bg-[#11AF7F] text-white shadow-emerald-500/30'
+                        }`}
+                >
+                    {isCompleted ? <CheckCircle size={24} /> : <CheckCircle size={24} />}
+                    {isCompleted ? 'Marked Completed!' : 'Mark as Complete'}
+                </button>
             </div>
         </div>
     );

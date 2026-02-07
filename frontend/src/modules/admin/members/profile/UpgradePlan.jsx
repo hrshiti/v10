@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, Plus, Check } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, Check, History } from 'lucide-react';
 import { API_BASE_URL } from '../../../../config/api';
 
 const UpgradePlan = () => {
@@ -150,7 +150,7 @@ const UpgradePlan = () => {
                 startDate: start,
                 endDate: end,
                 amount: payableAmount,
-                subTotal: form.selectedPlansTotal + parseFloat(form.subtotal || 0),
+                subTotal: upgradeAmount,
                 taxAmount: form.applyTaxes ? taxes.total : 0,
                 paidAmount: payableAmount, // Assuming full payment in upgrade payment
                 discount: form.totalDiscount,
@@ -183,322 +183,196 @@ const UpgradePlan = () => {
         }
     };
 
-    const InputField = ({ label, value, placeholder, type = "text", required = false, onChange, readonly = false }) => (
-        <div className="space-y-1.5 flex-1 min-w-[300px]">
-            <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                {label}{required && <span className="text-red-500 ml-1">*</span>}
-            </label>
-            <div className="relative">
-                <input
-                    type={type}
-                    placeholder={placeholder}
-                    value={value}
-                    readOnly={readonly}
-                    onChange={onChange}
-                    className={`w-full px-4 py-2.5 rounded-lg border text-sm font-bold outline-none transition-all ${isDarkMode
-                        ? `${readonly ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-[#1a1a1a] border-white/10 text-white'} placeholder:text-gray-600 focus:border-orange-500/50`
-                        : `${readonly ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-white border-gray-200 text-gray-900'} placeholder:text-gray-400 focus:border-orange-500`
-                        } ${readonly ? 'cursor-not-allowed' : ''}`}
-                />
-                {(type === 'date' || label.includes('Date')) && <ChevronDown size={14} className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" />}
-            </div>
-        </div>
-    );
+    // Calculate upgrade amount (difference between new plan and current paid amount)
+    const upgradeAmount = selectedPlan ? Math.max(0, selectedPlan.baseRate - form.paidAmount) : 0;
 
+    // Calculate taxes
     const calculateTaxes = () => {
-        const upgradeAmount = Math.max(0, form.selectedPlansTotal - form.paidAmount);
-        const base = upgradeAmount + parseFloat(form.subtotal || 0) + parseFloat(form.surcharges || 0) - parseFloat(form.totalDiscount || 0);
-        const taxAmount = (base * form.taxPercentage) / 100;
+        const base = upgradeAmount - parseFloat(form.totalDiscount || 0);
+        const taxAmount = (base * parseFloat(form.taxPercentage || 0)) / 100;
         const cgst = taxAmount / 2;
         const sgst = taxAmount / 2;
         return {
             cgst: cgst.toFixed(2),
             sgst: sgst.toFixed(2),
             total: taxAmount.toFixed(2),
-            cgstPerc: (form.taxPercentage / 2).toFixed(1),
-            sgstPerc: (form.taxPercentage / 2).toFixed(1)
+            cgstPerc: (parseFloat(form.taxPercentage || 0) / 2).toFixed(1),
+            sgstPerc: (parseFloat(form.taxPercentage || 0) / 2).toFixed(1)
         };
     };
 
     const taxes = calculateTaxes();
-    const upgradeAmount = Math.max(0, form.selectedPlansTotal - form.paidAmount);
-    const payableAmount = (upgradeAmount + parseFloat(form.subtotal || 0) + parseFloat(form.surcharges || 0) - parseFloat(form.totalDiscount || 0) + (form.applyTaxes ? parseFloat(taxes.total) : 0)).toFixed(2);
+    const baseSubtotal = upgradeAmount;
+    const discountedSubtotal = baseSubtotal - parseFloat(form.totalDiscount || 0);
+    const payableAmount = (discountedSubtotal + (form.applyTaxes ? parseFloat(taxes.total) : 0)).toFixed(2);
 
     return (
-        <div className="space-y-8 animate-in fade-in zoom-in duration-300">
-            <div className="flex items-center gap-4">
-                <button onClick={() => navigate(-1)} className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
-                    <ArrowLeft size={20} className={isDarkMode ? 'text-white' : 'text-gray-900'} />
-                </button>
-                <div className="flex items-center gap-2">
-                    <span className="text-orange-500 text-sm font-bold">Members Profile</span>
-                </div>
-            </div>
-
-            <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Upgrade Plan</h2>
-
-            <div className={`p-8 rounded-xl border ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <InputField label="Client ID" value={form.clientId} readonly />
-                    <InputField label="Mobile Number" value={form.mobile} required readonly />
-                    <InputField label="Email Address" placeholder="Ex : abc@gmail.com" value={form.email} readonly />
-                    <InputField label="Emergency Contact Name" placeholder="Contact Name" value={form.emergencyName} onChange={(e) => setForm({ ...form, emergencyName: e.target.value })} />
-                    <InputField label="Emergency Contact Number" placeholder="Ex : 9988776655" value={form.emergencyNumber} onChange={(e) => setForm({ ...form, emergencyNumber: e.target.value })} />
-                    <InputField label="GSTIN No." placeholder="Ex : 123456789123456" value={form.gstin} onChange={(e) => setForm({ ...form, gstin: e.target.value })} />
-                    <InputField label="Firm Name" placeholder="Contact Name" value={form.firmName} onChange={(e) => setForm({ ...form, firmName: e.target.value })} />
-                    <InputField label="Firm Employee Name" placeholder="Firm Employee Name" value={form.firmEmployeeName} onChange={(e) => setForm({ ...form, firmEmployeeName: e.target.value })} />
-                    <InputField label="Invoice Date" type="date" value={form.invoiceDate} onChange={(e) => setForm({ ...form, invoiceDate: e.target.value })} />
-                    <div className="space-y-1.5 flex-1">
-                        <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Firm Address</label>
-                        <textarea
-                            placeholder="Type your Address here..."
-                            value={form.firmAddress}
-                            onChange={(e) => setForm({ ...form, firmAddress: e.target.value })}
-                            className={`w-full px-4 py-3 rounded-lg border text-sm outline-none transition-all h-24 resize-none ${isDarkMode
-                                ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-orange-500/50'
-                                : 'bg-white border-gray-200 text-gray-900 focus:border-orange-500'
-                                }`}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <div className="space-y-6">
-                <h3 className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Existing Plan Details</h3>
-                <div className={`p-8 rounded-xl border ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                        <InputField label="Package Name" value={form.packageName} readonly />
-                        <InputField label="Duration" value={form.duration} readonly />
-                        <InputField label="Total Sessions" value={form.totalSessions} readonly />
-                        <InputField label="Start Date" value={form.startDate} readonly />
-                        <InputField label="End Date" value={form.endDate} readonly />
-                        <InputField label="Assigned Trainer" value={form.assignedTrainer} readonly />
-                        <InputField label="Paid Amount" value={form.paidAmount} readonly />
-                    </div>
-                </div>
-            </div>
-
-            {/* Selection Table */}
-            <div className={`rounded-xl border overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
-                <div className="p-4 border-b dark:border-white/10 border-gray-100">
-                    <button
-                        onClick={() => { setSelectedPlan(null); setForm({ ...form, selectedPlansTotal: 0 }); }}
-                        className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${isDarkMode ? 'bg-white/5 text-gray-300 border border-white/10' : 'bg-white text-gray-700 border border-gray-200 shadow-sm'}`}
-                    >
-                        Clear Selected
+        <div className="space-y-6 animate-in fade-in zoom-in duration-300 max-w-6xl mx-auto">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <button onClick={() => navigate(-1)} className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
+                        <ArrowLeft size={20} className={isDarkMode ? 'text-white' : 'text-gray-900'} />
                     </button>
-                </div>
-                <div className="p-4 border-b dark:border-white/10 border-gray-100 flex gap-10">
-                    {tabs.map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`flex items-center gap-2 px-2 py-2 text-xs font-bold transition-all relative ${activeTab === tab ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <Plus size={14} className="rotate-45" />
-                            {tab}
-                            {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500 rounded-t-full" />}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className={`text-[11px] font-bold border-b transition-all ${isDarkMode ? 'text-gray-400 border-white/10 bg-white/5' : 'text-gray-600 border-gray-100 bg-gray-50'}`}>
-                                <th className="px-8 py-4">Name</th>
-                                <th className="px-8 py-4">Duration</th>
-                                <th className="px-8 py-4">Trainer</th>
-                                <th className="px-8 py-4">Cost</th>
-                                <th className="px-8 py-4">Start Date</th>
-                            </tr>
-                        </thead>
-                        <tbody className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
-                            {filteredPackages.map((plan, idx) => (
-                                <tr key={idx} className={`border-b last:border-0 ${isDarkMode ? 'border-white/5' : 'border-gray-50 hover:bg-gray-50 transition-colors'}`}>
-                                    <td className="px-8 py-5 flex items-center gap-5">
-                                        <div
-                                            onClick={() => { setSelectedPlan(plan); setForm({ ...form, selectedPlansTotal: plan.baseRate }); }}
-                                            className={`w-5 h-5 rounded-full border-2 cursor-pointer flex items-center justify-center transition-all ${selectedPlan?._id === plan._id ? 'border-orange-500 bg-orange-500' : 'border-gray-300'}`}
-                                        >
-                                            {selectedPlan?._id === plan._id && <Check size={12} className="text-white" />}
-                                        </div>
-                                        {plan.name}
-                                    </td>
-                                    <td className="px-8 py-5">{plan.durationValue || plan.duration} {plan.durationType}</td>
-                                    <td className="px-8 py-5">
-                                        <select
-                                            className={`flex items-center justify-between px-4 py-2 border rounded-lg w-48 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a] text-white' : 'border-gray-200 bg-[#f9f9f9] text-gray-900'}`}
-                                            value={selectedTrainer}
-                                            onChange={(e) => setSelectedTrainer(e.target.value)}
-                                        >
-                                            <option value="">Select Trainer</option>
-                                            {trainers.map(t => (
-                                                <option key={t._id} value={t._id}>{t.firstName} {t.lastName}</option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                    <td className="px-8 py-5">₹{plan.baseRate}</td>
-                                    <td className="px-8 py-5">
-                                        <div className={`flex items-center justify-between px-3 py-2 border rounded-lg w-44 ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-200 bg-[#f9f9f9]'}`}>
-                                            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>{form.invoiceDate}</span>
-                                            <ChevronDown size={14} />
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <div>
+                        <h2 className={`text-xl font-black ${isDarkMode ? 'text-white' : 'text-gray-900'} uppercase tracking-tight`}>Upgrade Plan</h2>
+                        <p className="text-[11px] font-bold text-orange-500 uppercase tracking-widest">{memberName} • {memberId}</p>
+                    </div>
                 </div>
             </div>
 
-            {/* Payment & Summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="space-y-6">
-                    <div className="flex flex-wrap gap-4">
-                        {['Online', 'Wallet', 'Cheque', 'Cash', 'Other'].map(method => (
-                            <label key={method} className="flex items-center gap-2 cursor-pointer group">
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${form.paymentMethod === method ? 'border-orange-500' : 'border-gray-400'}`}>
-                                    {form.paymentMethod === method && <div className="w-2 h-2 rounded-full bg-orange-500" />}
-                                </div>
-                                <input type="radio" className="hidden" name="payment" checked={form.paymentMethod === method} onChange={() => setForm({ ...form, paymentMethod: method })} />
-                                <span className={`text-sm font-bold ${form.paymentMethod === method ? 'text-gray-800 dark:text-gray-200' : 'text-gray-500'}`}>{method}</span>
-                            </label>
+            {/* Comparison Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Current Package */}
+                <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
+                            <History size={18} />
+                        </div>
+                        <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Active Membership</p>
+                    </div>
+                    <div className="flex justify-between items-end">
+                        <h3 className={`text-lg font-black uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{form.packageName}</h3>
+                        <span className="text-emerald-500 font-black italic text-lg">₹{form.paidAmount}</span>
+                    </div>
+                </div>
+
+                {/* Target Upgrade Package */}
+                <div className={`p-5 rounded-2xl border-2 overflow-hidden relative ${isDarkMode ? 'bg-orange-500/5 border-orange-500/30' : 'bg-orange-50 border-orange-200 shadow-lg'}`}>
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className={`p-2 rounded-lg bg-orange-500 text-white`}>
+                            <Plus size={18} />
+                        </div>
+                        <p className="text-[10px] font-black uppercase text-orange-500 tracking-widest">Upgrade Selection</p>
+                    </div>
+                    <div className="flex justify-between items-end">
+                        <h3 className={`text-lg font-black uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedPlan ? selectedPlan.name : 'Choose Plan...'}</h3>
+                        <div className="text-right">
+                            {selectedPlan && <p className="text-[9px] font-black text-gray-400 line-through uppercase tracking-tighter">New Price: ₹{selectedPlan.baseRate}</p>}
+                            <p className="text-xl font-black text-orange-600">₹{upgradeAmount.toFixed(2)} <span className="text-[10px] uppercase text-gray-400">Extra</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Package Selector Pills */}
+                    <div className={`p-3 rounded-2xl border flex gap-2 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+                        {tabs.map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${activeTab === tab
+                                    ? 'bg-orange-500 text-white'
+                                    : (isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-gray-50 text-gray-500')
+                                    }`}
+                            >
+                                {tab}
+                            </button>
                         ))}
                     </div>
 
-                    <div className="space-y-1.5">
-                        <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Comment</label>
-                        <textarea
-                            placeholder="Comment"
-                            value={form.comment}
-                            onChange={(e) => setForm({ ...form, comment: e.target.value })}
-                            className={`w-full px-4 py-3 rounded-lg border text-sm h-32 resize-none outline-none transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-orange-500/50' : 'bg-white border-gray-200 focus:border-orange-500'}`}
-                        />
-                    </div>
-                </div>
-
-                <div className="space-y-5">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Selected Plans Total</span>
-                        <span className="text-lg font-bold">₹{form.selectedPlansTotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Upgrade Amount (₹{form.selectedPlansTotal}- ₹{form.paidAmount})</span>
-                        <span className="text-lg font-bold">₹{upgradeAmount.toFixed(2)}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Total Discount</span>
-                        <div className="flex items-center gap-2">
-                            <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-[#f4f4f4] border-gray-100'}`}>
-                                <span className="px-3 text-gray-400 font-bold border-r dark:border-white/10 border-gray-200">₹</span>
-                                <input
-                                    type="number"
-                                    value={form.totalDiscount}
-                                    onChange={(e) => setForm({ ...form, totalDiscount: e.target.value })}
-                                    className="w-24 px-3 py-1.5 bg-transparent outline-none text-sm font-bold"
-                                />
-                            </div>
-                            <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-white/10 text-gray-400' : 'bg-gray-400 text-white'}`}>₹</div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Subtotal</span>
-                        <div className="flex items-center gap-2">
-                            <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-[#f4f4f4] border-gray-100'}`}>
-                                <span className="px-3 text-gray-400 font-bold border-r dark:border-white/10 border-gray-200">₹</span>
-                                <input
-                                    type="number"
-                                    value={form.subtotal}
-                                    onChange={(e) => setForm({ ...form, subtotal: e.target.value })}
-                                    className="w-24 px-3 py-1.5 bg-transparent outline-none text-sm font-bold"
-                                />
-                            </div>
-                            <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-white/10 text-gray-400' : 'bg-gray-400 text-white'}`}>₹</div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Surcharges</span>
-                        <div className="flex items-center gap-2">
-                            <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-[#f4f4f4] border-gray-100'}`}>
-                                <span className="px-3 text-gray-400 font-bold border-r dark:border-white/10 border-gray-200">₹</span>
-                                <input
-                                    type="number"
-                                    value={form.surcharges}
-                                    onChange={(e) => setForm({ ...form, surcharges: e.target.value })}
-                                    className="w-24 px-3 py-1.5 bg-transparent outline-none text-sm font-bold"
-                                />
-                            </div>
-                            <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-white/10 text-gray-400' : 'bg-gray-400 text-white'}`}>%</div>
-                        </div>
-                    </div>
-
-                    {/* Tax Section - Matching Image 1 */}
-                    <div className={`border rounded-xl p-5 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
-                        <div className="flex items-center gap-4 mb-5 pb-5 border-b dark:border-white/10 border-gray-100">
-                            <label className="flex items-center gap-3 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={form.applyTaxes}
-                                    onChange={(e) => setForm({ ...form, applyTaxes: e.target.checked })}
-                                    className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
-                                />
-                                <span className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Apply Taxes*</span>
-                            </label>
-                            <div className="relative" ref={taxDropdownRef}>
-                                <button
-                                    onClick={() => setShowTaxDropdown(!showTaxDropdown)}
-                                    className={`flex items-center justify-between px-4 py-2 border rounded-lg w-32 bg-white dark:bg-[#1a1a1a] transition-all font-bold text-sm ${form.taxPercentage > 0 ? 'border-orange-500 text-orange-500' : 'border-gray-200 text-gray-400'}`}
-                                >
-                                    <span>{form.taxPercentage ? `${form.taxPercentage}%` : 'Select Tax'}</span>
-                                    <ChevronDown size={14} className={`transition-transform duration-200 ${showTaxDropdown ? 'rotate-180' : ''}`} />
-                                </button>
-                                {showTaxDropdown && (
-                                    <div className={`absolute left-0 top-full mt-1 w-32 rounded-xl shadow-xl border z-50 py-1 overflow-hidden animate-in fade-in duration-200 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
-                                        {[5, 12, 18].map(val => (
-                                            <div
-                                                key={val}
-                                                onClick={() => { setForm({ ...form, taxPercentage: val }); setShowTaxDropdown(false); }}
-                                                className={`px-4 py-2.5 text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-gray-50'}`}
-                                            >
-                                                {val}%
-                                            </div>
-                                        ))}
+                    {/* Card Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {filteredPackages.map((plan) => (
+                            <div
+                                key={plan._id}
+                                onClick={() => {
+                                    setSelectedPlan(plan);
+                                    setForm({ ...form, selectedPlansTotal: plan.baseRate });
+                                }}
+                                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative ${selectedPlan?._id === plan._id
+                                    ? 'border-orange-500 bg-orange-500/5'
+                                    : (isDarkMode ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-gray-100 shadow-sm')
+                                    }`}
+                            >
+                                {selectedPlan?._id === plan._id && (
+                                    <div className="absolute top-3 right-3 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center text-white">
+                                        <Check size={12} strokeWidth={4} />
                                     </div>
                                 )}
+                                <h4 className={`text-base font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{plan.name}</h4>
+                                <p className="text-[10px] font-bold text-gray-400 mb-3">{plan.durationValue} {plan.durationType}</p>
+                                <div className="flex items-center justify-between mt-auto">
+                                    <span className="text-lg font-black text-orange-500">₹{plan.baseRate}</span>
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            onClick={(e) => e.stopPropagation()}
+                                            className={`text-[10px] font-black uppercase px-2 py-1 rounded border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f9f9f9] border-gray-200'}`}
+                                            value={selectedTrainer}
+                                            onChange={(e) => setSelectedTrainer(e.target.value)}
+                                        >
+                                            <option value="">No Trainer</option>
+                                            {trainers.map(t => <option key={t._id} value={t._id}>{t.firstName}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="flex justify-between text-sm font-bold text-gray-500">
-                                <span>CGST ({form.applyTaxes ? taxes.cgstPerc : '0'}%)</span>
-                                <span>₹{form.applyTaxes ? taxes.cgst : '0.00'}</span>
-                            </div>
-                            <div className="flex justify-between text-sm font-bold text-gray-500">
-                                <span>SGST ({form.applyTaxes ? taxes.sgstPerc : '0'}%)</span>
-                                <span>₹{form.applyTaxes ? taxes.sgst : '0.00'}</span>
-                            </div>
-                            <div className="flex justify-between text-sm font-black pt-5 mt-4 border-t border-dashed dark:border-white/10 border-gray-200">
-                                <span className="text-gray-400">Total Taxes (₹)</span>
-                                <span>₹{form.applyTaxes ? taxes.total : '0.00'}</span>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
-            </div>
 
-            {/* Submit Section - Now inside the form flow */}
-            <div className={`mt-10 p-6 rounded-2xl border flex flex-col items-center justify-center gap-3 transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">I want to make payment and generate invoice</p>
-                <button
-                    disabled={isLoading}
-                    onClick={handleSubmit}
-                    className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black uppercase text-[15px] py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 tracking-wider disabled:opacity-50"
-                >
-                    {isLoading ? 'Processing...' : `₹${payableAmount} Submit`}
-                </button>
+                {/* Simplified Payment Summary */}
+                <div className={`p-6 rounded-2xl border h-fit sticky top-6 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100 shadow-lg'}`}>
+                    <h3 className={`text-xs font-black uppercase tracking-wider mb-6 text-gray-400`}>Pay Difference</h3>
+
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center text-sm font-bold">
+                            <span className="text-gray-500">Upgrade (Diff)</span>
+                            <span className="text-orange-500 font-black">₹{upgradeAmount.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-bold">
+                            <span className="text-gray-500">Extra Discount</span>
+                            <input
+                                type="number"
+                                value={form.totalDiscount}
+                                onChange={(e) => setForm({ ...form, totalDiscount: e.target.value })}
+                                className={`w-20 px-2 py-1 text-right rounded-lg border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
+                            />
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-bold">
+                            <span className="text-gray-500">Add Tax (%)</span>
+                            <select
+                                value={form.taxPercentage}
+                                onChange={(e) => setForm({ ...form, taxPercentage: e.target.value, applyTaxes: true })}
+                                className={`px-2 py-1 rounded border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
+                            >
+                                <option value="0">0%</option>
+                                <option value="5">5%</option>
+                                <option value="12">12%</option>
+                                <option value="18">18%</option>
+                            </select>
+                        </div>
+
+                        <div className="pt-4 border-t dark:border-white/10 border-gray-100">
+                            <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-1">Total Upgrade Charge</p>
+                            <p className="text-3xl font-black text-orange-600">₹{payableAmount}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                            {['Online', 'Cash'].map(method => (
+                                <button
+                                    key={method}
+                                    onClick={() => setForm({ ...form, paymentMethod: method })}
+                                    className={`py-2 rounded-xl text-[10px] font-black uppercase border tracking-wider transition-all ${form.paymentMethod === method
+                                        ? 'bg-orange-500 border-orange-500 text-white'
+                                        : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
+                                        }`}
+                                >
+                                    {method}
+                                </button>
+                            ))}
+                        </div>
+
+                        <button
+                            disabled={isLoading || !selectedPlan}
+                            onClick={handleSubmit}
+                            className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-xl shadow-xl shadow-orange-600/20 transition-all active:scale-95 text-[13px] uppercase tracking-wider disabled:opacity-30"
+                        >
+                            {isLoading ? 'Processing...' : 'Complete Upgrade'}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

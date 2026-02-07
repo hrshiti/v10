@@ -21,8 +21,10 @@ import VerifyOtp from './modules/user/pages/VerifyOtp';
 import ScanQR from './modules/user/pages/ScanQR';
 import AttendanceSuccess from './modules/user/pages/AttendanceSuccess';
 import Feedback from './modules/user/pages/Feedback';
+import UserSuccessStories from './modules/user/pages/UserSuccessStories';
 
 import ProtectedRoute from './modules/user/components/ProtectedRoute';
+import TrainerRoutes from './modules/trainer/routes/TrainerRoutes';
 
 function App() {
   return (
@@ -62,7 +64,12 @@ function App() {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/achievements" element={<Achievements />} />
+            <Route path="/stories" element={<UserSuccessStories />} />
           </Route>
+
+          {/* Trainer Routes */}
+          <Route path="/trainer/*" element={<TrainerRoutes />} />
+
         </Routes>
       </ThemeProvider>
     </div>

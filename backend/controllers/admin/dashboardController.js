@@ -9,6 +9,8 @@ const Expense = require('../../models/Expense');
 // @access  Private/Admin
 const MemberAttendance = require('../../models/MemberAttendance');
 
+const EmployeeAttendance = require('../../models/EmployeeAttendance');
+
 // @desc    Get Dashboard Statistics (Cards)
 // @route   GET /api/admin/dashboard/stats
 // @access  Private/Admin
@@ -19,7 +21,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
     // 1. Members
-    const activeMembers = await Member.countDocuments({ status: 'Active' });
+    const activeMembersCount = await Member.countDocuments({ status: 'Active' });
     const upcomingMembers = await Member.countDocuments({ status: { $in: ['Upcoming', 'Pending'] } });
 
     // 2. Follow Ups
@@ -94,13 +96,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     });
 
     // 5. Payment Stats (Paid vs Due)
-    // Paid Amount -> Sum of Member.paidAmount
     const paidAgg = await Member.aggregate([
         { $group: { _id: null, totalPaid: { $sum: "$paidAmount" } } }
     ]);
     const paidAmount = paidAgg.length > 0 ? paidAgg[0].totalPaid : 0;
 
-    // Due Amount -> Sum of Member.dueAmount
     const dueAgg = await Member.aggregate([
         { $group: { _id: null, totalDue: { $sum: "$dueAmount" } } }
     ]);
@@ -112,7 +112,24 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         date: { $gte: startOfDay, $lte: endOfDay },
         status: 'Present'
     });
-    const absentCount = Math.max(0, activeMembers - presentCount);
+    const absentCount = Math.max(0, activeMembersCount - presentCount);
+
+    // Active Trainers Count (Currently on duty)
+    const activeAttendanceSummary = await EmployeeAttendance.find({
+        date: { $gte: startOfDay, $lte: endOfDay },
+        outTime: { $exists: false }
+    }).populate({
+        path: 'employeeId',
+        select: 'gymRole active'
+    });
+
+    const activeTrainersCount = activeAttendanceSummary.filter(record => {
+        const emp = record.employeeId;
+        if (!emp || !emp.active) return false;
+
+        const roles = emp.gymRole || [];
+        return roles.some(role => typeof role === 'string' && role.toLowerCase().includes('trainer'));
+    }).length;
 
     // Birthdays & Anniversaries (Today)
     const todayDay = new Date().getDate();
@@ -123,7 +140,6 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         { $match: { month: todayMonth, day: todayDay } }
     ]);
 
-    // Using admissionDate for Anniversary
     const anniversaryCountArr = await Member.aggregate([
         { $project: { month: { $month: "$admissionDate" }, day: { $dayOfMonth: "$admissionDate" } } },
         { $match: { month: todayMonth, day: todayDay } }
@@ -132,7 +148,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
     const stats = {
         members: {
-            active: activeMembers,
+            active: activeMembersCount,
             upcoming: upcomingMembers
         },
         followUps: {
@@ -141,11 +157,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         },
         enquiries: {
             new: newEnquiries,
-            sales: freshSales.number // Approximation: New Membership Sales
+            sales: freshSales.number
         },
         attendance: {
             present: presentCount,
             absent: absentCount,
+            activeTrainers: activeTrainersCount,
             birthday: birthdayCountArr.length,
             anniversary: anniversaryCountArr.length
         },
@@ -258,8 +275,41 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Get Live Gym Status (Active Members & Trainers)
+// @route   GET /api/admin/dashboard/live-gym
+// @access  Private/Admin
+const getLiveGymStatus = asyncHandler(async (req, res) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 1. Members in Gym
+    const activeMembers = await MemberAttendance.find({
+        date: { $gte: today },
+        checkOut: { $exists: false }
+    }).populate('memberId', 'firstName lastName memberId photo mobile');
+
+    // 2. Trainers in Gym
+    const activeAttendance = await EmployeeAttendance.find({
+        date: { $gte: today },
+        outTime: { $exists: false }
+    }).populate('employeeId', 'firstName lastName photo gymRole active');
+
+    const activeTrainers = activeAttendance.filter(record => {
+        const emp = record.employeeId;
+        if (!emp || !emp.active) return false;
+        const roles = emp.gymRole || [];
+        return roles.some(role => typeof role === 'string' && role.toLowerCase().includes('trainer'));
+    });
+
+    res.json({
+        members: activeMembers,
+        trainers: activeTrainers
+    });
+});
+
 module.exports = {
     getDashboardStats,
     getRecentFollowUps,
-    getDashboardCharts
+    getDashboardCharts,
+    getLiveGymStatus
 };

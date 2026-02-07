@@ -59,7 +59,12 @@ const VerifyOtp = () => {
                 // Store token and user details
                 localStorage.setItem('userToken', data.token);
                 localStorage.setItem('userData', JSON.stringify(data));
-                navigate('/');
+
+                if (data.role === 'trainer') {
+                    navigate('/trainer');
+                } else {
+                    navigate('/');
+                }
             } else {
                 setError(data.message || 'Verification failed');
             }

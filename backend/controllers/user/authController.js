@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const Member = require('../../models/Member');
+const Employee = require('../../models/Employee');
 
 // @desc    Send OTP to mobile
 // @route   POST /api/user/auth/send-otp
@@ -14,11 +15,20 @@ const sendOTP = asyncHandler(async (req, res) => {
     }
 
     // Check if member exists
-    const member = await Member.findOne({ mobile });
+    let user = await Member.findOne({ mobile });
+    let role = 'member';
 
-    if (!member) {
+    // If not member, check if employee (Trainer)
+    if (!user) {
+        user = await Employee.findOne({ mobile });
+        if (user) {
+            role = 'trainer';
+        }
+    }
+
+    if (!user) {
         res.status(404);
-        throw new Error('Member not found with this mobile number. Please register or contact admin.');
+        throw new Error('User not found with this mobile number. Please register or contact admin.');
     }
 
     // In a real app, send OTP via SMS service
@@ -27,7 +37,8 @@ const sendOTP = asyncHandler(async (req, res) => {
         success: true,
         message: 'OTP sent successfully (Simulated)',
         // For development convenience, we can return the OTP or just assume 123456
-        otp: '123456'
+        otp: '123456',
+        role: role // Hint for frontend if needed, though mostly used in verify
     });
 });
 
@@ -43,11 +54,19 @@ const verifyOTP = asyncHandler(async (req, res) => {
     }
 
     // Check if member exists
-    const member = await Member.findOne({ mobile });
+    let user = await Member.findOne({ mobile });
+    let role = 'member';
 
-    if (!member) {
+    if (!user) {
+        user = await Employee.findOne({ mobile });
+        if (user) {
+            role = 'trainer';
+        }
+    }
+
+    if (!user) {
         res.status(404);
-        throw new Error('Member not found');
+        throw new Error('User not found');
     }
 
     // Validate OTP (Simple check for demo)
@@ -58,17 +77,19 @@ const verifyOTP = asyncHandler(async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign(
-        { id: member._id, role: 'user' },
+        { id: user._id, role: role },
         process.env.JWT_SECRET,
         { expiresIn: '30d' }
     );
 
     res.json({
-        _id: member._id,
-        firstName: member.firstName,
-        lastName: member.lastName,
-        mobile: member.mobile,
-        memberId: member.memberId,
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        mobile: user.mobile,
+        photo: user.photo,
+        memberId: user.memberId || user.employeeId,
+        role: role,
         token
     });
 });

@@ -11,11 +11,13 @@ import {
   Calendar,
   CheckCircle,
   Bell,
-  Trash2, // Added for Delete Modal
-
+  Trash2,
+  Download,
+  QrCode
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../../config/api';
+import QRCode from 'qrcode';
 
 const ToastNotification = ({ message, onClose, isDarkMode }) => {
   useEffect(() => {
@@ -205,6 +207,126 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const ViewQRModal = ({ isOpen, onClose, isDarkMode }) => {
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [gymName, setGymName] = useState('V-10 Fitness');
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Fetch gym details
+      const fetchGymDetails = async () => {
+        try {
+          const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+          const token = adminInfo?.token;
+          const res = await fetch(`${API_BASE_URL}/api/admin/gym-details`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setGymName(data.name || 'V-10 Fitness');
+            generateQRCode(data._id || 'GYM001');
+          }
+        } catch (error) {
+          console.error('Error fetching gym details:', error);
+          generateQRCode('GYM001');
+        }
+      };
+      fetchGymDetails();
+    }
+  }, [isOpen]);
+
+  const generateQRCode = async (gymId) => {
+    try {
+      const qrData = JSON.stringify({
+        type: 'GYM',
+        gymId: gymId,
+        name: gymName,
+        timestamp: new Date().toISOString()
+      });
+
+      const url = await QRCode.toDataURL(qrData, {
+        width: 400,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      setQrCodeUrl(url);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+    }
+  };
+
+  const handleDownload = () => {
+    if (qrCodeUrl) {
+      const link = document.createElement('a');
+      link.href = qrCodeUrl;
+      link.download = `${gymName.replace(/\s+/g, '_')}_QR_Code.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className={`w-full max-w-md rounded-2xl shadow-2xl transition-all ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        {/* Header */}
+        <div className={`p-6 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <div className="flex items-center gap-3">
+            <div className="bg-orange-500 text-white p-2 rounded-lg">
+              <QrCode size={20} />
+            </div>
+            <h2 className={`text-[20px] font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Gym QR Code
+            </h2>
+          </div>
+          <button onClick={onClose} className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-100 text-gray-500'}`}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-8">
+          <div className="flex flex-col items-center gap-6">
+            <div className={`p-6 rounded-2xl border-2 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+              {qrCodeUrl ? (
+                <img src={qrCodeUrl} alt="Gym QR Code" className="w-[300px] h-[300px]" />
+              ) : (
+                <div className="w-[300px] h-[300px] flex items-center justify-center">
+                  <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+
+            <div className="text-center">
+              <h3 className={`text-[18px] font-black mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {gymName}
+              </h3>
+              <p className={`text-[13px] font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Scan this QR code for gym attendance
+              </p>
+            </div>
+
+            <button
+              onClick={handleDownload}
+              disabled={!qrCodeUrl}
+              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl text-[15px] font-bold shadow-lg shadow-orange-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Download size={18} />
+              Download QR Code
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -675,6 +797,9 @@ const Employees = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
+  // QR Modal State
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+
   const fetchEmployees = async () => {
     setIsLoading(true);
     try {
@@ -861,15 +986,13 @@ const Employees = () => {
       <div className={`mt-8 border rounded-lg overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
         <div className="px-5 py-5 border-b bg-white dark:bg-white/5 flex justify-between items-center">
           <span className="text-[13px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Employees</span>
-          <div className="flex gap-3">
-            <button className="bg-[#f97316] text-white px-5 py-2 rounded-lg text-[14px] font-bold shadow-sm active:scale-95 transition-none">View Gym QR</button>
-            <button
-              onClick={() => navigate('access-control')}
-              className="bg-[#f97316] text-white px-5 py-2 rounded-lg text-[14px] font-bold shadow-sm active:scale-95 transition-none"
-            >
-              Access Control
-            </button>
-          </div>
+          <button
+            onClick={() => setIsQRModalOpen(true)}
+            className="bg-[#f97316] hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-[14px] font-bold shadow-sm active:scale-95 transition-all flex items-center gap-2"
+          >
+            <QrCode size={16} />
+            View Gym QR
+          </button>
         </div>
         <div className="overflow-x-visible min-h-[400px]">
           <table className="w-full text-left whitespace-nowrap">
@@ -1025,6 +1148,12 @@ const Employees = () => {
         isDarkMode={isDarkMode}
         employees={employees}
         selectedEmployeeId={deleteId}
+      />
+
+      <ViewQRModal
+        isOpen={isQRModalOpen}
+        onClose={() => setIsQRModalOpen(false)}
+        isDarkMode={isDarkMode}
       />
     </div>
   );

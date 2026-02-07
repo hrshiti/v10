@@ -4,6 +4,7 @@ const MemberAttendance = require('../../models/MemberAttendance');
 const DietPlan = require('../../models/DietPlan');
 const Workout = require('../../models/Workout');
 const Feedback = require('../../models/Feedback');
+const WorkoutLibrary = require('../../models/WorkoutLibrary');
 
 // @desc    Get user profile
 // @route   GET /api/user/profile
@@ -306,10 +307,15 @@ const getUserFeedbacks = asyncHandler(async (req, res) => {
     res.json(feedbacks);
 });
 
+const EmployeeAttendance = require('../../models/EmployeeAttendance');
+
 // @desc    Get dashboard stats for user home screen
 // @route   GET /api/user/stats
 // @access  Private/User
 const getHomeStats = asyncHandler(async (req, res) => {
+    // Note: Active/Total members counts are requested to be hidden in User UI, 
+    // but we keep fetching them here in case other parts need them, or we can remove if strict.
+    // For now, we just pass them as before.
     const totalMembers = await Member.countDocuments({});
     const activeMembers = await Member.countDocuments({ status: 'Active' });
 
@@ -324,7 +330,7 @@ const getHomeStats = asyncHandler(async (req, res) => {
     });
 
     // Check current user's attendance status
-    const userAttendance = await MemberAttendance.findOne({
+    let userAttendance = await MemberAttendance.findOne({
         memberId: req.user._id,
         date: {
             $gte: today,
@@ -332,13 +338,63 @@ const getHomeStats = asyncHandler(async (req, res) => {
         }
     });
 
+    // If not found in Member checks, check Employee if the user is an employee (though this endpoint is protected by userProtect which allows both)
+    // However, req.user is populated based on token. If it's an employee, we should check EmployeeAttendance.
+    // But currently MemberAttendance works for Members. If the logged in user is a Trainer, `getHomeStats` might fail or return null.
+    // But wait, Trainers have their own dashboard. `getHomeStats` is for `Home.jsx` (User Dashboard).
+    // So `req.user` here is assumed to be a Member.
+
+    // Logic: Active Session if checked in < 50 mins ago AND not checked out
+    let isSessionActive = false;
+    let sessionTimeRemaining = 0;
+
+    if (userAttendance && userAttendance.checkIn && !userAttendance.checkOut) {
+        const checkInTime = new Date(userAttendance.checkIn).getTime();
+        const now = new Date().getTime();
+        const diffMinutes = (now - checkInTime) / (1000 * 60);
+
+        if (diffMinutes <= 50) {
+            isSessionActive = true;
+            sessionTimeRemaining = Math.max(0, 50 - diffMinutes);
+        }
+    }
+
+    // Calculate total active members in gym right now (checked in within last 50 mins)
+    const fiftyMinutesAgo = new Date(Date.now() - 50 * 60 * 1000);
+
+    // Active Members
+    const activeMembersCount = await MemberAttendance.countDocuments({
+        checkIn: { $gte: fiftyMinutesAgo },
+        checkOut: { $exists: false } // Only count if not checked out
+    });
+
+    // Active Trainers/Employees (Only those with 'Trainer' role)
+    const activeAttendance = await EmployeeAttendance.find({
+        inTime: { $gte: fiftyMinutesAgo },
+        outTime: { $exists: false }
+    }).populate({
+        path: 'employeeId',
+        select: 'gymRole'
+    });
+
+    const activeTrainersCount = activeAttendance.filter(record => {
+        const roles = record.employeeId?.gymRole || [];
+        return roles.some(role => typeof role === 'string' && role.toLowerCase().includes('trainer'));
+    }).length;
+
+    const activeInGym = activeMembersCount + activeTrainersCount;
+
     res.json({
         totalMembers,
         activeMembers,
         todayAttendance,
+        activeInGym, // Count of members + trainers currently in the gym
+        activeTrainers: activeTrainersCount, // New field
         userStatus: {
             isPresent: !!userAttendance,
-            type: userAttendance ? (userAttendance.checkOut ? 'checkout' : 'checkin') : null
+            type: userAttendance ? (userAttendance.checkOut ? 'checkout' : 'checkin') : null,
+            isSessionActive,
+            sessionTimeRemaining: Math.round(sessionTimeRemaining)
         }
     });
 });
@@ -376,6 +432,27 @@ const checkWorkoutStatus = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Get all active workout library items for users
+// @route   GET /api/user/workout-library
+// @access  Private/User
+const getWorkoutLibrary = asyncHandler(async (req, res) => {
+    const workouts = await WorkoutLibrary.find({ active: true }).sort({ createdAt: -1 });
+    res.json(workouts);
+});
+
+// @desc    Get specific workout library item
+// @route   GET /api/user/workout-library/:id
+// @access  Private/User
+const getWorkoutLibraryItem = asyncHandler(async (req, res) => {
+    const workout = await WorkoutLibrary.findById(req.params.id);
+    if (workout) {
+        res.json(workout);
+    } else {
+        res.status(404);
+        throw new Error('Workout not found');
+    }
+});
+
 module.exports = {
     getUserProfile,
     userScanQR,
@@ -388,5 +465,7 @@ module.exports = {
     submitFeedback,
     getUserFeedbacks,
     getHomeStats,
-    checkWorkoutStatus
+    checkWorkoutStatus,
+    getWorkoutLibrary,
+    getWorkoutLibraryItem
 };

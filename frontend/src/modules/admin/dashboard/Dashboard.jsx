@@ -480,21 +480,32 @@ const Dashboard = () => {
                     </div>
 
                     {/* Attendance Card */}
-                    <div className="bg-[#f59e0b] rounded-lg overflow-hidden">
+                    <div
+                        className="bg-[#f59e0b] rounded-lg overflow-hidden"
+                    >
                         <div className="grid grid-cols-2 h-full">
                             <div className="p-4 border-r border-white/10 flex flex-col">
-                                <p className="text-[11px] font-bold text-white/80">Attendance</p>
+                                <p className="text-[11px] font-bold text-white/80 uppercase">Attendance</p>
                                 <div className="mt-3">
                                     <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.present || 0}</h3>
-                                    <p className="text-[10px] font-normal text-white/70 mt-0.5">Attendance</p>
+                                    <p className="text-[10px] font-normal text-white/70 mt-0.5">Present</p>
                                 </div>
                                 <div className="mt-3">
                                     <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.absent || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Absent</p>
                                 </div>
+                                {stats?.attendance?.activeTrainers > 0 && (
+                                    <div className="mt-3 pt-3 border-t border-white/10">
+                                        <h3 className="text-[20px] font-black text-white leading-none flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                                            {stats?.attendance?.activeTrainers}
+                                        </h3>
+                                        <p className="text-[9px] font-bold text-white/70 uppercase mt-0.5">Trainers Active</p>
+                                    </div>
+                                )}
                             </div>
                             <div className="p-4 bg-white/10 flex flex-col">
-                                <p className="text-[11px] font-bold text-white/80">Date</p>
+                                <p className="text-[11px] font-bold text-white/80 uppercase">Events</p>
                                 <div className="mt-3">
                                     <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.birthday || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Birthday</p>

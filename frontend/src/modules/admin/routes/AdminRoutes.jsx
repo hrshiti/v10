@@ -48,6 +48,8 @@ import SlotManagement from '../business-settings/slot-management/SlotManagement'
 import GymDetails from '../settings/gym-details/GymDetails';
 import Biometric from '../settings/biometric/Biometric';
 import AccessControl from '../business-settings/team/access-control/AccessControl';
+import SuccessStoryManagement from '../success-stories/SuccessStoryManagement';
+import WorkoutLibraryManagement from '../workouts-library/WorkoutLibraryManagement';
 
 import AdminProtectedRoute from '../components/AdminProtectedRoute';
 import Login from '../auth/Login';
@@ -98,6 +100,8 @@ const AdminRoutes = () => {
                     </Route>
 
                     <Route path="feedback" element={<FeedbackManagement />} />
+                    <Route path="success-stories" element={<SuccessStoryManagement />} />
+                    <Route path="workout-library" element={<WorkoutLibraryManagement />} />
                     <Route path="diet-plan" element={<DietPlanManagement />} />
 
                     <Route path="reports">

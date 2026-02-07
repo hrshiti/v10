@@ -5,7 +5,8 @@ import {
   X,
   CheckCircle,
   MessageCircle,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
@@ -232,6 +233,31 @@ const FeedbackManagement = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this feedback?')) return;
+
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/feedback/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setNotificationMessage('Feedback deleted successfully');
+        setShowNotification(true);
+        fetchFeedbacks();
+        setTimeout(() => setShowNotification(false), 3000);
+      } else {
+        alert('Failed to delete feedback');
+      }
+    } catch (error) {
+      console.error('Error deleting feedback:', error);
+    }
+  };
+
   useEffect(() => {
     fetchFeedbacks();
   }, []);
@@ -343,8 +369,8 @@ const FeedbackManagement = () => {
                           {row.userId?.mobile || 'N/A'}
                         </p>
                         <div className={`text-[10px] font-black px-2 py-0.5 rounded-md inline-block uppercase tracking-wider ${row.type === 'Complaint' ? 'bg-red-100 text-red-600' :
-                            row.type === 'Compliment' ? 'bg-emerald-100 text-emerald-600' :
-                              'bg-blue-100 text-blue-600'
+                          row.type === 'Compliment' ? 'bg-emerald-100 text-emerald-600' :
+                            'bg-blue-100 text-blue-600'
                           }`}>
                           {row.type}
                         </div>
@@ -391,15 +417,24 @@ const FeedbackManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-8 text-right">
-                      <button
-                        onClick={() => {
-                          setSelectedFeedback(row);
-                          setIsReplyModalOpen(true);
-                        }}
-                        className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600 uppercase tracking-wider"
-                      >
-                        {row.status === 'Replied' ? 'Edit Reply' : 'Reply'}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedFeedback(row);
+                            setIsReplyModalOpen(true);
+                          }}
+                          className="bg-[#f97316] text-white px-4 py-2 rounded-lg text-[12px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600 uppercase tracking-wider"
+                        >
+                          {row.status === 'Replied' ? 'Edit Reply' : 'Reply'}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(row._id)}
+                          className="flex items-center justify-center p-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 transition-all shadow-sm active:scale-95 bg-white"
+                          title="Delete Feedback"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -454,7 +489,7 @@ const FeedbackManagement = () => {
         feedback={selectedFeedback}
         onSuccess={handleReplySuccess}
       />
-    </div>
+    </div >
   );
 };
 
