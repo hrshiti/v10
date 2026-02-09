@@ -103,12 +103,12 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
 
                         <div className="space-y-1.5">
                             <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Payment Mode</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {['Cash', 'Online', 'Card'].map(mode => (
+                            <div className="grid grid-cols-2 gap-2">
+                                {['Cash', 'UPI / Online', 'Debit / Credit Card', 'Cheque'].map(mode => (
                                     <button
                                         key={mode}
                                         onClick={() => setPaymentMode(mode)}
-                                        className={`py-2.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${paymentMode === mode
+                                        className={`py-2.5 rounded-lg text-[11px] font-black uppercase tracking-wider border transition-all ${paymentMode === mode
                                             ? 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/20'
                                             : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
                                             }`}
@@ -244,20 +244,21 @@ const ProfileLayout = () => {
     ];
 
     return (
-        <div className={`flex flex-col gap-6 p-8 min-h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#f8f9fa] text-gray-800'}`}>
-            {/* Back Button */}
-            {/* Back Button - Now sticky or fixed if needed, but keeping it at top of content for now */}
-            <div
-                onClick={() => navigate('/admin/members/list')}
-                className="flex items-center gap-2 text-orange-500 font-bold cursor-pointer w-fit hover:underline z-20"
-            >
-                <ChevronLeft size={20} />
-                <span>Members Profile</span>
+        <div className={`flex flex-col gap-4 h-[calc(100vh-128px)] overflow-hidden transition-colors duration-500 ${isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#f8f9fa] text-gray-800'}`}>
+            {/* Back Button Container */}
+            <div className="shrink-0 pt-2">
+                <div
+                    onClick={() => navigate('/admin/members/list')}
+                    className="flex items-center gap-2 text-orange-500 font-bold cursor-pointer w-fit hover:underline z-20"
+                >
+                    <ChevronLeft size={20} />
+                    <span>Members Profile</span>
+                </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6 items-start relative">
+            <div className="flex-1 flex flex-col lg:flex-row gap-6 pb-2 overflow-hidden">
                 {/* Left Sidebar */}
-                <div className="w-full lg:w-[300px] flex-shrink-0 space-y-4 lg:sticky lg:top-[100px] self-start z-10">
+                <div className="w-full lg:w-[300px] flex-shrink-0 space-y-4 h-full overflow-y-auto scrollbar-hide pr-1 self-start">
 
                     {/* User Card */}
                     <div className="bg-white dark:bg-[#1e1e1e] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 flex items-center gap-4">
@@ -323,7 +324,7 @@ const ProfileLayout = () => {
                 </div>
 
                 {/* Right Content */}
-                <div className="flex-1 w-full min-w-0">
+                <div className="flex-1 w-full min-w-0 h-full overflow-y-auto custom-scrollbar pr-1">
                     {/* Pass parent context (isDarkMode) + current id + member details */}
                     <Outlet context={{
                         isDarkMode,

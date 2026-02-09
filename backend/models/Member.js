@@ -60,7 +60,8 @@ const memberSchema = new mongoose.Schema({
     // Reporting Fields
     assignedTrainer: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }, // Link to Employee
     closedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }, // Link to Employee
-    discount: { type: Number, default: 0 } // Discount given on current plan
+    discount: { type: Number, default: 0 }, // Discount given on current plan
+    commitmentDate: { type: Date } // Date member committed to pay due
 }, { timestamps: true });
 
 // Virtual for full name
@@ -76,7 +77,7 @@ memberSchema.pre('save', async function () {
     }
 
     // Calculate Due Amount automation
-    this.dueAmount = this.totalAmount - this.paidAmount;
+    this.dueAmount = Number(this.totalAmount) - (Number(this.paidAmount) + Number(this.discount || 0));
 
     // Auto Update Status based on dates
     const today = new Date();

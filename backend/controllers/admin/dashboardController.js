@@ -24,9 +24,20 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const activeMembersCount = await Member.countDocuments({ status: 'Active' });
     const upcomingMembers = await Member.countDocuments({ status: { $in: ['Upcoming', 'Pending'] } });
 
-    // 2. Follow Ups
-    const totalFollowUps = await FollowUp.countDocuments({});
-    const doneFollowUps = await FollowUp.countDocuments({ isDone: true });
+    // 2. Commitment Dues Stats
+    const next30Days = new Date(today);
+    next30Days.setDate(today.getDate() + 30);
+    next30Days.setHours(23, 59, 59, 999);
+
+    const commitmentDuesToday = await Member.countDocuments({
+        commitmentDate: { $lte: endOfDay },
+        dueAmount: { $gt: 0 }
+    });
+
+    const commitmentDuesUpcoming = await Member.countDocuments({
+        commitmentDate: { $lte: next30Days },
+        dueAmount: { $gt: 0 }
+    });
 
     // 3. Enquiries (Last 30 days new enquiries)
     const thirtyDaysAgo = new Date();
@@ -38,13 +49,35 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     // 4. Financials (Total Revenue via Aggregation) & Sales Breakdown
     const salesStats = await Sale.aggregate([
         {
+            $project: {
+                type: 1,
+                membershipType: 1,
+                amount: 1,
+                // Calculate effective booking value for THIS document
+                bookingValue: {
+                    $cond: {
+                        if: { $gt: [{ $ifNull: ["$subTotal", 0] }, 0] }, // If subTotal exists and > 0
+                        then: {
+                            $subtract: [
+                                { $add: ["$subTotal", { $ifNull: ["$taxAmount", 0] }] },
+                                { $ifNull: ["$discountAmount", 0] }
+                            ]
+                        },
+                        // Fallback to paid amount for legacy records or simple payments
+                        else: "$amount"
+                    }
+                }
+            }
+        },
+        {
             $group: {
                 _id: {
                     type: "$type",
                     membershipType: "$membershipType"
                 },
                 count: { $sum: 1 },
-                amount: { $sum: "$amount" }
+                amount: { $sum: "$amount" }, // Cash collected
+                totalValue: { $sum: "$bookingValue" } // Booking/Invoice Value
             }
         }
     ]);
@@ -63,35 +96,38 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         const membershipType = stat._id.membershipType;
         const isPT = membershipType === 'Personal Training';
 
-        totalRevenue += stat.amount;
+        // Use the aggregated Booking Value
+        const totalValue = stat.totalValue || 0;
+
+        totalRevenue += stat.amount; // Revenue is strictly cash collected
         totalSalesCount += stat.count;
 
         if (isPT) {
             if (type === 'New Membership' || type === 'PT') {
                 ptSales.number += stat.count;
-                ptSales.amount += stat.amount;
+                ptSales.amount += totalValue;
             } else if (type === 'Renewal' || type === 'PT Renewal') {
                 ptRenewalSales.number += stat.count;
-                ptRenewalSales.amount += stat.amount;
+                ptRenewalSales.amount += totalValue;
             }
         } else {
             // General Training or others
             if (type === 'New Membership') {
                 freshSales.number += stat.count;
-                freshSales.amount += stat.amount;
+                freshSales.amount += totalValue;
             } else if (type === 'Renewal') {
                 renewalSales.number += stat.count;
-                renewalSales.amount += stat.amount;
+                renewalSales.amount += totalValue;
             }
         }
 
         // Always categorize these if present
         if (type === 'Upgrade') {
             upgradeSales.number += stat.count;
-            upgradeSales.amount += stat.amount;
+            upgradeSales.amount += totalValue;
         } else if (type === 'Transfer') {
             transferSales.number += stat.count;
-            transferSales.amount += stat.amount;
+            transferSales.amount += totalValue;
         }
     });
 
@@ -151,9 +187,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
             active: activeMembersCount,
             upcoming: upcomingMembers
         },
-        followUps: {
-            total: totalFollowUps,
-            done: doneFollowUps
+        commitmentDues: {
+            today: commitmentDuesToday,
+            upcoming: commitmentDuesUpcoming
         },
         enquiries: {
             new: newEnquiries,
@@ -186,31 +222,59 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     res.json(stats);
 });
 
-// @desc    Get Recent Follow Ups
-// @route   GET /api/admin/dashboard/follow-ups
+// @desc    Get Expiring Members
+// @route   GET /api/admin/dashboard/expiring-members
 // @access  Private/Admin
-const getRecentFollowUps = asyncHandler(async (req, res) => {
-    // Limit to 5 for dashboard view
-    const followUps = await FollowUp.find({ isDone: false })
-        .sort({ dateTime: 1 })
+// @desc    Get Members with Commitment Dues (Payments Today/Upcoming)
+// @route   GET /api/admin/dashboard/commitment-dues
+// @access  Private/Admin
+const getCommitmentDues = asyncHandler(async (req, res) => {
+    const days = parseInt(req.query.days) || 30;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const futureDate = new Date(today);
+    futureDate.setDate(today.getDate() + days);
+    futureDate.setHours(23, 59, 59, 999);
+
+    const commitmentDues = await Member.find({
+        commitmentDate: { $lte: futureDate },
+        dueAmount: { $gt: 0 }
+    })
+        .select('firstName lastName memberId photo mobile packageName commitmentDate dueAmount')
+        .sort({ commitmentDate: 1 })
         .limit(50);
 
-    res.json(followUps);
+    const membersWithDaysLeft = commitmentDues.map(member => {
+        const commitment = new Date(member.commitmentDate);
+        const diffTime = commitment - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return {
+            ...member._doc,
+            daysLeft: diffDays
+        };
+    });
+
+    res.json(membersWithDaysLeft);
 });
 
 // @desc    Get Financial/Chart Data
 // @route   GET /api/admin/dashboard/charts
 // @access  Private/Admin
 const getDashboardCharts = asyncHandler(async (req, res) => {
-    // 1. Lead Types
-    const leadTypeStats = await require('../../models/Enquiry').aggregate([
-        { $group: { _id: "$leadType", count: { $sum: 1 } } }
+    // 1. Membership Distribution (By Package Name)
+    const membershipStats = await Member.aggregate([
+        { $match: { status: 'Active' } },
+        { $group: { _id: "$packageName", count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
     ]);
-    const colors = { 'Hot': '#ef4444', 'Warm': '#f97316', 'Cold': '#0ea5e9' };
-    const leadTypes = leadTypeStats.map(stat => ({
+
+    // Dynamic Colors for packages
+    const packageColors = ['#10b981', '#f97316', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1'];
+    const membershipDistribution = membershipStats.map((stat, index) => ({
         name: stat._id || 'Unknown',
         value: stat.count,
-        color: colors[stat._id] || '#cbd5e1'
+        color: packageColors[index % packageColors.length]
     }));
 
     // 2. Prepare Ranges (Current Year)
@@ -260,16 +324,20 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     ]);
     expenses.forEach(e => { if (e._id) financialMap[e._id - 1].expenses = e.total; });
 
+    // Pending -> Due Amount from Members based on their admission date (Current Year)
+    const pendingDues = await Member.aggregate([
+        { $match: { admissionDate: { $gte: startOfYear, $lte: endOfQuery }, dueAmount: { $gt: 0 } } },
+        { $group: { _id: { $month: "$admissionDate" }, total: { $sum: "$dueAmount" } } }
+    ]);
+    pendingDues.forEach(p => { if (p._id && financialMap[p._id - 1]) financialMap[p._id - 1].pending = p.total; });
+
     // Calculate Profit
     financialMap.forEach(item => {
         item.profit = item.revenue - item.expenses;
-        // Pending is difficult to snapshot historically, leaving as 0 to avoid misleading data.
-        // Or we could distribute current pending if we had due dates, but simplification is safer.
-        item.pending = 0;
     });
 
     res.json({
-        leadTypes,
+        membershipDistribution,
         memberTrendData: memberTrendMap,
         financialData: financialMap
     });
@@ -309,7 +377,7 @@ const getLiveGymStatus = asyncHandler(async (req, res) => {
 
 module.exports = {
     getDashboardStats,
-    getRecentFollowUps,
+    getCommitmentDues,
     getDashboardCharts,
     getLiveGymStatus
 };

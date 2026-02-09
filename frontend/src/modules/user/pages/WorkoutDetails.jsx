@@ -80,21 +80,13 @@ const WorkoutDetails = () => {
             </div>
 
             {/* Visual Area */}
-            <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4">
                 {workout.images?.length > 0 ? (
-                    <>
-                        <img
-                            src={getImageUrl(workout.images[currentImageIndex])}
-                            alt={workout.title}
-                            className="w-full h-full object-cover"
-                        />
-                        {/* Play Overlay matching image vibe */}
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-20 h-20 bg-indigo-900/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-2xl scale-90 opacity-90 border border-white/10">
-                                <Play size={32} className="text-white fill-white ml-1" />
-                            </div>
-                        </div>
-                    </>
+                    <img
+                        src={getImageUrl(workout.images[currentImageIndex])}
+                        alt={workout.title}
+                        className="max-w-full max-h-full object-contain rounded-2xl shadow-sm"
+                    />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300">
                         <Zap size={64} />
@@ -186,20 +178,7 @@ const WorkoutDetails = () => {
                 </div>
             </div>
 
-            {/* Footer Button */}
-            <div className="fixed bottom-0 left-0 right-0 p-6 bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl z-30">
-                <button
-                    onClick={handleComplete}
-                    disabled={isCompleted}
-                    className={`w-full py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${isCompleted
-                        ? 'bg-emerald-500 text-white cursor-default'
-                        : 'bg-[#14C38E] hover:bg-[#11AF7F] text-white shadow-emerald-500/30'
-                        }`}
-                >
-                    {isCompleted ? <CheckCircle size={24} /> : <CheckCircle size={24} />}
-                    {isCompleted ? 'Marked Completed!' : 'Mark as Complete'}
-                </button>
-            </div>
+
         </div>
     );
 };

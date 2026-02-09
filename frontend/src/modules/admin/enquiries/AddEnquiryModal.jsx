@@ -571,14 +571,7 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData, onSuccess }
     const trainerOptions = trainers.map(t => ({ label: `${t.firstName} ${t.lastName}`, id: t._id }));
     const trainerLabels = trainerOptions.map(t => t.label);
 
-    const referralOptions = [
-        "GIRDHAR BHAI",
-        "RAHUL KUSHWAH",
-        "ANURAG SINGH",
-        "Sanjay Dutt",
-        "Salman Khan",
-        "Shahrukh Khan"
-    ];
+
 
     const leadTypeOptions = ["Hot", "Warm", "Cold"];
     const personalityOptions = ["Gym Donor", "Gym Excuser", "Gym Goer"];
@@ -1127,16 +1120,7 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData, onSuccess }
                                 />
                             </div>
 
-                            <div>
-                                <CustomDropdown
-                                    label="Member/Employee Referral"
-                                    placeholder="Select"
-                                    options={referralOptions}
-                                    value={formData.referralMember}
-                                    onChange={(val) => handleInputChange('referralMember', val)}
-                                    isDarkMode={isDarkMode}
-                                />
-                            </div>
+
 
                             <div>
                                 <label className={labelClass}>Budget per month</label>

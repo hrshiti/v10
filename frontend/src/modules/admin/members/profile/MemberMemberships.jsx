@@ -349,14 +349,14 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
 
                         <div className="space-y-1.5">
                             <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Payment Mode</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {['Cash', 'Online', 'Card'].map(mode => (
+                            <div className="grid grid-cols-2 gap-2">
+                                {['Cash', 'UPI / Online', 'Debit / Credit Card', 'Cheque'].map(mode => (
                                     <button
                                         key={mode}
                                         onClick={() => setPaymentMode(mode)}
-                                        className={`py-2.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${paymentMode === mode
+                                        className={`py-2.5 rounded-lg text-[11px] font-black uppercase tracking-wider border transition-all ${paymentMode === mode
                                             ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
-                                            : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
+                                            : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300')
                                             }`}
                                     >
                                         {mode}
@@ -400,7 +400,6 @@ const MemberMemberships = () => {
     const tabs = [
         { name: 'Active Membership' },
         { name: 'Past Membership' },
-        { name: 'Upcoming Membership' },
     ];
 
     const fetchSubscriptions = async () => {
@@ -439,7 +438,6 @@ const MemberMemberships = () => {
     const filteredSubscriptions = subscriptions.filter(s => {
         if (activeTab === 'Active Membership') return s.status === 'Active';
         if (activeTab === 'Past Membership') return s.status === 'Expired';
-        if (activeTab === 'Upcoming Membership') return s.status === 'Upcoming';
         return false;
     });
 
@@ -579,7 +577,6 @@ const MemberMemberships = () => {
                         const count = subscriptions.filter(s => {
                             if (tab.name === 'Active Membership') return s.status === 'Active';
                             if (tab.name === 'Past Membership') return s.status === 'Expired';
-                            if (tab.name === 'Upcoming Membership') return s.status === 'Upcoming';
                             return false;
                         }).length;
 

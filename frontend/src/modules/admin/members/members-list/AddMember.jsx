@@ -60,8 +60,13 @@ const AddMember = () => {
         discount: 0,
         membershipType: 'General Training',
         assignedTrainer: '',
-        closedBy: ''
+        closedBy: '',
+        paymentMode: 'Cash',
+        commitmentDate: ''
     });
+
+    const netPayable = Number(formData.totalAmount) - Number(formData.discount);
+    const dueBalance = netPayable - Number(formData.paidAmount);
 
     const [selectedPackage, setSelectedPackage] = useState(null);
 
@@ -116,23 +121,39 @@ const AddMember = () => {
                 durationMonths: pkg.durationType === 'Months' ? pkg.durationValue : 0,
                 totalAmount: pkg.baseRate,
                 paidAmount: pkg.baseRate,
+                discount: 0,
                 endDate: endDate.toISOString().split('T')[0]
             }));
         }
     };
 
     const handleStartDateChange = (dateStr) => {
-        setFormData(prev => ({ ...prev, startDate: dateStr }));
-        if (selectedPackage) {
-            const startDate = new Date(dateStr);
-            const endDate = new Date(startDate);
-            if (selectedPackage.durationType === 'Months') {
-                endDate.setMonth(endDate.getMonth() + selectedPackage.durationValue);
-            } else {
-                endDate.setDate(endDate.getDate() + selectedPackage.durationValue);
+        setFormData(prev => {
+            const newFormData = { ...prev, startDate: dateStr };
+            if (selectedPackage) {
+                const startDate = new Date(dateStr);
+                const endDate = new Date(startDate);
+                if (selectedPackage.durationType === 'Months') {
+                    endDate.setMonth(endDate.getMonth() + selectedPackage.durationValue);
+                } else {
+                    endDate.setDate(endDate.getDate() + selectedPackage.durationValue);
+                }
+                newFormData.endDate = endDate.toISOString().split('T')[0];
             }
-            setFormData(prev => ({ ...prev, endDate: endDate.toISOString().split('T')[0] }));
-        }
+            return newFormData;
+        });
+    };
+
+    const handleFinancialChange = (field, value) => {
+        const numValue = value === '' ? 0 : Number(value);
+        setFormData(prev => {
+            const updated = { ...prev, [field]: numValue };
+            // Auto-calculate paidAmount when total or discount changes to keep it fully paid by default
+            if (field === 'totalAmount' || field === 'discount') {
+                updated.paidAmount = Math.max(0, Number(updated.totalAmount) - Number(updated.discount));
+            }
+            return updated;
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -251,6 +272,7 @@ const AddMember = () => {
                             isDarkMode={isDarkMode}
                             value={formData.dob}
                             onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                            onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()}
                         />
                     </div>
                     <div className="mt-6">
@@ -385,33 +407,79 @@ const AddMember = () => {
                             icon={CreditCard}
                             type="number"
                             isDarkMode={isDarkMode}
-                            value={formData.totalAmount}
-                            onChange={(e) => setFormData({ ...formData, totalAmount: Number(e.target.value) })}
+                            value={formData.totalAmount || ''}
+                            onChange={(e) => handleFinancialChange('totalAmount', e.target.value)}
                         />
                         <FormInput
                             label="Discount (₹)"
                             type="number"
                             isDarkMode={isDarkMode}
-                            value={formData.discount}
-                            onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) })}
+                            value={formData.discount || ''}
+                            onChange={(e) => handleFinancialChange('discount', e.target.value)}
                         />
+                        <div className="flex items-end h-full">
+                            <div className={`w-full p-4 rounded-xl border border-dashed ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-orange-50/50 border-orange-100 text-orange-600'} flex justify-between items-center`}>
+                                <span className="text-xs font-black uppercase tracking-wider">Net Payable</span>
+                                <span className="text-[17px] font-black">
+                                    ₹{Math.max(0, netPayable)}
+                                </span>
+                            </div>
+                        </div>
+
                         <FormInput
                             label="Amount Paid (₹)*"
                             icon={CreditCard}
                             type="number"
                             required
                             isDarkMode={isDarkMode}
-                            value={formData.paidAmount}
-                            onChange={(e) => setFormData({ ...formData, paidAmount: Number(e.target.value) })}
+                            value={formData.paidAmount || ''}
+                            onChange={(e) => handleFinancialChange('paidAmount', e.target.value)}
                         />
+                        <div className="space-y-2">
+                            <label className={`text-[13px] font-black uppercase tracking-tight ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                Type of Payment*
+                            </label>
+                            <div className="relative">
+                                <CreditCard size={18} className="absolute left-4 top-3.5 text-gray-400" />
+                                <select
+                                    required
+                                    className={`w-full pl-12 pr-10 py-3 rounded-xl border outline-none appearance-none transition-all text-[15px] font-bold ${isDarkMode
+                                        ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-orange-500/50'
+                                        : 'bg-white border-gray-200 text-gray-900 focus:border-orange-500 shadow-sm'
+                                        }`}
+                                    value={formData.paymentMode}
+                                    onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value })}
+                                >
+                                    <option value="Cash">Cash</option>
+                                    <option value="UPI">UPI / Online</option>
+                                    <option value="Card">Debit / Credit Card</option>
+                                    <option value="Cheque">Cheque</option>
+                                </select>
+                                <ChevronDown size={18} className="absolute right-4 top-3.5 text-gray-400 pointer-events-none" />
+                            </div>
+                        </div>
+
                         <div className="flex items-end h-full">
                             <div className={`w-full p-4 rounded-xl border border-dashed ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-500'} flex justify-between items-center`}>
                                 <span className="text-xs font-black uppercase tracking-wider">Due Balance</span>
-                                <span className={`text-[17px] font-black ${(formData.totalAmount - (formData.paidAmount + formData.discount)) > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                    ₹{Math.max(0, formData.totalAmount - (formData.paidAmount + formData.discount))}
+                                <span className={`text-[17px] font-black ${dueBalance > 0 ? 'text-red-500' : (dueBalance < 0 ? 'text-blue-500' : 'text-emerald-500')}`}>
+                                    {dueBalance < 0 ? `Excess: ₹${Math.abs(dueBalance)}` : `₹${dueBalance}`}
                                 </span>
                             </div>
                         </div>
+
+                        {dueBalance > 0 && (
+                            <FormInput
+                                label="Commitment Date to Pay Due*"
+                                icon={Calendar}
+                                type="date"
+                                required
+                                isDarkMode={isDarkMode}
+                                value={formData.commitmentDate}
+                                onChange={(e) => setFormData({ ...formData, commitmentDate: e.target.value })}
+                                onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()}
+                            />
+                        )}
                     </div>
                 </div>
 

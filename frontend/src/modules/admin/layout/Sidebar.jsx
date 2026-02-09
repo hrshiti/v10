@@ -51,7 +51,7 @@ const Sidebar = ({ isOpen, isDarkMode }) => {
             icon: <BarChartBig size={20} />,
             subItems: [
                 { title: 'Balance Due', path: '/admin/reports/balance-due' },
-                // { title: 'Sales Report', path: '/admin/reports/sales' },
+                { title: 'Sales Report', path: '/admin/reports/sales' },
                 { title: 'Expired Members', path: '/admin/reports/expired' },
                 // { title: 'Report Cards', path: '/admin/reports/members' },
                 // { title: 'Expiring Soon', path: '/admin/reports/due' },

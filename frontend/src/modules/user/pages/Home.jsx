@@ -11,6 +11,7 @@ import RecommendationCard from '../components/RecommendationCard';
 import SuccessStoryCard from '../components/SuccessStoryCard';
 import WaterTracker from '../components/WaterTracker';
 import DietPlanSection from '../components/DietPlanSection';
+import BMICalculator from '../components/BMICalculator';
 import logo from '../../../assets/logo.jpg';
 import { API_BASE_URL } from '../../../config/api';
 
@@ -171,6 +172,11 @@ const Home = () => {
             {/* Overlapping Progress Card */}
             <div className="px-5 -mt-16 mb-6">
                 <ProgressCard />
+            </div>
+
+            {/* BMI Calculator */}
+            <div className="px-5">
+                <BMICalculator />
             </div>
 
             {/* Transformation Highlights (Social Style) */}

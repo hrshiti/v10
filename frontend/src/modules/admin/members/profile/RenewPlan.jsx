@@ -176,12 +176,13 @@ const RenewPlan = () => {
                 durationMonths: selectedPlan.durationValue,
                 startDate: start,
                 endDate: end,
-                amount: payableAmount,
+                amount: Number(baseSubtotal) + Number(form.applyTaxes ? taxes.total : 0),
                 subTotal: baseSubtotal,
                 taxAmount: form.applyTaxes ? taxes.total : 0,
                 paidAmount: form.amountPaid,
-                discount: form.totalDiscount,
+                discount: Number(form.totalDiscount) || 0,
                 paymentMode: form.paymentMethod,
+                commitmentDate: form.commitmentDate,
                 assignedTrainer: selectedTrainer,
                 closedBy: adminInfo?._id
             };
@@ -327,35 +328,74 @@ const RenewPlan = () => {
                             </div>
 
                             <div className="flex justify-between items-center text-sm font-bold">
-                                <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Apply Taxes</span>
-                                <input
-                                    type="checkbox"
-                                    checked={form.applyTaxes}
-                                    onChange={(e) => setForm({ ...form, applyTaxes: e.target.checked })}
-                                    className="w-4 h-4 rounded accent-orange-500"
-                                />
+                                <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Taxes (%)</span>
+                                <select
+                                    value={form.taxPercentage}
+                                    onChange={(e) => setForm({ ...form, taxPercentage: e.target.value, applyTaxes: Number(e.target.value) > 0 })}
+                                    className={`px-2 py-1 rounded border outline-none text-xs font-bold ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
+                                >
+                                    <option value="0">0%</option>
+                                    <option value="5">5%</option>
+                                    <option value="12">12%</option>
+                                    <option value="18">18%</option>
+                                </select>
                             </div>
+
+                            {form.applyTaxes && Number(form.taxPercentage) > 0 && (
+                                <div className="space-y-1 mt-1 px-3 py-2 rounded-lg border border-dashed border-orange-500/20 bg-orange-500/5">
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-tight">
+                                        <span>CGST ({taxes.cgstPerc}%)</span>
+                                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>₹{taxes.cgst}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-tight">
+                                        <span>SGST ({taxes.sgstPerc}%)</span>
+                                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>₹{taxes.sgst}</span>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="pt-4 border-t dark:border-white/10 border-gray-100 flex justify-between items-center">
                                 <span className="text-sm font-black uppercase tracking-wider text-gray-400">Total Payable</span>
                                 <span className="text-2xl font-black text-orange-500">₹{payableAmount}</span>
                             </div>
 
-                            <div className="space-y-2 pt-4">
-                                <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Payment Mode</p>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {['Online', 'Cash', 'Card', 'Other'].map(method => (
-                                        <button
-                                            key={method}
-                                            onClick={() => setForm({ ...form, paymentMethod: method })}
-                                            className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${form.paymentMethod === method
-                                                ? 'bg-orange-500 border-orange-500 text-white shadow-md'
-                                                : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
-                                                }`}
-                                        >
-                                            {method}
-                                        </button>
-                                    ))}
+                            <div className="space-y-4 pt-4">
+                                <div className="flex justify-between items-center text-sm font-bold">
+                                    <span className="text-gray-500">Amount Paid</span>
+                                    <input
+                                        type="number"
+                                        value={form.amountPaid}
+                                        onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
+                                        className={`w-24 px-2 py-1 text-right rounded-lg border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
+                                    />
+                                </div>
+                                {Number(remainingAmount) > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black uppercase text-red-500 tracking-widest">Commitment Date to Pay Due</p>
+                                        <input
+                                            type="date"
+                                            value={form.commitmentDate || ''}
+                                            onChange={(e) => setForm({ ...form, commitmentDate: e.target.value })}
+                                            className={`w-full px-4 py-2 rounded-lg border text-sm outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                                        />
+                                    </div>
+                                )}
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Payment Mode</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {['Cash', 'UPI / Online', 'Debit / Credit Card', 'Cheque'].map(method => (
+                                            <button
+                                                key={method}
+                                                onClick={() => setForm({ ...form, paymentMethod: method })}
+                                                className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${form.paymentMethod === method
+                                                    ? 'bg-orange-500 border-orange-500 text-white shadow-md'
+                                                    : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
+                                                    }`}
+                                            >
+                                                {method}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>

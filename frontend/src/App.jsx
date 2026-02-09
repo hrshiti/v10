@@ -22,6 +22,7 @@ import ScanQR from './modules/user/pages/ScanQR';
 import AttendanceSuccess from './modules/user/pages/AttendanceSuccess';
 import Feedback from './modules/user/pages/Feedback';
 import UserSuccessStories from './modules/user/pages/UserSuccessStories';
+import AttendanceCalendar from './modules/user/pages/AttendanceCalendar';
 
 import ProtectedRoute from './modules/user/components/ProtectedRoute';
 import TrainerRoutes from './modules/trainer/routes/TrainerRoutes';
@@ -54,6 +55,7 @@ function App() {
               <Route path="workout/:id" element={<WorkoutDetails />} />
               <Route path="workout-details/:id" element={<AssignedWorkoutDetails />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="attendance-history" element={<AttendanceCalendar />} />
               <Route path="settings" element={<Settings />} />
               <Route path="feedback" element={<Feedback />} />
             </Route>

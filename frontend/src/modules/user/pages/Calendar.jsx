@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Clock, Info, ChevronDown } from 'lucide-react';
 import DietItemModal from '../components/DietItemModal';
@@ -14,7 +14,7 @@ const Calendar = () => {
     const [dietPlan, setDietPlan] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const fetchData = async () => {
             try {
                 const token = localStorage.getItem('userToken');

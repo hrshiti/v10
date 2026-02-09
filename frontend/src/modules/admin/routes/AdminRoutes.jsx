@@ -69,6 +69,7 @@ const AdminRoutes = () => {
                     <Route path="follow-ups" element={<FollowUps />} />
 
                     <Route path="members">
+                        <Route index element={<Navigate to="list" replace />} />
                         <Route path="list" element={<Members />} />
                         <Route path="add" element={<AddMember />} />
                         <Route path="memberships" element={<Memberships />} />
@@ -105,7 +106,7 @@ const AdminRoutes = () => {
                     <Route path="diet-plan" element={<DietPlanManagement />} />
 
                     <Route path="reports">
-                        {/* <Route path="sales" element={<SalesReport />} /> */}
+                        <Route path="sales" element={<SalesReport />} />
                         <Route path="balance-due" element={<BalanceDueReport />} />
                         <Route path="attendance" element={<AttendanceReport />} />
                         <Route path="expired" element={<ExpiredMemberReport />} />

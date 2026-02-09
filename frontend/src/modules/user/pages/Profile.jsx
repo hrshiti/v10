@@ -126,6 +126,18 @@ const Profile = () => {
         return '--';
     };
 
+    const getBMICategory = (bmi) => {
+        if (bmi === '--') return { label: 'BMI', color: 'text-gray-400' };
+        const val = parseFloat(bmi);
+        if (val < 18.5) return { label: 'Underweight', color: 'text-blue-500' };
+        if (val < 25) return { label: 'Normal', color: 'text-emerald-500' };
+        if (val < 30) return { label: 'Overweight', color: 'text-orange-500' };
+        return { label: 'Obese', color: 'text-red-500' };
+    };
+
+    const bmiValue = calculateBMI();
+    const bmiCat = getBMICategory(bmiValue);
+
     // Placeholder handler for menu items
     const handleMenuClick = (item) => {
         const routes = {
@@ -135,7 +147,8 @@ const Profile = () => {
             'About': '/about',
             'Privacy': '/privacy',
             'Achievements': '/achievements',
-            'Feedback': '/feedback'
+            'Feedback': '/feedback',
+            'Attendance': '/attendance-history'
             // 'Admin': '/admin'
         };
 
@@ -217,12 +230,16 @@ const Profile = () => {
 
                     {/* BMI */}
                     <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-12 h-12 rounded-full bg-[#1A1F2B] flex items-center justify-center text-white shadow-lg shadow-gray-200">
+                        <div className={`w-12 h-12 rounded-full bg-[#1A1F2B] flex items-center justify-center ${bmiValue !== '--' ? bmiCat.color : 'text-white'} shadow-lg shadow-gray-200`}>
                             <Flame size={20} />
                         </div>
                         <div className="text-center">
-                            <p className="font-bold text-gray-900 dark:text-white text-sm leading-none mb-0.5">{calculateBMI()}</p>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">BMI</span>
+                            <p className={`font-bold text-sm leading-none mb-0.5 ${bmiValue !== '--' ? bmiCat.color : 'text-gray-900 dark:text-white'}`}>
+                                {bmiValue}
+                            </p>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${bmiValue !== '--' ? bmiCat.color : 'text-gray-400'}`}>
+                                {bmiCat.label}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -319,6 +336,14 @@ const Profile = () => {
 
                 {/* Menu List */}
                 <div className="bg-white dark:bg-[#1A1F2B] rounded-[1.5rem] p-2 shadow-sm border border-gray-100 dark:border-gray-800 mb-20 transition-colors duration-300">
+                    <button onClick={() => handleMenuClick('Attendance')} className="w-full p-4 flex items-center justify-between group border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
+                        <div className="flex items-center gap-4">
+                            <CalendarIcon size={20} className="text-orange-500" />
+                            <span className="font-bold text-gray-700 dark:text-gray-200 text-sm">My Attendance History</span>
+                        </div>
+                        <ChevronRight className="text-gray-300 group-hover:text-gray-500" size={18} />
+                    </button>
+
                     <button onClick={() => handleMenuClick('Settings')} className="w-full p-4 flex items-center justify-between group border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">
                         <div className="flex items-center gap-4">
                             <Settings size={20} className="text-gray-400" />

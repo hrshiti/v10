@@ -11,24 +11,41 @@ const getMembers = asyncHandler(async (req, res) => {
     const pageSize = Number(req.query.pageSize) || 10;
     const page = Number(req.query.pageNumber) || 1;
 
-    const keyword = req.query.keyword
-        ? {
-            $or: [
-                { firstName: { $regex: req.query.keyword, $options: 'i' } },
-                { lastName: { $regex: req.query.keyword, $options: 'i' } },
-                { mobile: { $regex: req.query.keyword, $options: 'i' } },
-                { memberId: { $regex: req.query.keyword, $options: 'i' } }
-            ]
-        }
-        : {};
+    let queryObj = {};
+
+    if (req.query.keyword) {
+        queryObj.$or = [
+            { firstName: { $regex: req.query.keyword, $options: 'i' } },
+            { lastName: { $regex: req.query.keyword, $options: 'i' } },
+            { mobile: { $regex: req.query.keyword, $options: 'i' } },
+            { memberId: { $regex: req.query.keyword, $options: 'i' } }
+        ];
+    }
+
+    if (req.query.gender && req.query.gender !== 'Gender' && req.query.gender !== 'All') {
+        queryObj.gender = req.query.gender;
+    }
 
     // Filter by status if provided (e.g. ?status=Active)
     if (req.query.status) {
-        keyword.status = req.query.status;
+        if (req.query.status === 'expiringSoon') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const nextWeek = new Date();
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            nextWeek.setHours(23, 59, 59, 999);
+
+            queryObj.status = 'Active';
+            queryObj.endDate = { $gte: today, $lte: nextWeek };
+        } else if (req.query.status === 'expired') {
+            queryObj.status = 'Expired';
+        } else if (req.query.status !== 'All') {
+            queryObj.status = req.query.status;
+        }
     }
 
-    const count = await Member.countDocuments({ ...keyword });
-    const members = await Member.find({ ...keyword })
+    const count = await Member.countDocuments(queryObj);
+    const members = await Member.find(queryObj)
         .populate('assignedTrainer', 'firstName lastName employeeId')
         .populate('closedBy', 'firstName lastName employeeId')
         .limit(pageSize)
@@ -62,7 +79,7 @@ const createMember = asyncHandler(async (req, res) => {
         membershipType, packageName, durationMonths, startDate, endDate,
         totalAmount, paidAmount, discount, assignedTrainer, closedBy,
         emergencyContactName, emergencyContactNumber,
-        enquiryId
+        enquiryId, paymentMode, commitmentDate
     } = req.body;
 
     const memberExists = await Member.findOne({ mobile });
@@ -80,7 +97,8 @@ const createMember = asyncHandler(async (req, res) => {
             name: emergencyContactName,
             number: emergencyContactNumber
         },
-        enquiryId
+        enquiryId,
+        commitmentDate
     });
 
     if (member) {
@@ -110,7 +128,8 @@ const createMember = asyncHandler(async (req, res) => {
             type: 'New Membership',
             membershipType: membershipType || 'General Training',
             memberId: member._id,
-            description: `New Membership: ${packageName}`
+            description: `New Membership: ${packageName}`,
+            paymentMode: paymentMode || 'Cash'
         });
 
         res.status(201).json(member);
@@ -145,6 +164,7 @@ const updateMember = asyncHandler(async (req, res) => {
         // Update financial/plan details if provided
         if (req.body.status) member.status = req.body.status;
         if (req.body.endDate) member.endDate = req.body.endDate;
+        if (req.body.commitmentDate) member.commitmentDate = req.body.commitmentDate;
 
         const updatedMember = await member.save();
         res.json(updatedMember);
@@ -180,11 +200,15 @@ const getMemberStats = asyncHandler(async (req, res) => {
     const total = await Member.countDocuments({});
 
     // Upcoming expiries in next 7 days
+    const todayForExpiring = new Date();
+    todayForExpiring.setHours(0, 0, 0, 0);
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 7);
+    nextWeek.setHours(23, 59, 59, 999);
+
     const expiringSoon = await Member.countDocuments({
         status: 'Active',
-        endDate: { $lte: nextWeek }
+        endDate: { $gte: todayForExpiring, $lte: nextWeek }
     });
 
     // Today's Attendance
@@ -235,6 +259,7 @@ const renewMembership = asyncHandler(async (req, res) => {
         subTotal,
         taxAmount,
         paymentMode,
+        commitmentDate,
         assignedTrainer,
         closedBy
     } = req.body;
@@ -254,14 +279,15 @@ const renewMembership = asyncHandler(async (req, res) => {
     member.status = 'Active';
 
     // Update reporting fields relative to CURRENT plan
-    member.discount = discount || 0;
+    member.discount += Number(discount || 0);
     if (assignedTrainer) member.assignedTrainer = assignedTrainer;
     if (closedBy) member.closedBy = closedBy;
 
     // Update financials (cumulative)
     member.totalAmount += Number(amount);
     member.paidAmount += Number(paidAmount);
-    member.dueAmount = member.totalAmount - member.paidAmount;
+    member.dueAmount = member.totalAmount - (member.paidAmount + member.discount);
+    if (commitmentDate) member.commitmentDate = commitmentDate;
 
     await member.save();
 
@@ -316,6 +342,7 @@ const createFreshSale = asyncHandler(async (req, res) => {
         paidAmount,
         discount,
         paymentMethod,
+        commitmentDate,
         comment,
         closedBy
     } = req.body;
@@ -376,8 +403,9 @@ const createFreshSale = asyncHandler(async (req, res) => {
 
     member.totalAmount += Number(totalAmount);
     member.paidAmount += Number(paidAmount);
-    member.dueAmount = member.totalAmount - member.paidAmount;
     member.discount += Number(discount || 0);
+    member.dueAmount = member.totalAmount - (member.paidAmount + member.discount);
+    if (commitmentDate) member.commitmentDate = commitmentDate;
     if (closedBy) member.closedBy = closedBy;
     member.status = 'Active';
 
@@ -612,6 +640,7 @@ const upgradeMembership = asyncHandler(async (req, res) => {
         subTotal,
         taxAmount,
         paymentMode,
+        commitmentDate,
         assignedTrainer,
         closedBy
     } = req.body;
@@ -650,6 +679,7 @@ const upgradeMembership = asyncHandler(async (req, res) => {
     member.paidAmount += Number(paidAmount);
     member.dueAmount = member.totalAmount - member.paidAmount;
     member.discount += Number(discount || 0);
+    if (commitmentDate) member.commitmentDate = commitmentDate;
     member.status = 'Active';
     await member.save();
 
@@ -786,7 +816,7 @@ const bulkAssignTrainer = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/members/subscriptions/:subscriptionId/pay-due
 // @access  Private/Admin
 const payDue = asyncHandler(async (req, res) => {
-    const { amount, paymentMode, closedBy } = req.body;
+    const { amount, paymentMode, closedBy, commitmentDate } = req.body;
     const { subscriptionId } = req.params;
 
     if (!amount || amount <= 0) {
@@ -813,6 +843,14 @@ const payDue = asyncHandler(async (req, res) => {
 
     // 2. Update Member (Master Record)
     member.paidAmount += Number(amount);
+
+    // Update or clear commitment date
+    if (member.totalAmount - (member.paidAmount + (member.discount || 0)) <= 0) {
+        member.commitmentDate = null;
+    } else if (commitmentDate) {
+        member.commitmentDate = commitmentDate;
+    }
+
     // dueAmount is auto-calculated in pre-save
     await member.save();
 
@@ -892,6 +930,14 @@ const payDueMember = asyncHandler(async (req, res) => {
 
     // Update Member master record
     member.paidAmount += payAmount;
+
+    // Update or clear commitment date
+    if (member.totalAmount - (member.paidAmount + (member.discount || 0)) <= 0) {
+        member.commitmentDate = null;
+    } else if (req.body.commitmentDate) {
+        member.commitmentDate = req.body.commitmentDate;
+    }
+
     await member.save();
 
     // Create Sale record

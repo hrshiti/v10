@@ -49,6 +49,8 @@ const UpgradePlan = () => {
         surcharges: 0,
         applyTaxes: false,
         taxPercentage: 0,
+        amountPaid: 0,
+        commitmentDate: ''
     });
 
     const [activeTab, setActiveTab] = useState('General Training');
@@ -61,10 +63,11 @@ const UpgradePlan = () => {
                 const token = adminInfo?.token;
                 if (!token) return;
 
-                const [pkgRes, trainerRes, memberRes] = await Promise.all([
+                const [pkgRes, trainerRes, memberRes, subRes] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/admin/packages`, { headers: { 'Authorization': `Bearer ${token}` } }),
                     fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${API_BASE_URL}/api/admin/members/${id}`, { headers: { 'Authorization': `Bearer ${token}` } })
+                    fetch(`${API_BASE_URL}/api/admin/members/${id}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_BASE_URL}/api/admin/members/${id}/subscriptions`, { headers: { 'Authorization': `Bearer ${token}` } })
                 ]);
 
                 if (pkgRes.ok) {
@@ -77,6 +80,17 @@ const UpgradePlan = () => {
                 }
                 if (memberRes.ok) {
                     const memberData = await memberRes.json();
+
+                    let currentPaidAmount = 0;
+                    if (subRes.ok) {
+                        const subData = await subRes.json();
+                        const currentSub = subData.find(s => s.isCurrent) || subData[0];
+                        if (currentSub) {
+                            currentPaidAmount = currentSub.paidAmount || 0;
+                            setCurrentSubscription(currentSub);
+                        }
+                    }
+
                     // Update form with member data
                     setForm(prev => ({
                         ...prev,
@@ -88,7 +102,7 @@ const UpgradePlan = () => {
                         startDate: memberData.startDate ? new Date(memberData.startDate).toLocaleDateString('en-GB') : '-',
                         endDate: memberData.endDate ? new Date(memberData.endDate).toLocaleDateString('en-GB') : '-',
                         assignedTrainer: memberData.assignedTrainer ? `${memberData.assignedTrainer.firstName} ${memberData.assignedTrainer.lastName || ''}` : '-',
-                        paidAmount: memberData.paidAmount || 0,
+                        paidAmount: currentPaidAmount, // Use current plan's paid amount
                     }));
 
                     if (memberData.assignedTrainer?._id) {
@@ -149,12 +163,13 @@ const UpgradePlan = () => {
                 durationMonths: duration, // Normalize to duration for backend
                 startDate: start,
                 endDate: end,
-                amount: payableAmount,
+                amount: Number(upgradeAmount) + Number(form.applyTaxes ? taxes.total : 0),
                 subTotal: upgradeAmount,
                 taxAmount: form.applyTaxes ? taxes.total : 0,
-                paidAmount: payableAmount, // Assuming full payment in upgrade payment
-                discount: form.totalDiscount,
+                paidAmount: form.amountPaid || payableAmount, // Default to full if not specified
+                discount: Number(form.totalDiscount) || 0,
                 paymentMode: form.paymentMethod,
+                commitmentDate: form.commitmentDate,
                 assignedTrainer: selectedTrainer,
                 closedBy: adminInfo?._id
             };
@@ -335,7 +350,7 @@ const UpgradePlan = () => {
                             <select
                                 value={form.taxPercentage}
                                 onChange={(e) => setForm({ ...form, taxPercentage: e.target.value, applyTaxes: true })}
-                                className={`px-2 py-1 rounded border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
+                                className={`px-2 py-1 rounded border outline-none text-xs font-bold ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
                             >
                                 <option value="0">0%</option>
                                 <option value="5">5%</option>
@@ -344,24 +359,61 @@ const UpgradePlan = () => {
                             </select>
                         </div>
 
+                        {form.applyTaxes && Number(form.taxPercentage) > 0 && (
+                            <div className="space-y-1 mt-1 px-3 py-2 rounded-lg border border-dashed border-orange-500/20 bg-orange-500/5">
+                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-tight">
+                                    <span>CGST ({taxes.cgstPerc}%)</span>
+                                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>₹{taxes.cgst}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-tight">
+                                    <span>SGST ({taxes.sgstPerc}%)</span>
+                                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>₹{taxes.sgst}</span>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="pt-4 border-t dark:border-white/10 border-gray-100">
                             <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-1">Total Upgrade Charge</p>
                             <p className="text-3xl font-black text-orange-600">₹{payableAmount}</p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-2">
-                            {['Online', 'Cash'].map(method => (
-                                <button
-                                    key={method}
-                                    onClick={() => setForm({ ...form, paymentMethod: method })}
-                                    className={`py-2 rounded-xl text-[10px] font-black uppercase border tracking-wider transition-all ${form.paymentMethod === method
-                                        ? 'bg-orange-500 border-orange-500 text-white'
-                                        : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
-                                        }`}
-                                >
-                                    {method}
-                                </button>
-                            ))}
+                        <div className="pt-4 space-y-4">
+                            <div className="flex justify-between items-center text-sm font-bold">
+                                <span className="text-gray-500">Amount Paid</span>
+                                <input
+                                    type="number"
+                                    value={form.amountPaid || payableAmount}
+                                    onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
+                                    className={`w-24 px-2 py-1 text-right rounded-lg border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
+                                />
+                            </div>
+
+                            {(Number(payableAmount) - (Number(form.amountPaid) || Number(payableAmount))) > 0 && (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-black uppercase text-red-500 tracking-widest">Commitment Date</p>
+                                    <input
+                                        type="date"
+                                        value={form.commitmentDate}
+                                        onChange={(e) => setForm({ ...form, commitmentDate: e.target.value })}
+                                        className={`w-full px-4 py-2 rounded-lg border text-sm outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-2 pt-2">
+                                {['Cash', 'UPI / Online', 'Debit / Credit Card', 'Cheque'].map(method => (
+                                    <button
+                                        key={method}
+                                        onClick={() => setForm({ ...form, paymentMethod: method })}
+                                        className={`py-2 rounded-xl text-[10px] font-black uppercase border tracking-wider transition-all ${form.paymentMethod === method
+                                            ? 'bg-orange-500 border-orange-500 text-white'
+                                            : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
+                                            }`}
+                                    >
+                                        {method}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <button
@@ -374,7 +426,7 @@ const UpgradePlan = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

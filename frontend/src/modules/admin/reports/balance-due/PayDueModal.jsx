@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../../../../config/api';
 const PayDueModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) => {
     const [amount, setAmount] = useState('');
     const [paymentMode, setPaymentMode] = useState('Cash');
+    const [commitmentDate, setCommitmentDate] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -29,6 +30,7 @@ const PayDueModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) => {
                 body: JSON.stringify({
                     amount: Number(amount),
                     paymentMode,
+                    commitmentDate: Number(amount) < member.dueAmount ? commitmentDate : null,
                     closedBy: adminInfo.id
                 })
             });
@@ -127,6 +129,24 @@ const PayDueModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) => {
                             ))}
                         </div>
                     </div>
+
+                    {/* Commitment Date (Only for partial payment) */}
+                    {amount && Number(amount) < member.dueAmount && (
+                        <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                            <label className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                Next Payment Commitment*
+                            </label>
+                            <input
+                                type="date"
+                                required
+                                value={commitmentDate}
+                                onChange={(e) => setCommitmentDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none transition-all ${isDarkMode ? 'bg-white/5 border-white/10 text-white focus:border-red-500' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-red-500'}`}
+                            />
+                            <p className="text-[10px] font-bold text-red-500 uppercase">Required for partial payment</p>
+                        </div>
+                    )}
 
                     {error && (
                         <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-500">

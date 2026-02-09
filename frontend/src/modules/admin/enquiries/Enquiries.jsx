@@ -112,6 +112,56 @@ const Enquiries = () => {
   const [employeesList, setEmployeesList] = useState([]);
   const [trainersList, setTrainersList] = useState([]);
 
+  // Selection State
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(enquiries.map(e => e._id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(sid => sid !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const handleDownloadReport = () => {
+    // Generate CSV content
+    const headers = ["Enquiry ID", "Date", "Name", "Mobile", "Trial Booked", "Handle By", "Lead Type", "Status", "Remark", "Created By"];
+    const rows = enquiries.map(e => [
+      e.enquiryId,
+      new Date(e.createdAt).toLocaleDateString(),
+      `${e.firstName} ${e.lastName}`,
+      e.mobile,
+      e.trialBooked || 'No',
+      e.handleBy?.firstName || 'Not Assigned',
+      e.leadType,
+      e.status,
+      `"${(e.remark || '').replace(/"/g, '""')}"`, // Escape quotes
+      e.createdBy || 'Admin'
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Enquiries_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
@@ -397,10 +447,6 @@ const Enquiries = () => {
   };
 
   const handleDeleteEnquiry = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this enquiry? This action cannot be undone.')) {
-      return;
-    }
-
     try {
       const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
       const token = adminInfo?.token;
@@ -427,11 +473,29 @@ const Enquiries = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected enquiries? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await Promise.all(selectedIds.map(id => handleDeleteEnquiry(id)));
+      setSelectedIds([]);
+      setToastMessage(`${selectedIds.length} Enquiries deleted successfully`);
+      setShowToast(true);
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting enquiries:', error);
+      alert('Error deleting some enquiries');
+    }
+  };
+
   // Auto-Close Action Menu on Selection
   const handleActionSelect = (action, row) => {
     setSelectedEnquiry(row);
-    if (action === "Sale Enquiry") {
-      setIsModalOpen(true);
+    if (action === "Close Enquiry") {
+      setIsCloseEnquiryModalOpen(true);
     } else if (action === "Edit Enquiry") {
       setIsModalOpen(true);
     } else if (action === "Call Not Connected") {
@@ -562,115 +626,63 @@ const Enquiries = () => {
       </div>
 
       {/* Search & Export */}
-      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 transition-none pt-4">
-        <div className="relative flex-1 max-w-md">
-          <Search size={20} className="absolute left-4 top-3 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className={`w-full pl-12 pr-4 py-2.5 border rounded-lg text-[15px] font-bold outline-none transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 text-black placeholder:text-gray-400'}`}
-          />
+      <div className="flex flex-col lg:flex-row items-center gap-4 transition-none pt-4">
+        <div className="flex flex-1 w-full gap-2">
+          <div className="relative flex-1">
+            <Search size={20} className="absolute left-4 top-3 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className={`w-full pl-12 pr-4 py-2.5 border rounded-lg text-[15px] font-bold outline-none transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 text-black placeholder:text-gray-400'}`}
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="bg-[#f97316] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none"
+          >
+            Search
+          </button>
         </div>
         <button
-          onClick={handleSearch}
-          className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none"
-        >
-          Search
-        </button>
-        <button
-          onClick={() => setIsReportModalOpen(true)}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-[14px] font-bold border transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 shadow-sm'}`}
+          onClick={handleDownloadReport}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-[14px] font-bold border transition-none active:scale-95 whitespace-nowrap ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 shadow-sm'}`}
         >
           <Download size={18} />
-          Generate XLS Report
+          Download Report
         </button>
       </div>
 
       {/* Bulk Actions */}
-      <div className="flex flex-wrap items-center gap-3 transition-none pt-2">
-        {/* Assign Trainer Custom Dropdown */}
-        <div className="relative min-w-[170px]" ref={assignTrainerRef}>
-          <div
-            onClick={() => setIsAssignTrainerOpen(!isAssignTrainerOpen)}
-            className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-bold outline-none cursor-pointer flex items-center justify-between ${isDarkMode
-              ? 'bg-[#1a1a1a] border-white/10 text-white'
-              : `bg-white ${isAssignTrainerOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-300 text-gray-600'}`
-              }`}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 transition-none pt-4">
+          <button
+            onClick={handleBulkDelete}
+            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95 transition-none flex items-center gap-2"
           >
-            <span>{selectedTrainer || 'Assign Trainer'}</span>
-            <ChevronDown size={16} className={isAssignTrainerOpen ? 'text-[#f97316]' : 'text-gray-400'} />
-          </div>
-
-          {isAssignTrainerOpen && (
-            <div className={`absolute top-full left-0 mt-1 w-full rounded-lg shadow-xl border z-30 transition-none ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'
-              }`}>
-              {trainerOptions.map((opt, i) => (
-                <div
-                  key={i}
-                  onClick={() => {
-                    setSelectedTrainer(opt);
-                    setIsAssignTrainerOpen(false);
-                  }}
-                  className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-none ${isDarkMode
-                    ? 'text-gray-300 hover:bg-white/5'
-                    : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
-                    }`}
-                >
-                  {opt}
-                </div>
-              ))}
-            </div>
-          )}
+            <UserMinus size={18} />
+            Delete Selected ({selectedIds.length})
+          </button>
         </div>
-
-        {/* Custom Select Option Dropdown */}
-        <div className="relative min-w-[150px]" ref={selectOptionRef}>
-          <div
-            onClick={() => setIsSelectOptionOpen(!isSelectOptionOpen)}
-            className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-bold outline-none cursor-pointer flex items-center justify-between ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : `bg-white ${isSelectOptionOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-300 text-gray-600'}`
-              }`}
-          >
-            <span>Select Option</span>
-            <ChevronDown size={16} className={isSelectOptionOpen ? 'text-[#f97316]' : 'text-gray-400'} />
-          </div>
-
-          {isSelectOptionOpen && (
-            <div className={`absolute top-full left-0 w-[200px] mt-1 rounded-lg shadow-xl border z-20 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'
-              }`}>
-              {['All', 'Row Per Page', 'Selected Items'].map((opt, i) => (
-                <div
-                  key={i}
-                  onClick={() => setIsSelectOptionOpen(false)}
-                  className={`px-4 py-3 text-[14px] font-medium hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-                >
-                  {opt}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <button className="bg-gray-500 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Submit</button>
-      </div>
-
-      {/* Table Header Overlay */}
+      )}      {/* Table Header Overlay */}
       <div className={`mt-8 border rounded-lg transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
         <div className="p-4 border-b flex justify-between items-center transition-none">
           <span className="text-[13px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Enquiry</span>
-          <button className={`flex items-center gap-3 px-6 py-2 rounded-full text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 text-white' : 'bg-gray-100 text-gray-700'}`}>
-            <MessageSquare size={16} className="fill-current" />
-            Send SMS (4998)
-            <Send size={16} />
-          </button>
         </div>
         <div className="overflow-visible min-h-[450px]">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-white border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
-                <th className="px-6 py-4"><input type="checkbox" className="w-4 h-4 rounded accent-[#f97316]" /></th>
+                <th className="px-6 py-4">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded accent-[#f97316]"
+                    checked={enquiries.length > 0 && selectedIds.length === enquiries.length}
+                    onChange={handleSelectAll}
+                  />
+                </th>
                 <th className="px-6 py-4">Enquiry No.</th>
                 <th className="px-6 py-4">Enquiry Date</th>
                 <th className="px-6 py-4">Name & Mob. No.</th>
@@ -684,78 +696,88 @@ const Enquiries = () => {
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-[rgba(0,0,0,0.8)]'}`}>
               {enquiries.length > 0 ? (
-                enquiries.map((row, idx) => (
-                  <tr key={idx} className={`border-b transition-none relative ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                    <td className="px-6 py-5"><input type="checkbox" className="w-4 h-4 rounded accent-[#f97316]" /></td>
-                    <td className="px-6 py-5">{row.enquiryId}</td>
-                    <td className="px-6 py-5">{new Date(row.createdAt).toLocaleDateString()}</td>
-                    <td className="px-6 py-5">
-                      <div className="flex flex-col">
-                        <span className="uppercase">{row.firstName} {row.lastName}</span>
-                        <span className="text-gray-500">{row.mobile}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5">
-                      <span className={`${row.trialBooked === 'Yes' ? 'bg-[#10b981]' : 'bg-[#ef4444]'} text-white px-3 py-1 rounded text-[11px] font-black uppercase`}>
-                        {row.trialBooked || 'No'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">{row.handleBy?.firstName || 'Not Assigned'}</td>
-                    <td className="px-6 py-5">
-                      <span className={`${row.leadType === 'Hot' ? 'bg-[#ef4444]' : row.leadType === 'Warm' ? 'bg-[#f97316]' : 'bg-[#0ea5e9]'} text-white px-3 py-1 rounded text-[11px] font-black uppercase`}>
-                        {row.leadType}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">{row.remark || '-'}</td>
-                    <td className="px-6 py-5">{row.createdBy || 'Admin'}</td>
-                    <td className="px-6 py-5 relative" ref={el => actionContainerRefs.current[idx] = el}>
-                      <button
-                        onClick={() => toggleActionRow(idx)}
-                        className={`transition-none ${activeActionRow === idx ? 'text-black dark:text-white' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}
-                      >
-                        <MoreVertical size={20} />
-                      </button>
-                      {/* Action Menu attached to this specific row */}
-                      {activeActionRow === idx && (
-                        <div
-                          className={`absolute right-10 top-0 mt-2 w-56 rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}
-                        >
-                          {["Sale Enquiry", "Edit Enquiry", "Not Interested", "Call Done", "Call Not Connected"].map((action, i) => (
-                            <div
-                              key={i}
-                              className={`px-4 py-3 text-[14px] font-medium border-b cursor-pointer ${isDarkMode
-                                ? 'text-gray-300 border-white/5 hover:bg-white/5'
-                                : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
-                                }`}
-                              onClick={() => handleActionSelect(action, row)}
-                            >
-                              {action}
-                            </div>
-                          ))}
-                          <div
-                            className={`px-4 py-3 text-[14px] font-medium cursor-pointer flex items-center gap-2 border-b ${isDarkMode
-                              ? 'text-gray-300 hover:bg-white/5 border-white/5'
-                              : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600 border-gray-50'
-                              }`}
-                            onClick={() => handleActionSelect("Schedule Follow Up", row)}
-                          >
-                            <RefreshCcw size={14} className="" />
-                            Schedule Follow Up
-                          </div>
-                          <div
-                            className={`px-4 py-3 text-[14px] font-medium cursor-pointer ${isDarkMode
-                              ? 'text-red-400 hover:bg-red-500/10'
-                              : 'text-red-600 hover:bg-red-50'
-                              }`}
-                            onClick={() => handleActionSelect("Delete", row)}
-                          >
-                            Delete
-                          </div>
+                enquiries.map((row, idx) => {
+                  const isSelected = selectedIds.includes(row._id);
+                  return (
+                    <tr key={idx} className={`border-b transition-none relative ${isSelected ? (isDarkMode ? 'bg-white/10' : 'bg-orange-50') : (isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50')}`}>
+                      <td className="px-6 py-5">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded accent-[#f97316]"
+                          checked={isSelected}
+                          onChange={() => handleSelectOne(row._id)}
+                        />
+                      </td>
+                      <td className="px-6 py-5">{row.enquiryId}</td>
+                      <td className="px-6 py-5">{new Date(row.createdAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-5">
+                        <div className="flex flex-col">
+                          <span className="uppercase">{row.firstName} {row.lastName}</span>
+                          <span className="text-gray-500">{row.mobile}</span>
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-5">
+                        <span className={`${row.trialBooked === 'Yes' ? 'bg-[#10b981]' : 'bg-[#ef4444]'} text-white px-3 py-1 rounded text-[11px] font-black uppercase`}>
+                          {row.trialBooked || 'No'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5">{row.handleBy?.firstName || 'Not Assigned'}</td>
+                      <td className="px-6 py-5">
+                        <span className={`${row.leadType === 'Hot' ? 'bg-[#ef4444]' : row.leadType === 'Warm' ? 'bg-[#f97316]' : 'bg-[#0ea5e9]'} text-white px-3 py-1 rounded text-[11px] font-black uppercase`}>
+                          {row.leadType}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5">{row.remark || '-'}</td>
+                      <td className="px-6 py-5">{row.createdBy || 'Admin'}</td>
+                      <td className="px-6 py-5 relative" ref={el => actionContainerRefs.current[idx] = el}>
+                        <button
+                          onClick={() => toggleActionRow(idx)}
+                          className={`transition-none ${activeActionRow === idx ? 'text-black dark:text-white' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}
+                        >
+                          <MoreVertical size={20} />
+                        </button>
+                        {/* Action Menu attached to this specific row */}
+                        {activeActionRow === idx && (
+                          <div
+                            className={`absolute right-10 top-0 mt-2 w-56 rounded-lg shadow-xl border z-50 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}
+                          >
+                            {["Close Enquiry", "Edit Enquiry", "Not Interested", "Call Done", "Call Not Connected"].map((action, i) => (
+                              <div
+                                key={i}
+                                className={`px-4 py-3 text-[14px] font-medium border-b cursor-pointer ${isDarkMode
+                                  ? 'text-gray-300 border-white/5 hover:bg-white/5'
+                                  : 'text-gray-700 border-gray-50 hover:bg-orange-50 hover:text-orange-600'
+                                  }`}
+                                onClick={() => handleActionSelect(action, row)}
+                              >
+                                {action}
+                              </div>
+                            ))}
+                            <div
+                              className={`px-4 py-3 text-[14px] font-medium cursor-pointer flex items-center gap-2 border-b ${isDarkMode
+                                ? 'text-gray-300 hover:bg-white/5 border-white/5'
+                                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600 border-gray-50'
+                                }`}
+                              onClick={() => handleActionSelect("Schedule Follow Up", row)}
+                            >
+                              <RefreshCcw size={14} className="" />
+                              Schedule Follow Up
+                            </div>
+                            <div
+                              className={`px-4 py-3 text-[14px] font-medium cursor-pointer ${isDarkMode
+                                ? 'text-red-400 hover:bg-red-500/10'
+                                : 'text-red-600 hover:bg-red-50'
+                                }`}
+                              onClick={() => handleActionSelect("Delete", row)}
+                            >
+                              Delete
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="10" className="px-6 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">
@@ -847,6 +869,8 @@ const Enquiries = () => {
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         isDarkMode={isDarkMode}
+        data={enquiries}
+        filename="enquiries_report"
       />
 
       <CloseEnquiryModal

@@ -503,6 +503,7 @@ const Members = () => {
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [isAssignTrainerModalOpen, setIsAssignTrainerModalOpen] = useState(false);
   const [trainers, setTrainers] = useState([]);
+  const [selectedStatus, setSelectedStatus] = useState('All');
 
   const toggleSelectMember = (id) => {
     setSelectedMembers(prev =>
@@ -583,7 +584,8 @@ const Members = () => {
         pageNumber: currentPage,
         pageSize: rowsPerPage,
         keyword: searchQuery,
-        gender: selectedGender === 'Gender' ? '' : selectedGender
+        gender: selectedGender === 'Gender' ? '' : selectedGender,
+        status: selectedStatus === 'All Members' ? '' : (selectedStatus === 'Expiring Soon' ? 'expiringSoon' : (selectedStatus === 'Expired Members' ? 'expired' : (selectedStatus === 'Active Members' ? 'Active' : '')))
       });
 
       const membersRes = await fetch(`${API_BASE_URL}/api/admin/members?${query.toString()}`, { headers });
@@ -618,7 +620,7 @@ const Members = () => {
   useEffect(() => {
     fetchMembers();
     fetchTrainers();
-  }, [currentPage, rowsPerPage, selectedGender]);
+  }, [currentPage, rowsPerPage, selectedGender, selectedStatus]);
 
   const handleSearch = () => {
     setCurrentPage(1);
@@ -628,8 +630,41 @@ const Members = () => {
   const handleClear = () => {
     setSelectedGender('');
     setSearchQuery('');
+    setSelectedStatus('All');
     setCurrentPage(1);
     // fetchData is called via effects
+  };
+
+  const handleDownloadReport = () => {
+    if (!members || members.length === 0) {
+      alert("No members found to download.");
+      return;
+    }
+
+    const headers = ["Member ID", "First Name", "Last Name", "Mobile", "Gender", "Status", "Package", "End Date", "Due Amount"];
+    const csvContent = [
+      headers.join(","),
+      ...members.map(m => [
+        m.memberId,
+        m.firstName,
+        m.lastName,
+        m.mobile,
+        m.gender,
+        m.status,
+        m.packageName,
+        new Date(m.endDate).toLocaleDateString(),
+        m.dueAmount || 0
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Members_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const stats = [
@@ -868,11 +903,16 @@ const Members = () => {
           return (
             <div
               key={idx}
+              onClick={() => {
+                setSelectedStatus(stat.label);
+                setCurrentPage(1);
+              }}
               className={`group p-6 rounded-xl flex items-center gap-5 transition-all duration-300 cursor-pointer border
-                ${isDarkMode
-                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
-                  : `bg-white border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
-                }`}
+                ${selectedStatus === stat.label ? `${config.bg} text-white ${config.shadow} border-transparent scale-105` :
+                  (isDarkMode
+                    ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                    : `bg-white border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  )}`}
             >
               <div className={`p-4 rounded-xl transition-all duration-300 
                 ${isDarkMode
@@ -943,25 +983,35 @@ const Members = () => {
           Clear
         </button>
 
-        <div className="relative flex-1 max-w-sm">
-          <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search"
-            className={`w-full pl-12 pr-4 py-2.5 border rounded-xl text-[15px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#f8f9fa] border-gray-200 text-black placeholder:text-gray-400'}`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex items-center gap-2 flex-1 max-w-md">
+          <div className="relative flex-1">
+            <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by Name, ID or Mobile"
+              className={`w-full pl-12 pr-4 py-2.5 border rounded-xl text-[15px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#f8f9fa] border-gray-200 text-black placeholder:text-gray-400'}`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="bg-[#f97316] text-white px-6 py-2.5 rounded-xl text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600 flex items-center gap-2"
+          >
+            <Search size={18} />
+            Search
+          </button>
         </div>
 
         <div className="flex-1" />
 
         <button
-          onClick={() => setIsReportModalOpen(true)}
-          className={`flex items-center gap-3 px-8 py-3.5 border rounded-xl text-[14px] font-bold transition-none active:scale-95 border-gray-200 shadow-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f8f9fa] text-gray-700'}`}
+          onClick={handleDownloadReport}
+          className={`flex items-center gap-3 px-8 py-3.5 border rounded-xl text-[14px] font-bold transition-none active:scale-95 border-gray-200 shadow-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f8f9fa] text-gray-700 hover:bg-gray-100'}`}
         >
           <Download size={20} className="text-gray-400" />
-          Generate XLS Report
+          Download Report
         </button>
       </div>
 
@@ -995,7 +1045,10 @@ const Members = () => {
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
               {members.length > 0 ? (
                 members.map((row, idx) => (
-                  <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                  <tr key={idx} className={`border-b transition-none ${isDarkMode
+                    ? (selectedMembers.includes(row._id) ? 'bg-[#f97316]/10 border-white/5' : 'border-white/5 hover:bg-white/5')
+                    : (selectedMembers.includes(row._id) ? 'bg-orange-50 border-orange-100' : 'border-gray-50 hover:bg-gray-50/50')
+                    }`}>
                     <td className="px-4 py-6">
                       <input
                         type="checkbox"

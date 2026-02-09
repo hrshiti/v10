@@ -37,7 +37,7 @@ const CloseEnquiryModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
                         className="bg-[#f97316] hover:bg-orange-600 text-white px-10 py-3 rounded-xl flex items-center justify-center gap-2 text-[16px] font-black shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
                     >
                         <Check size={20} />
-                        Yes, Sale Enquiry
+                        Yes, Close Enquiry
                     </button>
                 </div>
             </div>

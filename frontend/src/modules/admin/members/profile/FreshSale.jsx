@@ -46,6 +46,7 @@ const FreshSale = () => {
         paymentSubMethod: 'Google Pay',
         bankName: '',
         chequeNumber: '',
+        commitmentDate: '',
     });
 
     useEffect(() => {
@@ -208,12 +209,13 @@ const FreshSale = () => {
             const payload = {
                 memberId: id,
                 selectedPlans: selectedPlans,
-                totalAmount: form.payableAmount,
+                totalAmount: Number(form.subtotal) + Number(form.applyTaxes ? ((form.subtotal - form.totalDiscount) * form.taxPercentage / 100) : 0),
                 subTotal: form.subtotal,
                 taxAmount: form.applyTaxes ? ((form.subtotal - form.totalDiscount) * form.taxPercentage / 100) : 0,
                 paidAmount: form.amountPaid,
-                discount: form.totalDiscount,
+                discount: Number(form.totalDiscount) || 0,
                 paymentMethod: form.paymentMethod,
+                commitmentDate: form.commitmentDate,
                 comment: form.comment,
                 closedBy: adminInfo?._id
             };
@@ -363,24 +365,64 @@ const FreshSale = () => {
                             </select>
                         </div>
 
+                        {form.applyTaxes && Number(form.taxPercentage) > 0 && (
+                            <div className="space-y-1 mt-1 px-3 py-2 rounded-lg border border-dashed border-orange-500/20 bg-orange-500/5">
+                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-tight">
+                                    <span>CGST ({taxes.cgstPerc}%)</span>
+                                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>₹{taxes.cgst}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-tight">
+                                    <span>SGST ({taxes.sgstPerc}%)</span>
+                                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>₹{taxes.sgst}</span>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="pt-4 border-t dark:border-white/10 border-gray-100">
                             <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-1">Final Payable</p>
                             <p className="text-3xl font-black text-orange-600">₹{form.payableAmount.toFixed(2)}</p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-2">
-                            {['Online', 'Cash'].map(method => (
-                                <button
-                                    key={method}
-                                    onClick={() => setForm({ ...form, paymentMethod: method })}
-                                    className={`py-3 rounded-xl text-[10px] font-black uppercase border tracking-wider transition-all ${form.paymentMethod === method
-                                        ? 'bg-orange-500 border-orange-500 text-white shadow-lg'
-                                        : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
-                                        }`}
-                                >
-                                    {method}
-                                </button>
-                            ))}
+                        <div className="pt-4 space-y-4">
+                            <div className="flex justify-between items-center text-sm font-bold">
+                                <span className="text-gray-500">Amount Paid</span>
+                                <div className={`flex items-center border rounded-lg overflow-hidden ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                                    <span className="px-2 text-xs text-gray-400">₹</span>
+                                    <input
+                                        type="number"
+                                        value={form.amountPaid}
+                                        onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
+                                        className="w-20 px-2 py-1.5 bg-transparent outline-none text-sm font-bold text-right"
+                                    />
+                                </div>
+                            </div>
+
+                            {form.remainingAmount > 0 && (
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black uppercase text-red-500 tracking-widest">Commitment Date</p>
+                                    <input
+                                        type="date"
+                                        value={form.commitmentDate}
+                                        onChange={(e) => setForm({ ...form, commitmentDate: e.target.value })}
+                                        className={`w-full px-4 py-2 rounded-lg border text-[11px] font-bold outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200'}`}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-2 pt-2">
+                                {['Cash', 'UPI / Online', 'Debit / Credit Card', 'Cheque'].map(method => (
+                                    <button
+                                        key={method}
+                                        onClick={() => setForm({ ...form, paymentMethod: method })}
+                                        className={`py-3 rounded-xl text-[10px] font-black uppercase border tracking-wider transition-all ${form.paymentMethod === method
+                                            ? 'bg-orange-500 border-orange-500 text-white shadow-lg'
+                                            : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
+                                            }`}
+                                    >
+                                        {method}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="pt-2">
@@ -402,7 +444,7 @@ const FreshSale = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

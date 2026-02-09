@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, ImagePlus, QrCode, Clock, ArrowLeft, Briefcase, Trophy } from 'lucide-react';
+import { LogOut, User, ImagePlus, QrCode, Clock, Briefcase, Trophy, ChevronRight } from 'lucide-react';
 import { API_BASE_URL } from '../../../config/api';
 
 const TrainerHome = () => {
@@ -85,129 +85,154 @@ const TrainerHome = () => {
     const isProfileIncomplete = userData && (!userData.email || !userData.address || !userData.birthDate || !userData.experience || !userData.photo);
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#121212] p-6 pb-24">
-            {/* Profile Incomplete Notification */}
-            {isProfileIncomplete && (
-                <div className="mb-6 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-3xl p-5 flex items-start gap-4 animate-in slide-in-from-top-4 fade-in duration-500">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                        <User size={24} className="text-emerald-500" />
-                    </div>
-                    <div className="flex-1">
-                        <h4 className="text-gray-900 dark:text-white font-black text-sm mb-1 uppercase tracking-tight">Profile Incomplete</h4>
-                        <p className="text-gray-500 dark:text-gray-400 text-[11px] font-medium leading-relaxed mb-3">Add your experience, birth date and photo to show your professional profile to members.</p>
-                        <button
-                            onClick={() => navigate('/trainer/profile/edit')}
-                            className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-4 py-2 rounded-xl hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
-                        >
-                            Complete Profile →
-                        </button>
-                    </div>
-                </div>
-            )}
+        <div className="min-h-screen bg-[#F8F9FD] dark:bg-[#0D1117] pb-32 transition-colors duration-300">
+            {/* Glossy Header Area */}
+            <div className="bg-[#1A1F2B] dark:bg-black pt-12 px-6 pb-20 rounded-b-[3rem] shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl -ml-10 -mb-10"></div>
 
-            {/* Top Navigation & Profile */}
-            <div className="flex justify-between items-center mb-10 pt-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center overflow-hidden border-2 border-emerald-500 shadow-lg p-0.5">
-                        {userData?.photo ? (
-                            <img src={getImageUrl(userData.photo)} alt="Profile" className="w-full h-full object-cover rounded-full" />
-                        ) : (
-                            <User size={28} className="text-emerald-600 dark:text-emerald-400" />
-                        )}
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-[2px] text-gray-400">Team Member</p>
-                        <h1 className="text-xl font-black text-gray-900 dark:text-white leading-tight">
-                            {userData?.firstName || 'Trainer'}
-                        </h1>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-[#1A1F2B] p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
-                    <Clock size={20} className="text-gray-400" />
-                </div>
-            </div>
-
-            {/* Gym Info Card (Glassmorphism style) */}
-            <div className="mb-8 relative overflow-hidden bg-gradient-to-br from-gray-900 to-black p-6 rounded-[2.5rem] shadow-2xl group">
-                <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl transition-transform group-hover:scale-125 duration-700"></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20">
-                            <Briefcase size={20} className="text-emerald-400" />
+                <div className="relative z-10 flex justify-between items-center mb-10">
+                    <div className="flex items-center gap-4">
+                        <div className="relative">
+                            <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center overflow-hidden border-2 border-emerald-500/30 shadow-xl p-0.5 group transition-transform hover:scale-105">
+                                {userData?.photo ? (
+                                    <img src={getImageUrl(userData.photo)} alt="Profile" className="w-full h-full object-cover rounded-[1.3rem]" />
+                                ) : (
+                                    <div className="w-full h-full bg-emerald-500 flex items-center justify-center">
+                                        <span className="text-2xl font-black text-white">{userData?.firstName?.[0]}</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-4 border-[#1A1F2B] rounded-full"></div>
                         </div>
                         <div>
-                            <h2 className="text-white font-black text-lg">{gymDetails?.name || 'V-10 Fitness'}</h2>
-                            <p className="text-emerald-400 text-[10px] font-black uppercase tracking-widest truncate max-w-[200px]">{gymDetails?.address || 'HQ Branch'}</p>
+                            <p className="text-[10px] font-black uppercase tracking-[3px] text-emerald-500/80 mb-0.5">Authorized Trainer</p>
+                            <h1 className="text-2xl font-black text-white leading-none tracking-tight">
+                                {userData?.firstName || 'Trainer'}
+                            </h1>
                         </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                            <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest leading-none">Support</p>
-                            <p className="text-white text-xs font-bold">{gymDetails?.contactNumber || 'Contact Office'}</p>
+                    <button
+                        onClick={() => navigate('/trainer/profile')}
+                        className="w-12 h-12 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg active:scale-95"
+                    >
+                        <Clock size={22} strokeWidth={2.5} />
+                    </button>
+                </div>
+
+                {/* Gym Identity Card */}
+                <div className="relative z-10 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.2rem] p-6 shadow-2xl">
+                    <div className="flex items-center gap-4 mb-5">
+                        <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 rotate-3">
+                            <Briefcase size={22} className="text-white" />
                         </div>
-                        <div className="text-right">
-                            <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest leading-none">Members Active</p>
-                            <p className="text-white text-lg font-black">{stats?.activeMembersCount || '0'}</p>
+                        <div>
+                            <h2 className="text-white font-black text-lg tracking-tight uppercase italic">{gymDetails?.name || 'V-10 Fitness'}</h2>
+                            <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em]">{gymDetails?.address || 'Premium Branch'}</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white/5 px-4 py-3 rounded-2xl border border-white/5">
+                            <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">Live Members</p>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                <span className="text-white text-lg font-black">{stats?.activeMembersCount || '0'}</span>
+                            </div>
+                        </div>
+                        <div className="bg-white/5 px-4 py-3 rounded-2xl border border-white/5">
+                            <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">Shift Hours</p>
+                            <span className="text-white text-lg font-black">Active</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-5 mb-5">
-                {/* Punch Card */}
+            {/* Main Action Grid */}
+            <div className="px-6 -mt-8 relative z-20 space-y-6">
+
+                {/* Profile Incomplete Banner */}
+                {isProfileIncomplete && (
+                    <div
+                        onClick={() => navigate('/trainer/profile/edit')}
+                        className="bg-white dark:bg-[#1A1F2B] rounded-[2.5rem] p-5 shadow-xl border border-gray-100 dark:border-gray-800/50 flex items-center gap-4 group cursor-pointer active:scale-98 transition-all overflow-hidden relative"
+                    >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-10 -mt-10 blur-2xl group-hover:bg-amber-500/10 transition-colors"></div>
+                        <div className="w-14 h-14 bg-amber-100 dark:bg-amber-500/10 rounded-[1.5rem] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <User size={24} className="text-amber-600 dark:text-amber-500" />
+                        </div>
+                        <div className="flex-1 pr-6">
+                            <h4 className="text-gray-900 dark:text-white font-black text-[13px] mb-0.5 uppercase tracking-tight">Complete Profile</h4>
+                            <p className="text-gray-400 text-[10px] font-bold leading-tight">Add exp & photo to attract more members</p>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-white/5 flex items-center justify-center text-gray-300">
+                            →
+                        </div>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Attendance Action */}
+                    <div
+                        onClick={() => {
+                            if (stats?.userStatus?.type !== 'checkout') navigate('/trainer/scan');
+                        }}
+                        className={`${getAttendanceCardStyle()} p-6 rounded-[2.2rem] flex flex-col justify-between h-48 shadow-2xl active:scale-95 transition-all group relative overflow-hidden`}
+                    >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 transition-transform group-hover:scale-125"></div>
+                        <div className="bg-white/20 w-14 h-14 rounded-2xl flex items-center justify-center backdrop-blur-md group-hover:rotate-12 transition-transform shadow-lg border border-white/10">
+                            <QrCode size={28} />
+                        </div>
+                        <div className="relative z-10">
+                            <h3 className="font-black text-2xl leading-none mb-2 tracking-tighter uppercase italic">{attendanceInfo.title}</h3>
+                            <p className="text-[9px] uppercase font-black tracking-[0.2em] opacity-80">{attendanceInfo.subtitle}</p>
+                        </div>
+                    </div>
+
+                    {/* Quick Stats / Result Action */}
+                    <div
+                        onClick={() => navigate('/trainer/story/add')}
+                        className="bg-white dark:bg-[#1A1F2B] p-6 rounded-[2.2rem] flex flex-col justify-between h-48 cursor-pointer shadow-xl border border-gray-100 dark:border-gray-800/50 active:scale-95 transition-all group relative overflow-hidden"
+                    >
+                        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl transition-transform group-hover:scale-125"></div>
+                        <div className="bg-emerald-500/10 dark:bg-emerald-500/20 w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                            <ImagePlus size={28} className="text-emerald-500" />
+                        </div>
+                        <div className="relative z-10">
+                            <h3 className="font-black text-2xl leading-none mb-2 dark:text-white tracking-tighter uppercase italic text-gray-900">Post<br />Result</h3>
+                            <p className="text-[9px] uppercase font-black tracking-[0.2em] text-gray-400">Share Success Story</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* My Stories Tracker (Full Width) */}
                 <div
-                    onClick={() => {
-                        if (stats?.userStatus?.type !== 'checkout') navigate('/trainer/scan');
-                    }}
-                    className={`${getAttendanceCardStyle()} p-6 rounded-[2rem] flex flex-col justify-between h-44 shadow-xl active:scale-95 transition-all group`}
+                    onClick={() => navigate('/trainer/stories')}
+                    className="bg-white dark:bg-[#1A1F2B] p-6 rounded-[2.5rem] flex items-center justify-between cursor-pointer shadow-xl border border-gray-100 dark:border-gray-800/50 active:scale-98 transition-all group relative overflow-hidden"
                 >
-                    <div className="bg-white/20 w-fit p-3 rounded-2xl group-hover:rotate-12 transition-transform">
-                        <QrCode size={28} />
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent"></div>
+                    <div className="flex items-center gap-5">
+                        <div className="w-16 h-16 bg-amber-500/10 rounded-[1.8rem] flex items-center justify-center group-hover:rotate-6 transition-transform shadow-inner">
+                            <Trophy size={32} className="text-amber-500" />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-xl text-gray-900 dark:text-white leading-none mb-1 tracking-tight">Success Tracker</h3>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                <span className="text-amber-600 dark:text-amber-500">{stats?.storyCount || '0'}</span> Results Achieved
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-black text-xl leading-tight mb-1 whitespace-pre-line tracking-tight">{attendanceInfo.title}</h3>
-                        <p className="text-[10px] uppercase font-black tracking-widest opacity-80">{attendanceInfo.subtitle}</p>
+                    <div className="w-10 h-10 rounded-full bg-gray-50 dark:bg-white/5 flex items-center justify-center text-gray-300">
+                        <ChevronRight size={18} strokeWidth={3} />
                     </div>
                 </div>
 
-                {/* Add Story Card */}
-                <div
-                    onClick={() => navigate('/trainer/story/add')}
-                    className="bg-white dark:bg-[#1A1F2B] p-6 rounded-[2rem] flex flex-col justify-between h-44 cursor-pointer shadow-xl border border-gray-100 dark:border-gray-800 active:scale-95 transition-all group"
-                >
-                    <div className="bg-emerald-500/10 dark:bg-emerald-500/20 w-fit p-3 rounded-2xl group-hover:scale-110 transition-transform">
-                        <ImagePlus size={28} className="text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div>
-                        <h3 className="font-black text-xl leading-tight mb-1 dark:text-white tracking-tight">Share<br />Win</h3>
-                        <p className="text-[10px] uppercase font-black tracking-widest text-gray-500 dark:text-gray-400">Post Result</p>
+                {/* Performance Tip / Support */}
+                <div className="bg-gradient-to-br from-indigo-500/10 to-emerald-500/10 p-6 rounded-[2.5rem] border border-emerald-500/10 text-center relative overflow-hidden">
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                        <p className="text-[10px] font-black uppercase tracking-[3px] text-emerald-600/60 leading-none">Management Notice</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-xs font-bold px-4 leading-relaxed italic">"Keep motivating members for consistent attendance. Consistency leads to results."</p>
                     </div>
                 </div>
-            </div>
-
-            {/* My Stories Card (Full Width) */}
-            <div
-                onClick={() => navigate('/trainer/stories')}
-                className="bg-white dark:bg-[#1A1F2B] p-6 rounded-[2rem] flex items-center justify-between cursor-pointer shadow-xl border border-gray-100 dark:border-gray-800 active:scale-98 transition-all group"
-            >
-                <div className="flex items-center gap-5">
-                    <div className="bg-amber-500/10 p-4 rounded-2xl group-hover:rotate-12 transition-transform">
-                        <Trophy size={28} className="text-amber-500" />
-                    </div>
-                    <div>
-                        <h3 className="font-black text-lg text-gray-900 dark:text-white leading-none mb-1">Success Lab</h3>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{stats?.storyCount || '0'} Stories Published</p>
-                    </div>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-full">
-                    <ArrowLeft size={16} className="text-gray-400 rotate-180" />
-                </div>
-            </div>
-
-            {/* Support section */}
-            <div className="mt-8 text-center bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/10">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600/70">Need Help?</p>
-                <p className="text-xs text-gray-500 font-medium">Contact management for shift changes</p>
             </div>
         </div>
     );
