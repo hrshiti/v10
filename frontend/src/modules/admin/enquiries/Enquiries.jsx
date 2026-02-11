@@ -20,7 +20,7 @@ import {
   RefreshCcw,
   Check
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useLocation } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
 import AddEnquiryModal from './AddEnquiryModal';
 import CloseEnquiryModal from './CloseEnquiryModal';
@@ -161,6 +161,15 @@ const Enquiries = () => {
     link.click();
     document.body.removeChild(link);
   };
+
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      setIsModalOpen(true);
+    }
+  }, [location]);
 
   useEffect(() => {
     const fetchDropdownData = async () => {

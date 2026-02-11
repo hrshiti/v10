@@ -1037,6 +1037,8 @@ const Members = () => {
                 <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Gender</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Status</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-[11px]">Package</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Duration</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Trainer</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-center text-red-500 text-[11px]">Due</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Expiry Date</th>
                 <th className={`px-4 py-6 border-l dark:border-white/5 w-[80px] text-center text-[11px] sticky right-0 z-20 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-[#fcfcfc]'}`}>Action</th>
@@ -1084,7 +1086,14 @@ const Members = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-6">{row.packageName}</td>
+                    <td className="px-4 py-6">{row.packageId?.name || row.packageName}</td>
+                    <td className="px-4 py-6 text-center">
+                      {row.durationType === 'Months'
+                        ? `${row.durationMonths || row.duration || 0} Months`
+                        : `${row.duration || 0} ${row.durationType || 'Days'}`
+                      }
+                    </td>
+                    <td className="px-4 py-6 text-center">{row.assignedTrainer ? `${row.assignedTrainer.firstName} ${row.assignedTrainer.lastName || ''}` : '-'}</td>
                     <td className="px-4 py-6 text-center text-red-500 font-black">₹{row.dueAmount || 0}</td>
                     <td className="px-4 py-6 text-center">
                       {new Date(row.endDate).toLocaleDateString()}

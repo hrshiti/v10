@@ -3,7 +3,10 @@ import {
     ChevronDown,
     RefreshCcw,
     Calendar,
-    MoreVertical
+    MoreVertical,
+    UserPlus,
+    MessageSquare,
+    ShoppingCart
 } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -21,6 +24,7 @@ import {
 } from 'recharts';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import DateRangeFilter from '../components/DateRangeFilter';
+import MemberSearch from '../components/MemberSearch';
 import { API_BASE_URL } from '../../../config/api';
 
 const Dashboard = () => {
@@ -185,14 +189,33 @@ const Dashboard = () => {
         <div className={`space-y-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
             {/* Header */}
             <div className="flex justify-between items-center">
-                <h1 className={`text-[28px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>Dashboard</h1>
-                <button
-                    onClick={handleRefresh}
-                    className="bg-[#f97316] hover:bg-[#ea580c] text-white px-6 py-2 rounded-md text-[14px] font-bold transition-colors active:scale-95"
-                >
-                    <RefreshCcw size={16} className={`inline mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    Refresh
-                </button>
+                <div className="flex items-center gap-8 flex-1">
+                    <h1 className={`text-[28px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>Dashboard</h1>
+                    <MemberSearch isDarkMode={isDarkMode} />
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate('/admin/members/add')}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+                    >
+                        <ShoppingCart size={18} />
+                        New Sale
+                    </button>
+                    <button
+                        onClick={() => navigate('/admin/enquiries?add=true')}
+                        className="bg-[#6366f1] hover:bg-[#4f46e5] text-white px-5 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                    >
+                        <MessageSquare size={18} />
+                        New Enquiry
+                    </button>
+                    <button
+                        onClick={handleRefresh}
+                        className="bg-[#f97316] hover:bg-[#ea580c] text-white px-5 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-orange-600/20"
+                    >
+                        <RefreshCcw size={18} className={isRefreshing ? 'animate-spin' : ''} />
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             {/* Date Filter */}
@@ -291,17 +314,21 @@ const Dashboard = () => {
                                             <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>{member.packageName}</td>
                                             <td className={`px-5 py-4 font-bold ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>₹{member.dueAmount}</td>
                                             <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>
-                                                {new Date(member.commitmentDate).toLocaleDateString('en-GB')}
+                                                {member.commitmentDate ? new Date(member.commitmentDate).toLocaleDateString('en-GB') : (
+                                                    <span className="text-gray-500 italic">Not Set</span>
+                                                )}
                                             </td>
                                             <td className="px-5 py-4 text-center">
-                                                <span className={`px-2 py-1 rounded text-[11px] font-bold ${member.daysLeft < 0 ? 'bg-red-500/10 text-red-500' :
-                                                    member.daysLeft === 0 ? 'bg-blue-500/10 text-blue-500' :
-                                                        member.daysLeft <= 3 ? 'bg-orange-500/10 text-orange-500' :
-                                                            'bg-emerald-500/10 text-emerald-500'
+                                                <span className={`px-2 py-1 rounded text-[11px] font-bold ${!member.commitmentDate ? 'bg-blue-500/10 text-blue-500' :
+                                                    member.daysLeft < 0 ? 'bg-red-500/10 text-red-500' :
+                                                        member.daysLeft === 0 ? 'bg-blue-500/10 text-blue-500' :
+                                                            member.daysLeft <= 3 ? 'bg-orange-500/10 text-orange-500' :
+                                                                'bg-emerald-500/10 text-emerald-500'
                                                     }`}>
-                                                    {member.daysLeft < 0 ? 'OVERDUE' :
-                                                        member.daysLeft === 0 ? 'DUE TODAY' :
-                                                            `${member.daysLeft} Days Left`}
+                                                    {!member.commitmentDate ? 'PENDING' :
+                                                        member.daysLeft < 0 ? 'OVERDUE' :
+                                                            member.daysLeft === 0 ? 'DUE TODAY' :
+                                                                `${member.daysLeft} Days Left`}
                                                 </span>
                                             </td>
                                         </tr>
@@ -382,21 +409,31 @@ const Dashboard = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Members Card */}
-                    <div
-                        onClick={() => handleCardClick('/admin/members/list')}
-                        className="bg-[#3b82f6] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                    >
+                    <div className="bg-[#3b82f6] rounded-lg overflow-hidden shadow-lg">
                         <div className="px-4 py-2 border-b border-white/10">
-                            <span className="text-[12px] font-bold text-white">Members</span>
+                            <span className="text-[12px] font-bold text-white uppercase tracking-wider">Members Overview</span>
                         </div>
-                        <div className="grid grid-cols-2">
-                            <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.members?.active || 0}</h3>
-                                <p className="text-[11px] font-normal text-white/80 mt-1">Active</p>
+                        <div className="grid grid-cols-3">
+                            <div
+                                onClick={() => handleCardClick('/admin/members/list')}
+                                className="p-4 border-r border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                                <h3 className="text-[28px] font-bold text-white leading-none">{stats?.members?.active || 0}</h3>
+                                <p className="text-[10px] font-normal text-white/80 mt-1">Active</p>
                             </div>
-                            <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.members?.upcoming || 0}</h3>
-                                <p className="text-[11px] font-normal text-white/80 mt-1">Upcoming</p>
+                            <div
+                                onClick={() => handleCardClick('/admin/enquiries')}
+                                className="p-4 border-r border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                                <h3 className="text-[28px] font-bold text-white leading-none">{stats?.members?.upcoming || 0}</h3>
+                                <p className="text-[10px] font-normal text-white/80 mt-1">Upcoming</p>
+                            </div>
+                            <div
+                                onClick={() => handleCardClick('/admin/members/list')}
+                                className="p-4 bg-white/5 cursor-pointer hover:bg-white/20 transition-colors"
+                            >
+                                <h3 className="text-[28px] font-bold text-white leading-none">{stats?.members?.expired || 0}</h3>
+                                <p className="text-[10px] font-normal text-white/80 mt-1">Expired</p>
                             </div>
                         </div>
                     </div>

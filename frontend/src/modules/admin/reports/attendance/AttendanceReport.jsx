@@ -27,7 +27,7 @@ const AttendanceReport = () => {
   const [fromDate, setFromDate] = useState(todayStr);
   const [toDate, setToDate] = useState(todayStr);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
   const [selectedMembership, setSelectedMembership] = useState('Membership Type');
   const [isMembershipDropdownOpen, setIsMembershipDropdownOpen] = useState(false);
 
@@ -273,13 +273,7 @@ const AttendanceReport = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button
-            onClick={() => setIsReportModalOpen(true)}
-            className={`flex items-center gap-2 px-8 py-2.5 border rounded-lg text-[14px] font-black transition-none active:scale-95 shadow-md ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-100 text-gray-700'}`}
-          >
-            <Download size={18} className="text-gray-500" />
-            Generate XLS Report
-          </button>
+
         </div>
       </div>
 
@@ -449,11 +443,7 @@ const AttendanceReport = () => {
         </div>
       </div>
 
-      <GenerateReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        isDarkMode={isDarkMode}
-      />
+
     </div>
   );
 };

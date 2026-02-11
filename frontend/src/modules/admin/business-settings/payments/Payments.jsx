@@ -11,7 +11,7 @@ import { API_BASE_URL } from '../../../../config/api';
 
 // --- Reusable Components (AdvancedDateRangePicker) ---
 
-const AdvancedDateRangePicker = ({ isDarkMode, placeholder }) => {
+const AdvancedDateRangePicker = ({ isDarkMode, placeholder, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -123,8 +123,17 @@ const AdvancedDateRangePicker = ({ isDarkMode, placeholder }) => {
               ))}
             </div>
             <div className="flex justify-end gap-3 mt-8">
-              <button onClick={() => setIsOpen(false)} className={`px-6 py-2 rounded-lg text-[14px] font-bold ${isDarkMode ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Cancel</button>
-              <button onClick={() => setIsOpen(false)} className="px-8 py-2 rounded-lg text-[14px] font-bold bg-[#f97316] hover:bg-orange-600 text-white shadow-md active:scale-95">Apply</button>
+              <button onClick={() => {
+                setStartDate(null);
+                setEndDate(null);
+                setActiveSidebar('');
+                onChange({ start: null, end: null });
+                setIsOpen(false);
+              }} className={`px-6 py-2 rounded-lg text-[14px] font-bold ${isDarkMode ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Clear</button>
+              <button onClick={() => {
+                onChange({ start: startDate, end: endDate });
+                setIsOpen(false);
+              }} className="px-8 py-2 rounded-lg text-[14px] font-bold bg-[#f97316] hover:bg-orange-600 text-white shadow-md active:scale-95">Apply</button>
             </div>
           </div>
         </div>
@@ -145,6 +154,7 @@ const Payments = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalSales, setTotalSales] = useState(0);
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionContainerRefs = useRef({});
 
@@ -154,7 +164,13 @@ const Payments = () => {
       const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
       const token = adminInfo?.token;
       if (!token) return;
-      const res = await fetch(`${API_BASE_URL}/api/admin/sales?pageNumber=${currentPage}&pageSize=${rowsPerPage}&memberId=${searchQuery}`, {
+
+      let url = `${API_BASE_URL}/api/admin/sales?pageNumber=${currentPage}&pageSize=${rowsPerPage}`;
+      if (searchQuery) url += `&keyword=${searchQuery}`;
+      if (dateRange.start) url += `&fromDate=${dateRange.start.toISOString()}`;
+      if (dateRange.end) url += `&toDate=${dateRange.end.toISOString()}`;
+
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -172,7 +188,7 @@ const Payments = () => {
 
   useEffect(() => {
     fetchSales();
-  }, [currentPage, rowsPerPage, searchQuery]);
+  }, [currentPage, rowsPerPage, searchQuery, dateRange]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -216,11 +232,15 @@ const Payments = () => {
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-4 pt-4">
-        <AdvancedDateRangePicker isDarkMode={isDarkMode} placeholder="Select Invoice Date" />
+        <AdvancedDateRangePicker
+          isDarkMode={isDarkMode}
+          placeholder="Select Invoice Date"
+          onChange={(range) => setDateRange(range)}
+        />
         <button onClick={fetchSales} className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95">Refresh</button>
         <div className="relative flex-1 max-w-sm ml-auto">
           <Search size={20} className="absolute left-4 top-3 text-gray-400" />
-          <input type="text" placeholder="Search Member ID" className={`w-full pl-12 pr-4 py-2.5 border rounded-xl text-[16px] font-bold outline-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-200 text-black placeholder:text-gray-400'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          <input type="text" placeholder="Search Invoice/Name/Mobile" className={`w-full pl-12 pr-4 py-2.5 border rounded-xl text-[16px] font-bold outline-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-200 text-black placeholder:text-gray-400'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
       </div>
       <div className={`mt-4 border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>

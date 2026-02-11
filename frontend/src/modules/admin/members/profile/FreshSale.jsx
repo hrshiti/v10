@@ -132,10 +132,10 @@ const FreshSale = () => {
     useEffect(() => {
         const plansTotal = selectedPlans.reduce((sum, item) => sum + (parseFloat(item.cost) || 0), 0);
         const baseSubtotal = plansTotal + (parseFloat(form.surcharges) || 0);
-        const discountedSubtotal = baseSubtotal - (parseFloat(form.totalDiscount) || 0);
-
+        const discountedSubtotal = Math.max(0, baseSubtotal - (parseFloat(form.totalDiscount) || 0));
         const taxAmount = form.applyTaxes ? (discountedSubtotal * form.taxPercentage / 100) : 0;
         const total = discountedSubtotal + taxAmount;
+        const cappedAmountPaid = Math.min(total, Math.max(0, parseFloat(form.amountPaid || 0)));
 
         setForm(prev => ({
             ...prev,
@@ -143,7 +143,8 @@ const FreshSale = () => {
             subtotal: baseSubtotal,
             payableAmount: total,
             totalAmount: total,
-            remainingAmount: Math.max(0, total - parseFloat(prev.amountPaid || 0))
+            amountPaid: cappedAmountPaid,
+            remainingAmount: Math.max(0, total - cappedAmountPaid)
         }));
     }, [selectedPlans, form.totalDiscount, form.surcharges, form.applyTaxes, form.taxPercentage, form.amountPaid]);
 
@@ -195,6 +196,7 @@ const FreshSale = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async () => {
+        if (isSubmitting) return; // Immediate check
         if (selectedPlans.length === 0) {
             alert('Please select at least one plan');
             return;
@@ -391,7 +393,14 @@ const FreshSale = () => {
                                     <input
                                         type="number"
                                         value={form.amountPaid}
-                                        onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
+                                        onChange={(e) => {
+                                            const val = e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value));
+                                            if (val === '' || val <= form.payableAmount) {
+                                                setForm({ ...form, amountPaid: val });
+                                            } else {
+                                                setForm({ ...form, amountPaid: form.payableAmount });
+                                            }
+                                        }}
                                         className="w-20 px-2 py-1.5 bg-transparent outline-none text-sm font-bold text-right"
                                     />
                                 </div>

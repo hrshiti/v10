@@ -97,7 +97,7 @@ const CustomDatePicker = ({ value, onChange, isDarkMode }) => {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   const handleDateClick = (day) => {
-    const dateString = `${String(day).padStart(2, '0')}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${currentDate.getFullYear()}`;
+    const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     onChange(dateString);
     setIsOpen(false);
   };
@@ -535,19 +535,23 @@ const EmployeeAttendance = () => {
               isDarkMode={isDarkMode}
             />
 
-            <input
-              type="date"
-              className={`px-4 py-3 border rounded-xl text-[14px] font-bold transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
+            <div className="flex items-center gap-2">
+              <span className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From:</span>
+              <CustomDatePicker
+                value={startDate}
+                onChange={setStartDate}
+                isDarkMode={isDarkMode}
+              />
+            </div>
 
-            <input
-              type="date"
-              className={`px-4 py-3 border rounded-xl text-[14px] font-bold transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
+            <div className="flex items-center gap-2">
+              <span className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To:</span>
+              <CustomDatePicker
+                value={endDate}
+                onChange={setEndDate}
+                isDarkMode={isDarkMode}
+              />
+            </div>
 
             <button onClick={() => setCurrentPage(1)} className="bg-[#f97316] text-white px-8 py-3 rounded-lg text-[14px] font-bold transition-none active:scale-95 shadow-md">Apply</button>
           </div>

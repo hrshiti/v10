@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useOutletContext, useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, Upload, Plus, ArrowLeft, Check, History } from 'lucide-react';
+import { ChevronDown, Upload, Plus, ArrowLeft, Check, History, CreditCard, Receipt } from 'lucide-react';
 
 import { API_BASE_URL } from '../../../../config/api';
 
@@ -20,6 +20,7 @@ const RenewPlan = () => {
     const [selectedTrainer, setSelectedTrainer] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [currentSubscription, setCurrentSubscription] = useState(null);
 
     const [form, setForm] = useState({
         clientId: memberId || '',
@@ -40,9 +41,10 @@ const RenewPlan = () => {
         selectedPlansTotal: 0,
         totalDiscount: 0,
         subtotal: 0,
-        surcharges: 0,
+        surchargePercent: 0,
         payableAmount: 0,
         amountPaid: 0,
+        splitPayment: { cash: 0, online: 0 },
         remainingAmount: 0,
         totalAmount: 0,
         comment: '',
@@ -64,13 +66,36 @@ const RenewPlan = () => {
                 const token = adminInfo?.token;
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                const [pkgRes, trainerRes] = await Promise.all([
+                const [pkgRes, trainerRes, subRes] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/admin/packages`, { headers }),
-                    fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, { headers })
+                    fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, { headers }),
+                    fetch(`${API_BASE_URL}/api/admin/members/${id}/subscriptions`, { headers })
                 ]);
 
                 if (pkgRes.ok) setPackages(await pkgRes.json());
                 if (trainerRes.ok) setTrainers(await trainerRes.json());
+
+                if (subRes.ok) {
+                    const subData = await subRes.json();
+                    const activeSub = subData.find(s => s.status === 'Active') || subData[0];
+                    if (activeSub) {
+                        setCurrentSubscription(activeSub);
+                        const expiryDate = activeSub.endDate || activeSub.expiryDate;
+                        if (expiryDate) {
+                            const expiry = new Date(expiryDate);
+                            const nextDay = new Date(expiry);
+                            nextDay.setDate(nextDay.getDate() + 1);
+
+                            // If current plan is still active, start renewal from next day of expiry
+                            if (new Date() < expiry) {
+                                setForm(prev => ({
+                                    ...prev,
+                                    invoiceDate: nextDay.toISOString().split('T')[0]
+                                }));
+                            }
+                        }
+                    }
+                }
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
@@ -130,29 +155,74 @@ const RenewPlan = () => {
         setShowTaxDropdown(false);
     };
 
+    const planPrice = parseFloat(form.selectedPlansTotal || 0);
+    const discount = parseFloat(form.totalDiscount || 0);
+    const subtotal = Math.max(0, planPrice - discount);
+
+    // Surcharge calculation (% matching AddMember)
+    const surchargePercent = parseFloat(form.surchargePercent || 0);
+    const surchargeAmount = (subtotal * surchargePercent) / 100;
+    const amountBeforeTax = subtotal + surchargeAmount;
+
+    const handleSubtotalChange = (val) => {
+        const newSubtotal = Number(val) || 0;
+        const newDiscount = Math.max(0, planPrice - newSubtotal);
+        setForm(prev => ({
+            ...prev,
+            totalDiscount: newDiscount
+        }));
+    };
+
     const calculateTaxes = () => {
-        const base = (parseFloat(form.selectedPlansTotal || 0) + parseFloat(form.subtotal || 0) + parseFloat(form.surcharges || 0)) - parseFloat(form.totalDiscount || 0);
-        const taxAmount = (base * form.taxPercentage) / 100;
+        const taxPercent = form.applyTaxes ? (parseFloat(form.taxPercentage || 0)) : 0;
+        const taxAmount = (amountBeforeTax * taxPercent) / 100;
         const cgst = taxAmount / 2;
         const sgst = taxAmount / 2;
         return {
             cgst: cgst.toFixed(2),
             sgst: sgst.toFixed(2),
             total: taxAmount.toFixed(2),
-            cgstPerc: (form.taxPercentage / 2).toFixed(1),
-            sgstPerc: (form.taxPercentage / 2).toFixed(1)
+            cgstPerc: (taxPercent / 2).toFixed(1),
+            sgstPerc: (taxPercent / 2).toFixed(1)
         };
     };
 
     const taxes = calculateTaxes();
-    const baseSubtotal = (parseFloat(form.selectedPlansTotal || 0) + parseFloat(form.subtotal || 0) + parseFloat(form.surcharges || 0));
-    const discountedSubtotal = baseSubtotal - parseFloat(form.totalDiscount || 0);
-    const payableAmount = (discountedSubtotal + (form.applyTaxes ? parseFloat(taxes.total) : 0)).toFixed(2);
-    const remainingAmount = (parseFloat(payableAmount) - parseFloat(form.amountPaid || 0)).toFixed(2);
+    const payableAmount = (amountBeforeTax + parseFloat(taxes.total)).toFixed(2);
+    const amountPaid = parseFloat(form.amountPaid || 0);
+    const remainingAmount = (parseFloat(payableAmount) - amountPaid).toFixed(2);
+
+    // Auto-sync amountPaid with subtotal
+    useEffect(() => {
+        if (selectedPlan) {
+            setForm(prev => ({ ...prev, amountPaid: subtotal }));
+        }
+    }, [subtotal, selectedPlan]);
+
+    // Auto-sync split payment when amountPaid changes
+    useEffect(() => {
+        if (form.paymentMethod === 'Split') {
+            const currentTotal = Number(form.splitPayment.cash) + Number(form.splitPayment.online);
+            if (currentTotal !== Number(form.amountPaid)) {
+                setForm(prev => ({
+                    ...prev,
+                    splitPayment: { cash: Number(prev.amountPaid), online: 0 }
+                }));
+            }
+        }
+    }, [form.amountPaid, form.paymentMethod]);
 
     const handleSubmit = async () => {
+        if (isLoading) return;
         if (!selectedPlan || !id) {
             alert('Please select a plan');
+            return;
+        }
+
+        // Validation: Trainer mandatory for Personal Training
+        const isPT = activeTab === 'Personal Training' || selectedPlan.type === 'pt';
+        if (isPT && !selectedTrainer) {
+            alert('Trainer is mandatory for Personal Training. Please select a trainer on the plan card.');
             return;
         }
 
@@ -171,20 +241,25 @@ const RenewPlan = () => {
 
             const payload = {
                 memberId: id,
-                membershipType: activeTab === 'Personal Training' ? 'Personal Training' : 'General Training',
+                membershipType: isPT ? 'Personal Training' : 'General Training',
                 packageName: selectedPlan.name,
-                durationMonths: selectedPlan.durationValue,
+                packageId: selectedPlan._id,
+                duration: selectedPlan.durationValue,
+                durationType: selectedPlan.durationType,
+                durationMonths: selectedPlan.durationType === 'Months' ? selectedPlan.durationValue : 0,
                 startDate: start,
                 endDate: end,
-                amount: Number(baseSubtotal) + Number(form.applyTaxes ? taxes.total : 0),
-                subTotal: baseSubtotal,
+                amount: payableAmount,
+                subTotal: amountBeforeTax,
                 taxAmount: form.applyTaxes ? taxes.total : 0,
                 paidAmount: form.amountPaid,
-                discount: Number(form.totalDiscount) || 0,
+                discount: discount,
                 paymentMode: form.paymentMethod,
+                splitPayment: form.paymentMethod === 'Split' ? form.splitPayment : { cash: 0, online: 0 },
                 commitmentDate: form.commitmentDate,
                 assignedTrainer: selectedTrainer,
-                closedBy: adminInfo?._id
+                closedBy: adminInfo?._id,
+                comment: form.comment
             };
 
             const res = await fetch(`${API_BASE_URL}/api/admin/members/renew`, {
@@ -197,6 +272,7 @@ const RenewPlan = () => {
             });
 
             if (res.ok) {
+                alert('Membership renewed successfully');
                 navigate(-1);
             } else {
                 const err = await res.json();
@@ -211,207 +287,374 @@ const RenewPlan = () => {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in zoom-in duration-300 max-w-6xl mx-auto">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => navigate(-1)} className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
-                        <ArrowLeft size={20} className={isDarkMode ? 'text-white' : 'text-gray-900'} />
-                    </button>
-                    <div>
-                        <h2 className={`text-xl font-black ${isDarkMode ? 'text-white' : 'text-gray-900'} uppercase tracking-tight`}>Renew Membership</h2>
-                        <p className="text-[11px] font-bold text-orange-500 uppercase tracking-widest">{memberName} • {memberId}</p>
-                    </div>
+        <div className="max-w-[1400px] mx-auto space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-5 duration-500">
+            {/* Minimal Header */}
+            <div className="flex items-center justify-between px-4">
+                <button
+                    onClick={() => navigate(-1)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${isDarkMode ? 'hover:bg-white/5 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                >
+                    <ArrowLeft size={20} />
+                    <span className="font-bold">Back</span>
+                </button>
+                <div className="text-right">
+                    <h1 className="text-[28px] font-black tracking-tight">MEMBERSHIP RENEWAL</h1>
+                    <p className="text-orange-500 text-xs font-black uppercase tracking-[2px]">{memberName} • {memberId}</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Side: Package Selection */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Categories and Search */}
-                    <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div className="flex gap-2">
-                                {tabs.map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${activeTab === tab
-                                            ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                                            : (isDarkMode ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-gray-50 text-gray-500 hover:bg-gray-100')
-                                            }`}
-                                    >
-                                        {tab}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="relative flex-1 min-w-[200px]">
-                                <Plus size={16} className="absolute left-3 top-2.5 text-gray-400 rotate-45" />
-                                <input
-                                    type="text"
-                                    placeholder="Search packages..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className={`w-full pl-9 pr-4 py-2 rounded-xl text-xs font-bold outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white focus:border-orange-500/50' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-orange-500'}`}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Simple Grid of Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {trainingPlans.map((plan) => (
-                            <div
-                                key={plan._id}
-                                onClick={() => {
-                                    setSelectedPlan(plan);
-                                    setForm({ ...form, selectedPlansTotal: plan.baseRate });
-                                }}
-                                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative overflow-hidden group ${selectedPlan?._id === plan._id
-                                    ? 'border-orange-500 bg-orange-500/5'
-                                    : (isDarkMode ? 'bg-[#1e1e1e] border-white/5 hover:border-white/20' : 'bg-white border-gray-100 hover:border-orange-200 shadow-sm')
-                                    }`}
-                            >
-                                {selectedPlan?._id === plan._id && (
-                                    <div className="absolute top-3 right-3 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white">
-                                        <Check size={14} strokeWidth={4} />
-                                    </div>
-                                )}
-                                <div className="space-y-1">
-                                    <p className={`text-xs font-black uppercase tracking-widest ${selectedPlan?._id === plan._id ? 'text-orange-500' : 'text-gray-400'}`}>
-                                        {plan.activity}
+            <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-4">
+                <div className="lg:col-span-8 space-y-8">
+                    {/* Active Plan Info Strip */}
+                    {memberData && (
+                        <div className={`p-4 rounded-2xl border flex items-center justify-between ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 rounded-xl bg-orange-500/10 text-orange-500">
+                                    <History size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Active Plan Expiry</p>
+                                    <p className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        {(() => {
+                                            const dateVal = currentSubscription?.endDate || currentSubscription?.expiryDate;
+                                            if (!dateVal) return 'N/A';
+                                            const d = new Date(dateVal);
+                                            return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                                        })()}
                                     </p>
-                                    <h4 className={`text-lg font-black ${isDarkMode ? 'text-white' : 'text-gray-900'} leading-tight`}>{plan.name}</h4>
-                                    <div className="flex items-center gap-3 mt-2">
-                                        <span className={`text-xl font-black ${selectedPlan?._id === plan._id ? 'text-orange-500' : (isDarkMode ? 'text-white' : 'text-gray-900')}`}>
-                                            ₹{plan.baseRate}
-                                        </span>
-                                        <span className="text-[10px] font-bold text-gray-500 uppercase">/ {plan.durationValue} {plan.durationType}</span>
-                                    </div>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-
-                    {/* Previous Member Info (Simplified) */}
-                    {memberData && (
-                        <div className={`p-4 rounded-2xl border flex items-center gap-4 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
-                            <div className="p-3 rounded-xl bg-orange-500/10 text-orange-500">
-                                <History size={20} />
+                            <div className="flex items-center gap-4 border-l dark:border-white/10 border-gray-100 pl-4">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-orange-500 tracking-widest">Renewal Starts From</p>
+                                    <p className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        {new Date(form.invoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Active Plan</p>
-                                <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{memberData.packageName || 'N/A'}</p>
+                            <div className="text-right flex-1 ml-4 border-l dark:border-white/10 border-gray-100 pl-4">
+                                <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest leading-none mb-2">Search Packages</p>
+                                <div className="relative mt-1">
+                                    <Plus size={14} className="absolute left-3 top-2.5 text-gray-400 rotate-45" />
+                                    <input
+                                        type="text"
+                                        placeholder="Quick Search..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className={`pl-8 pr-4 py-1.5 rounded-lg text-xs font-bold outline-none border transition-all ${isDarkMode ? 'bg-black/20 border-white/10 text-white focus:border-orange-500/50' : 'bg-white border-gray-200 text-gray-900 focus:border-orange-500'}`}
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}
+
+                    {/* NEW: Package Selection Table with Tabs */}
+                    <div className={`rounded-2xl border overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] shadow-2xl border-white/10' : 'bg-white border-gray-100 shadow-xl'}`}>
+                        {/* Tabs Header */}
+                        <div className={`flex border-b overflow-x-auto custom-scrollbar-hide ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`px-8 py-4 text-[13px] font-black uppercase tracking-widest whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${activeTab === tab
+                                        ? 'border-orange-500 text-orange-500 bg-white/5'
+                                        : 'border-transparent text-gray-400 hover:text-gray-500'
+                                        }`}
+                                >
+                                    <Receipt size={16} />
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Package Selection Table */}
+                        <div className="p-0">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className={`text-[11px] font-black uppercase tracking-wider border-b ${isDarkMode ? 'border-white/5 text-gray-500' : 'bg-[#fafafa] border-gray-100 text-gray-400'}`}>
+                                            <th className="px-6 py-4 w-10"></th>
+                                            <th className="px-6 py-4">Plan Name</th>
+                                            <th className="px-6 py-4">Duration</th>
+                                            <th className="px-6 py-4">Trainer</th>
+                                            <th className="px-6 py-4">Cost</th>
+                                            <th className="px-6 py-4">Renewal Start</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y dark:divide-white/5 divide-gray-50">
+                                        {trainingPlans.map(pkg => (
+                                            <tr
+                                                key={pkg._id}
+                                                className={`group cursor-pointer transition-colors ${selectedPlan?._id === pkg._id ? (isDarkMode ? 'bg-orange-500/5' : 'bg-orange-50') : (isDarkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50/50')}`}
+                                                onClick={() => {
+                                                    setSelectedPlan(pkg);
+                                                    setForm(prev => ({
+                                                        ...prev,
+                                                        selectedPlansTotal: pkg.baseRate,
+                                                        amountPaid: pkg.baseRate // Reset paid amount to full by default when changing plan
+                                                    }));
+                                                }}
+                                            >
+                                                <td className="px-6 py-4">
+                                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedPlan?._id === pkg._id ? 'border-orange-500 bg-orange-500' : 'border-gray-300'}`}>
+                                                        {selectedPlan?._id === pkg._id && <div className="w-2 h-2 rounded-full bg-white shadow-sm" />}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-[14px] font-black text-gray-900 dark:text-gray-200">{pkg.name}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-[13px] font-bold text-gray-500">{pkg.durationValue} {pkg.durationType}</span>
+                                                </td>
+                                                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                                    <select
+                                                        disabled={selectedPlan?._id !== pkg._id}
+                                                        className={`bg-white dark:bg-transparent border dark:border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold outline-none appearance-none transition-all pr-8 relative disabled:opacity-30 ${isDarkMode ? 'text-white border-white/10' : 'text-gray-800 border-gray-200 shadow-sm'}`}
+                                                        value={selectedPlan?._id === pkg._id ? selectedTrainer : ''}
+                                                        onChange={(e) => setSelectedTrainer(e.target.value)}
+                                                    >
+                                                        <option value="">Select Trainer</option>
+                                                        {trainers.map(t => <option key={t._id} value={t._id}>{t.firstName} {t.lastName}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td className="px-6 py-4 text-[14px] font-black text-gray-900 dark:text-gray-200">
+                                                    ₹{pkg.baseRate}
+                                                </td>
+                                                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="date"
+                                                        disabled={selectedPlan?._id !== pkg._id}
+                                                        className={`bg-white dark:bg-transparent border dark:border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold outline-none transition-all disabled:opacity-30 ${isDarkMode ? 'text-white cursor-pointer select-none' : 'text-gray-800 border-gray-200 shadow-sm'}`}
+                                                        value={selectedPlan?._id === pkg._id ? form.invoiceDate : ''}
+                                                        onChange={(e) => setForm({ ...form, invoiceDate: e.target.value })}
+                                                        onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Right Side: Summary & Payment */}
-                <div className="space-y-6">
-                    <div className={`p-6 rounded-2xl border sticky top-6 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100 shadow-lg'}`}>
-                        <h3 className={`text-sm font-black uppercase tracking-wider mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>Payment Summary</h3>
-
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center text-sm font-bold">
-                                <span className="text-gray-500">Plan Amount</span>
-                                <span>₹{(form.selectedPlansTotal || 0).toFixed(2)}</span>
-                            </div>
-
-                            <div className="flex justify-between items-center text-sm font-bold">
-                                <span className="text-gray-500">Discount (₹)</span>
-                                <input
-                                    type="number"
-                                    value={form.totalDiscount}
-                                    onChange={(e) => setForm({ ...form, totalDiscount: e.target.value })}
-                                    className={`w-20 px-2 py-1 text-right rounded-lg border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
-                                />
-                            </div>
-
-                            <div className="flex justify-between items-center text-sm font-bold">
-                                <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Taxes (%)</span>
-                                <select
-                                    value={form.taxPercentage}
-                                    onChange={(e) => setForm({ ...form, taxPercentage: e.target.value, applyTaxes: Number(e.target.value) > 0 })}
-                                    className={`px-2 py-1 rounded border outline-none text-xs font-bold ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
-                                >
-                                    <option value="0">0%</option>
-                                    <option value="5">5%</option>
-                                    <option value="12">12%</option>
-                                    <option value="18">18%</option>
-                                </select>
-                            </div>
-
-                            {form.applyTaxes && Number(form.taxPercentage) > 0 && (
-                                <div className="space-y-1 mt-1 px-3 py-2 rounded-lg border border-dashed border-orange-500/20 bg-orange-500/5">
-                                    <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-tight">
-                                        <span>CGST ({taxes.cgstPerc}%)</span>
-                                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>₹{taxes.cgst}</span>
+                {/* Right Side: Payment & Financials */}
+                <div className="lg:col-span-4 space-y-6">
+                    {/* Payment Mode Selection */}
+                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-[#1a1a1a] shadow-2xl border-white/10' : 'bg-white border-gray-100 shadow-xl'}`}>
+                        <div className="flex flex-wrap gap-4 mb-6">
+                            {['UPI / Online', 'Cash', 'Card', 'Cheque', 'Split'].map(mode => (
+                                <label key={mode} className="flex items-center gap-2 cursor-pointer group">
+                                    <input
+                                        type="radio"
+                                        className="hidden"
+                                        name="paymentMethod"
+                                        checked={form.paymentMethod === mode}
+                                        onChange={() => setForm({ ...form, paymentMethod: mode })}
+                                    />
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${form.paymentMethod === mode ? 'border-orange-500' : 'border-gray-400'}`}>
+                                        {form.paymentMethod === mode && <div className="w-2 h-2 rounded-full bg-orange-500" />}
                                     </div>
-                                    <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-tight">
-                                        <span>SGST ({taxes.sgstPerc}%)</span>
-                                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>₹{taxes.sgst}</span>
-                                    </div>
-                                </div>
-                            )}
+                                    <span className={`text-[13px] font-bold ${form.paymentMethod === mode ? 'text-orange-500' : 'text-gray-500'}`}>{mode}</span>
+                                </label>
+                            ))}
+                        </div>
 
-                            <div className="pt-4 border-t dark:border-white/10 border-gray-100 flex justify-between items-center">
-                                <span className="text-sm font-black uppercase tracking-wider text-gray-400">Total Payable</span>
-                                <span className="text-2xl font-black text-orange-500">₹{payableAmount}</span>
-                            </div>
-
-                            <div className="space-y-4 pt-4">
-                                <div className="flex justify-between items-center text-sm font-bold">
-                                    <span className="text-gray-500">Amount Paid</span>
+                        {form.paymentMethod === 'Split' && (
+                            <div className="grid grid-cols-2 gap-4 mb-6 p-4 rounded-xl bg-orange-500/5 border border-dashed border-orange-500/20 animate-in slide-in-from-top-2">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase text-gray-500">Cash Part</label>
                                     <input
                                         type="number"
-                                        value={form.amountPaid}
-                                        onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
-                                        className={`w-24 px-2 py-1 text-right rounded-lg border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
+                                        className={`w-full bg-transparent border-b outline-none text-sm font-bold ${isDarkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-800'}`}
+                                        value={form.splitPayment.cash}
+                                        onChange={(e) => {
+                                            const cash = Number(e.target.value) || 0;
+                                            const online = Math.max(0, Number(form.amountPaid) - cash);
+                                            setForm({ ...form, splitPayment: { cash, online } });
+                                        }}
                                     />
                                 </div>
-                                {Number(remainingAmount) > 0 && (
-                                    <div className="space-y-2">
-                                        <p className="text-[10px] font-black uppercase text-red-500 tracking-widest">Commitment Date to Pay Due</p>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase text-gray-500">Online Part</label>
+                                    <input
+                                        type="number"
+                                        className={`w-full bg-transparent border-b outline-none text-sm font-bold ${isDarkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-800'}`}
+                                        value={form.splitPayment.online}
+                                        onChange={(e) => {
+                                            const online = Number(e.target.value) || 0;
+                                            const cash = Math.max(0, Number(form.amountPaid) - online);
+                                            setForm({ ...form, splitPayment: { cash, online } });
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <label className="text-[12px] font-black uppercase text-gray-400">Comment</label>
+                            <textarea
+                                className={`w-full p-4 rounded-xl border outline-none text-sm font-bold h-24 resize-none transition-all ${isDarkMode ? 'bg-black/20 border-white/10 focus:border-orange-500/50 text-white' : 'bg-gray-50 border-gray-100 focus:border-orange-500 text-gray-800'}`}
+                                placeholder="Renewal notes..."
+                                value={form.comment}
+                                onChange={(e) => setForm({ ...form, comment: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Financial Calculations */}
+                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-[#1a1a1a] shadow-2xl border-white/10' : 'bg-white border-gray-100 shadow-xl'}`}>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center text-[13px] font-bold text-gray-500">
+                                <span>Base Rate</span>
+                                <span className="font-black text-gray-900 dark:text-gray-200">₹{(form.selectedPlansTotal || 0).toFixed(2)}</span>
+                            </div>
+
+                            <FinancialInput
+                                label="Total Discount"
+                                value={form.totalDiscount}
+                                suffix="₹"
+                                onChange={(val) => setForm({ ...form, totalDiscount: val })}
+                                isDarkMode={isDarkMode}
+                            />
+
+                            <FinancialInput
+                                label="Subtotal"
+                                value={subtotal.toFixed(2)}
+                                suffix="₹"
+                                onChange={(val) => handleSubtotalChange(val)}
+                                isDarkMode={isDarkMode}
+                            />
+
+                            <FinancialInput
+                                label="Surcharges"
+                                value={form.surchargePercent}
+                                suffix="%"
+                                onChange={(val) => setForm({ ...form, surchargePercent: val })}
+                                isDarkMode={isDarkMode}
+                            />
+
+                            <div className="flex justify-between items-center pt-2 text-[14px] font-black uppercase tracking-tight">
+                                <span>Payable Amount</span>
+                                <span className="text-orange-500">₹{payableAmount}</span>
+                            </div>
+
+                            {/* Taxes Block */}
+                            <div className={`mt-4 rounded-xl border p-4 ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <label className="flex items-center gap-3 cursor-pointer">
                                         <input
-                                            type="date"
-                                            value={form.commitmentDate || ''}
-                                            onChange={(e) => setForm({ ...form, commitmentDate: e.target.value })}
-                                            className={`w-full px-4 py-2 rounded-lg border text-sm outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                                            type="checkbox"
+                                            className="w-4 h-4 rounded accent-orange-500"
+                                            checked={form.applyTaxes}
+                                            onChange={(e) => setForm({ ...form, applyTaxes: e.target.checked })}
                                         />
-                                    </div>
-                                )}
-                                <div className="space-y-2">
-                                    <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Payment Mode</p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {['Cash', 'UPI / Online', 'Debit / Credit Card', 'Cheque'].map(method => (
+                                        <span className="text-[11px] font-black uppercase tracking-wider text-gray-500">Apply Taxes*</span>
+                                    </label>
+                                    <div className="flex gap-1">
+                                        {[5, 12, 18].map(perc => (
                                             <button
-                                                key={method}
-                                                onClick={() => setForm({ ...form, paymentMethod: method })}
-                                                className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${form.paymentMethod === method
-                                                    ? 'bg-orange-500 border-orange-500 text-white shadow-md'
-                                                    : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
+                                                key={perc}
+                                                type="button"
+                                                onClick={() => setForm({ ...form, taxPercentage: perc, applyTaxes: true })}
+                                                className={`px-2 py-1 rounded text-[10px] font-black transition-all ${form.taxPercentage === perc && form.applyTaxes
+                                                    ? 'bg-orange-500 text-white'
+                                                    : (isDarkMode ? 'bg-white/10 text-gray-400' : 'bg-white border border-gray-200 text-gray-600')
                                                     }`}
                                             >
-                                                {method}
+                                                {perc}%
                                             </button>
                                         ))}
                                     </div>
                                 </div>
+
+                                <div className="space-y-2 text-[11px] font-bold text-gray-500">
+                                    <div className="flex justify-between">
+                                        <span>CGST ({taxes.cgstPerc}%)</span>
+                                        <span>₹{taxes.cgst}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>SGST ({taxes.sgstPerc}%)</span>
+                                        <span>₹{taxes.sgst}</span>
+                                    </div>
+                                    <div className="flex justify-between mt-3 pt-3 border-t dark:border-white/5 border-gray-200 font-black text-gray-900 dark:text-gray-200">
+                                        <span>Total Taxes (₹)</span>
+                                        <span>₹{taxes.total}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <FinancialInput
+                                label="Amount Paid (₹)"
+                                value={form.amountPaid}
+                                suffix="₹"
+                                onChange={(val) => setForm({ ...form, amountPaid: val })}
+                                highlight
+                                isDarkMode={isDarkMode}
+                            />
+
+                            <div className={`p-4 rounded-xl flex justify-between items-center transition-all ${remainingAmount > 0 ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                <span className="text-[10px] font-black uppercase tracking-wider">Remaining Amount</span>
+                                <span className="text-sm font-black text-right">₹{remainingAmount}</span>
+                            </div>
+
+                            {remainingAmount > 0 && (
+                                <div className="animate-in slide-in-from-top-2 duration-300 pt-2 space-y-2">
+                                    <label className="text-[11px] font-black uppercase text-gray-400">Commitment Date*</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={form.commitmentDate || ''}
+                                        onChange={(e) => setForm({ ...form, commitmentDate: e.target.value })}
+                                        className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none ${isDarkMode ? 'bg-black/20 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="pt-4">
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={isLoading || !selectedPlan}
+                                    className="w-full bg-[#f97316] text-white font-black uppercase tracking-[2px] text-[13px] py-4 rounded-xl shadow-xl shadow-orange-500/20 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                                >
+                                    {isLoading ? (
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Check size={20} />
+                                            Confirm Renewal
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
-
-                        <button
-                            disabled={isLoading || !selectedPlan}
-                            onClick={handleSubmit}
-                            className="w-full mt-8 bg-orange-500 hover:bg-orange-600 text-white font-black py-4 rounded-xl shadow-xl shadow-orange-500/20 transition-all active:scale-95 text-[13px] uppercase tracking-wider disabled:opacity-30"
-                        >
-                            {isLoading ? 'Wait...' : 'Complete Renewal'}
-                        </button>
                     </div>
                 </div>
-            </div>
+            </form>
         </div>
     );
 };
 
+// Internal Helper Components
+const FinancialInput = ({ label, value, suffix, onChange, readOnly, highlight, isDarkMode }) => (
+    <div className="space-y-2">
+        <div className="flex justify-between items-center">
+            <label className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</label>
+            <div className={`flex rounded-lg border overflow-hidden transition-all ${highlight ? 'border-orange-500 ring-2 ring-orange-500/20' : (isDarkMode ? 'border-white/10' : 'border-gray-200')}`}>
+                <input
+                    type="number"
+                    readOnly={readOnly}
+                    value={value}
+                    onChange={(e) => onChange && onChange(e.target.value)}
+                    className={`w-24 px-3 py-2 text-right bg-transparent outline-none text-[13px] font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                />
+                <div className={`px-2 py-2 flex items-center justify-center min-w-[32px] text-[12px] font-black ${highlight ? 'bg-orange-500 text-white' : (isDarkMode ? 'bg-white/10 text-gray-400' : 'bg-gray-100 text-gray-500')}`}>
+                    {suffix}
+                </div>
+            </div>
+        </div>
+    </div>
+);
 export default RenewPlan;

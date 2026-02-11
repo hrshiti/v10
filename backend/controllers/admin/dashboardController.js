@@ -3,6 +3,7 @@ const Member = require('../../models/Member');
 const FollowUp = require('../../models/FollowUp');
 const Sale = require('../../models/Sale');
 const Expense = require('../../models/Expense');
+const Enquiry = require('../../models/Enquiry');
 
 // @desc    Get Dashboard Statistics (Cards)
 // @route   GET /api/admin/dashboard/stats
@@ -20,9 +21,28 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const startOfDay = new Date(today.setHours(0, 0, 0, 0));
     const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
+    // Support Date Filtering
+    let rangeStart = startOfDay;
+    let rangeEnd = endOfDay;
+
+    if (req.query.startDate && req.query.endDate) {
+        rangeStart = new Date(req.query.startDate);
+        rangeEnd = new Date(req.query.endDate);
+        rangeEnd.setHours(23, 59, 59, 999);
+    }
+
     // 1. Members
     const activeMembersCount = await Member.countDocuments({ status: 'Active' });
-    const upcomingMembers = await Member.countDocuments({ status: { $in: ['Upcoming', 'Pending'] } });
+    const upcomingMembers = await Enquiry.countDocuments({
+        commitmentDate: { $gte: startOfDay },
+        status: { $ne: 'Closed' } // Only count open enquiries
+    });
+    const expiredMembersCount = await Member.countDocuments({
+        $or: [
+            { status: 'Expired' },
+            { endDate: { $lt: startOfDay } }
+        ]
+    });
 
     // 2. Commitment Dues Stats
     const next30Days = new Date(today);
@@ -30,24 +50,31 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     next30Days.setHours(23, 59, 59, 999);
 
     const commitmentDuesToday = await Member.countDocuments({
-        commitmentDate: { $lte: endOfDay },
-        dueAmount: { $gt: 0 }
+        dueAmount: { $gt: 0 },
+        $or: [
+            { commitmentDate: { $lte: endOfDay } },
+            { commitmentDate: { $exists: false } },
+            { commitmentDate: null }
+        ]
     });
 
     const commitmentDuesUpcoming = await Member.countDocuments({
-        commitmentDate: { $lte: next30Days },
-        dueAmount: { $gt: 0 }
+        dueAmount: { $gt: 0 },
+        $or: [
+            { commitmentDate: { $lte: next30Days } },
+            { commitmentDate: { $exists: false } },
+            { commitmentDate: null }
+        ]
     });
 
-    // 3. Enquiries (Last 30 days new enquiries)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const newEnquiries = await require('../../models/Enquiry').countDocuments({
-        createdAt: { $gte: thirtyDaysAgo }
+    // 3. Enquiries (Filtered by range)
+    const newEnquiries = await Enquiry.countDocuments({
+        createdAt: { $gte: rangeStart, $lte: rangeEnd }
     });
 
     // 4. Financials (Total Revenue via Aggregation) & Sales Breakdown
     const salesStats = await Sale.aggregate([
+        { $match: { date: { $gte: rangeStart, $lte: rangeEnd } } },
         {
             $project: {
                 type: 1,
@@ -172,11 +199,13 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const todayMonth = new Date().getMonth() + 1;
 
     const birthdayCountArr = await Member.aggregate([
+        { $match: { dob: { $ne: null } } },
         { $project: { month: { $month: "$dob" }, day: { $dayOfMonth: "$dob" } } },
         { $match: { month: todayMonth, day: todayDay } }
     ]);
 
     const anniversaryCountArr = await Member.aggregate([
+        { $match: { admissionDate: { $ne: null } } },
         { $project: { month: { $month: "$admissionDate" }, day: { $dayOfMonth: "$admissionDate" } } },
         { $match: { month: todayMonth, day: todayDay } }
     ]);
@@ -185,7 +214,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const stats = {
         members: {
             active: activeMembersCount,
-            upcoming: upcomingMembers
+            upcoming: upcomingMembers,
+            expired: expiredMembersCount
         },
         commitmentDues: {
             today: commitmentDuesToday,
@@ -238,17 +268,29 @@ const getCommitmentDues = asyncHandler(async (req, res) => {
     futureDate.setHours(23, 59, 59, 999);
 
     const commitmentDues = await Member.find({
-        commitmentDate: { $lte: futureDate },
-        dueAmount: { $gt: 0 }
+        dueAmount: { $gt: 0 },
+        $or: [
+            { commitmentDate: { $lte: futureDate } },
+            { commitmentDate: { $exists: false } },
+            { commitmentDate: null }
+        ]
     })
         .select('firstName lastName memberId photo mobile packageName commitmentDate dueAmount')
         .sort({ commitmentDate: 1 })
         .limit(50);
 
     const membersWithDaysLeft = commitmentDues.map(member => {
-        const commitment = new Date(member.commitmentDate);
-        const diffTime = commitment - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        let diffDays = 0;
+        if (member.commitmentDate) {
+            const commitment = new Date(member.commitmentDate);
+            commitment.setHours(0, 0, 0, 0);
+            const diffTime = commitment - today;
+            diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        } else {
+            // No date set - treat as due today/pending
+            diffDays = 0;
+        }
+
         return {
             ...member._doc,
             daysLeft: diffDays
@@ -277,9 +319,15 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
         color: packageColors[index % packageColors.length]
     }));
 
-    // 2. Prepare Ranges (Current Year)
-    const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-    const endOfQuery = new Date(); // Limit to today to avoid showing future data (e.g. future expiries)
+    // 2. Prepare Ranges
+    let startOfTrend = new Date(new Date().getFullYear(), 0, 1);
+    let endOfTrend = new Date(); // Default to today/now
+
+    if (req.query.startDate && req.query.endDate) {
+        startOfTrend = new Date(req.query.startDate);
+        endOfTrend = new Date(req.query.endDate);
+        endOfTrend.setHours(23, 59, 59, 999);
+    }
 
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -290,21 +338,21 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     // 3. Member Trend Data
     // Active -> New Sales
     const newSales = await Sale.aggregate([
-        { $match: { date: { $gte: startOfYear, $lte: endOfQuery }, type: 'New Membership' } },
+        { $match: { date: { $gte: startOfTrend, $lte: endOfTrend }, type: 'New Membership' } },
         { $group: { _id: { $month: "$date" }, count: { $sum: 1 } } }
     ]);
     newSales.forEach(s => { if (s._id) memberTrendMap[s._id - 1].active = s.count; });
 
     // Upcoming -> Renewals (Legend says Renewal)
     const renewals = await Sale.aggregate([
-        { $match: { date: { $gte: startOfYear, $lte: endOfQuery }, type: 'Renewal' } },
+        { $match: { date: { $gte: startOfTrend, $lte: endOfTrend }, type: 'Renewal' } },
         { $group: { _id: { $month: "$date" }, count: { $sum: 1 } } }
     ]);
     renewals.forEach(s => { if (s._id) memberTrendMap[s._id - 1].upcoming = s.count; });
 
     // Inactive -> Expiries (Past/Present only)
     const expiries = await Member.aggregate([
-        { $match: { endDate: { $gte: startOfYear, $lte: endOfQuery } } },
+        { $match: { endDate: { $gte: startOfTrend, $lte: endOfTrend } } },
         { $group: { _id: { $month: "$endDate" }, count: { $sum: 1 } } }
     ]);
     expiries.forEach(s => { if (s._id) memberTrendMap[s._id - 1].inactive = s.count; });
@@ -312,21 +360,21 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     // 4. Financial Data
     // Revenue -> All Sales sums
     const revenue = await Sale.aggregate([
-        { $match: { date: { $gte: startOfYear, $lte: endOfQuery } } },
+        { $match: { date: { $gte: startOfTrend, $lte: endOfTrend } } },
         { $group: { _id: { $month: "$date" }, total: { $sum: "$amount" } } }
     ]);
     revenue.forEach(r => { if (r._id) financialMap[r._id - 1].revenue = r.total; });
 
     // Expenses -> All Expenses sums
     const expenses = await Expense.aggregate([
-        { $match: { date: { $gte: startOfYear, $lte: endOfQuery }, isDeleted: false } },
+        { $match: { date: { $gte: startOfTrend, $lte: endOfTrend }, isDeleted: false } },
         { $group: { _id: { $month: "$date" }, total: { $sum: "$amount" } } }
     ]);
     expenses.forEach(e => { if (e._id) financialMap[e._id - 1].expenses = e.total; });
 
     // Pending -> Due Amount from Members based on their admission date (Current Year)
     const pendingDues = await Member.aggregate([
-        { $match: { admissionDate: { $gte: startOfYear, $lte: endOfQuery }, dueAmount: { $gt: 0 } } },
+        { $match: { admissionDate: { $gte: startOfTrend, $lte: endOfTrend }, dueAmount: { $gt: 0 } } },
         { $group: { _id: { $month: "$admissionDate" }, total: { $sum: "$dueAmount" } } }
     ]);
     pendingDues.forEach(p => { if (p._id && financialMap[p._id - 1]) financialMap[p._id - 1].pending = p.total; });

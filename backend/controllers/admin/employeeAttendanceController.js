@@ -12,17 +12,38 @@ const getAttendanceLogs = asyncHandler(async (req, res) => {
     const query = {};
 
     if (fromDate && toDate) {
+        const start = new Date(fromDate);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+
         query.date = {
-            $gte: new Date(fromDate),
-            $lte: new Date(toDate)
+            $gte: start,
+            $lte: end
         };
+    } else if (fromDate) {
+        const start = new Date(fromDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(fromDate);
+        end.setHours(23, 59, 59, 999);
+        query.date = { $gte: start, $lte: end };
     }
 
     if (employeeId) query.employeeId = employeeId;
     if (shift) query.shift = shift;
 
-    // Search by employee name requires population search
-    // Using simple find for now
+    if (search) {
+        const matchingEmployees = await Employee.find({
+            $or: [
+                { firstName: { $regex: search, $options: 'i' } },
+                { lastName: { $regex: search, $options: 'i' } },
+                { mobile: { $regex: search, $options: 'i' } },
+                { employeeId: { $regex: search, $options: 'i' } }
+            ]
+        }).select('_id');
+        query.employeeId = { $in: matchingEmployees.map(e => e._id) };
+    }
     const count = await EmployeeAttendance.countDocuments(query);
     const logs = await EmployeeAttendance.find(query)
         .populate('employeeId', 'firstName lastName mobile employeeId')

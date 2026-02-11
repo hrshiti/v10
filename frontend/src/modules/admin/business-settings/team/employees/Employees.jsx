@@ -149,7 +149,7 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode }) => {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   const handleDateClick = (day) => {
-    const dateString = `${String(day).padStart(2, '0')}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${currentDate.getFullYear()}`;
+    const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     onChange(dateString);
     setIsOpen(false);
   };
@@ -681,24 +681,22 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEm
             </div>
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>State*</label>
-              <CustomDropdown
-                label="State"
-                options={['Gujarat', 'Maharashtra', 'Karnataka', 'Delhi', 'Rajasthan']}
+              <input
+                type="text"
+                placeholder="Ex : Gujarat"
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
                 value={formData.state}
-                onChange={(val) => handleChange('state', val)}
-                isDarkMode={isDarkMode}
-                placeholder="Select State"
+                onChange={(e) => handleChange('state', e.target.value)}
               />
             </div>
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>City*</label>
-              <CustomDropdown
-                label="City"
-                options={['Ahmedabad', 'Surat', 'Mumbai', 'Pune', 'Bangalore', 'Delhi']}
+              <input
+                type="text"
+                placeholder="Ex : Ahmedabad"
+                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
                 value={formData.city}
-                onChange={(val) => handleChange('city', val)}
-                isDarkMode={isDarkMode}
-                placeholder="Select City"
+                onChange={(e) => handleChange('city', e.target.value)}
               />
             </div>
           </div>

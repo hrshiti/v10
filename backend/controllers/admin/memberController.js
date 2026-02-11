@@ -38,7 +38,12 @@ const getMembers = asyncHandler(async (req, res) => {
             queryObj.status = 'Active';
             queryObj.endDate = { $gte: today, $lte: nextWeek };
         } else if (req.query.status === 'expired') {
-            queryObj.status = 'Expired';
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            queryObj.$or = [
+                { status: 'Expired' },
+                { endDate: { $lt: today } }
+            ];
         } else if (req.query.status !== 'All') {
             queryObj.status = req.query.status;
         }
@@ -48,6 +53,7 @@ const getMembers = asyncHandler(async (req, res) => {
     const members = await Member.find(queryObj)
         .populate('assignedTrainer', 'firstName lastName employeeId')
         .populate('closedBy', 'firstName lastName employeeId')
+        .populate('packageId', 'name')
         .limit(pageSize)
         .skip(pageSize * (page - 1))
         .sort({ createdAt: -1 });
@@ -61,7 +67,8 @@ const getMembers = asyncHandler(async (req, res) => {
 const getMemberById = asyncHandler(async (req, res) => {
     const member = await Member.findById(req.params.id)
         .populate('assignedTrainer', 'firstName lastName mobile')
-        .populate('closedBy', 'firstName lastName mobile');
+        .populate('closedBy', 'firstName lastName mobile')
+        .populate('packageId', 'name baseRate durationValue durationType');
     if (member) {
         res.json(member);
     } else {
@@ -76,10 +83,11 @@ const getMemberById = asyncHandler(async (req, res) => {
 const createMember = asyncHandler(async (req, res) => {
     const {
         firstName, lastName, mobile, email, gender, dob, address,
-        membershipType, packageName, durationMonths, startDate, endDate,
+        membershipType, packageName, packageId, duration, durationType, durationMonths, startDate, endDate,
         totalAmount, paidAmount, discount, assignedTrainer, closedBy,
         emergencyContactName, emergencyContactNumber,
-        enquiryId, paymentMode, commitmentDate
+        enquiryId, paymentMode, commitmentDate, comment, splitPayment,
+        subTotal, taxAmount
     } = req.body;
 
     const memberExists = await Member.findOne({ mobile });
@@ -88,11 +96,41 @@ const createMember = asyncHandler(async (req, res) => {
         throw new Error('Member already exists with this mobile number');
     }
 
+    if (!packageId) {
+        res.status(400);
+        throw new Error('Please select a package');
+    }
+
+    if (membershipType === 'Personal Training' && !assignedTrainer) {
+        res.status(400);
+        throw new Error('Trainer is mandatory for Personal Training');
+    }
+
+    // --- DUPLICATE PREVENTION ---
+    const recentMember = await Member.findOne({
+        mobile,
+        createdAt: { $gte: new Date(Date.now() - 30000) }
+    });
+
+    if (recentMember) {
+        res.status(409);
+        throw new Error('A member with this mobile was already created just now. Please check the list.');
+    }
+    // ----------------------------
+
     const member = await Member.create({
         firstName, lastName, mobile, email, gender, dob, address,
         membershipType: membershipType || 'General Training',
-        packageName, durationMonths, startDate, endDate,
-        totalAmount, paidAmount, discount, assignedTrainer, closedBy,
+        packageName,
+        packageId,
+        duration,
+        durationType: durationType || 'Months',
+        durationMonths: durationMonths || (durationType === 'Months' ? duration : 0),
+        startDate, endDate,
+        totalAmount: Number(totalAmount) || 0,
+        paidAmount: Number(paidAmount) || 0,
+        discount: Number(discount) || 0,
+        assignedTrainer, closedBy,
         emergencyContact: {
             name: emergencyContactName,
             number: emergencyContactNumber
@@ -103,34 +141,44 @@ const createMember = asyncHandler(async (req, res) => {
 
     if (member) {
         // Create Subscription record
-        await Subscription.create({
+        const subscription = await Subscription.create({
             memberId: member._id,
-            membershipType: membershipType || 'General Training',
-            packageName,
-            duration: durationMonths,
-            startDate,
-            endDate,
-            totalAmount,
-            paidAmount,
-            discount: discount || 0,
+            membershipType: member.membershipType,
+            packageName: member.packageName,
+            packageId: member.packageId,
+            duration: member.duration,
+            durationType: member.durationType,
+            startDate: member.startDate,
+            endDate: member.endDate,
+            totalAmount: member.totalAmount,
+            paidAmount: member.paidAmount,
+            discount: member.discount,
             status: 'Active',
             isCurrent: true,
-            assignedTrainer: assignedTrainer || null,
-            createdBy: closedBy || null
+            assignedTrainer: member.assignedTrainer || null,
+            createdBy: member.closedBy || null
         });
 
-        // Automatically create a Sale record for this new membership
+        // Automatically create a Sale record
         await Sale.create({
             amount: paidAmount,
-            discountAmount: discount || 0,
+            subTotal: subTotal || totalAmount, // Use subTotal if provided, else fall back to totalAmount
+            taxAmount: taxAmount || 0,
             trainerId: assignedTrainer || null,
             closedBy: closedBy || null,
             type: 'New Membership',
-            membershipType: membershipType || 'General Training',
+            membershipType: member.membershipType,
             memberId: member._id,
-            description: `New Membership: ${packageName}`,
-            paymentMode: paymentMode || 'Cash'
+            description: comment || `New Membership: ${packageName}`,
+            paymentMode: paymentMode || 'Cash',
+            packageName: packageName,
+            packageId: packageId,
+            splitPayment: paymentMode === 'Split' ? splitPayment : { cash: 0, online: 0 }
         });
+
+        // Force Sync Member Dues
+        member.dueAmount = Math.max(0, (Number(totalAmount)) - (Number(paidAmount) + Number(discount || 0)));
+        await member.save();
 
         res.status(201).json(member);
     } else {
@@ -195,8 +243,15 @@ const deleteMember = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/members/stats
 // @access  Private/Admin
 const getMemberStats = asyncHandler(async (req, res) => {
+    const todayForStats = new Date();
+    todayForStats.setHours(0, 0, 0, 0);
     const active = await Member.countDocuments({ status: 'Active' });
-    const expired = await Member.countDocuments({ status: 'Expired' });
+    const expired = await Member.countDocuments({
+        $or: [
+            { status: 'Expired' },
+            { endDate: { $lt: todayForStats } }
+        ]
+    });
     const total = await Member.countDocuments({});
 
     // Upcoming expiries in next 7 days
@@ -250,6 +305,9 @@ const renewMembership = asyncHandler(async (req, res) => {
         memberId,
         membershipType,
         packageName,
+        packageId,
+        duration,
+        durationType,
         durationMonths,
         startDate,
         endDate,
@@ -261,7 +319,9 @@ const renewMembership = asyncHandler(async (req, res) => {
         paymentMode,
         commitmentDate,
         assignedTrainer,
-        closedBy
+        closedBy,
+        comment,
+        splitPayment
     } = req.body;
 
     const member = await Member.findById(memberId);
@@ -270,12 +330,45 @@ const renewMembership = asyncHandler(async (req, res) => {
         throw new Error('Member not found');
     }
 
+    if (membershipType === 'Personal Training' && !assignedTrainer) {
+        res.status(400);
+        throw new Error('Trainer is mandatory for Personal Training');
+    }
+
+    // --- DATE LOGIC: Start renewal after current expiry if applicable ---
+    let finalStartDate = new Date(startDate);
+    const activeSub = await Subscription.findOne({ memberId: member._id, status: 'Active' }).sort({ endDate: -1 });
+
+    if (activeSub) {
+        const currentExpiry = new Date(activeSub.endDate);
+        // If current plan hasn't expired, and the new start date is earlier than or equal to current expiry
+        // we shift the new start date to be the day after current expiry
+        if (new Date() <= currentExpiry && finalStartDate <= currentExpiry) {
+            finalStartDate = new Date(currentExpiry);
+            finalStartDate.setDate(finalStartDate.getDate() + 1);
+        }
+    }
+
+    const start = finalStartDate;
+    const end = new Date(endDate);
+    // Recalculate end date based on finalStartDate and duration to ensure no gaps
+    if (durationType === 'Months') {
+        end.setTime(start.getTime());
+        end.setMonth(end.getMonth() + Number(duration || durationMonths));
+    } else {
+        end.setTime(start.getTime());
+        end.setDate(end.getDate() + Number(duration));
+    }
+
     // Update Member details with new subscription
     member.membershipType = membershipType || 'General Training';
     member.packageName = packageName;
-    member.durationMonths = durationMonths;
-    member.startDate = startDate;
-    member.endDate = endDate;
+    member.packageId = packageId;
+    member.duration = duration || durationMonths;
+    member.durationType = durationType || 'Months';
+    member.durationMonths = durationMonths || (durationType === 'Months' ? duration : 0);
+    member.startDate = start;
+    member.endDate = end;
     member.status = 'Active';
 
     // Update reporting fields relative to CURRENT plan
@@ -286,7 +379,7 @@ const renewMembership = asyncHandler(async (req, res) => {
     // Update financials (cumulative)
     member.totalAmount += Number(amount);
     member.paidAmount += Number(paidAmount);
-    member.dueAmount = member.totalAmount - (member.paidAmount + member.discount);
+    // member.dueAmount is handled by pre-save hook in model
     if (commitmentDate) member.commitmentDate = commitmentDate;
 
     await member.save();
@@ -299,9 +392,11 @@ const renewMembership = asyncHandler(async (req, res) => {
         memberId: member._id,
         membershipType: membershipType || 'General Training',
         packageName,
-        duration: durationMonths,
-        startDate,
-        endDate,
+        packageId,
+        duration: duration || durationMonths,
+        durationType: durationType || 'Months',
+        startDate: start,
+        endDate: end,
         totalAmount: amount,
         paidAmount,
         discount: discount || 0,
@@ -323,7 +418,10 @@ const renewMembership = asyncHandler(async (req, res) => {
         closedBy: closedBy || null,
         type: 'Renewal',
         membershipType: membershipType || 'General Training',
-        description: `Renewed: ${packageName} (${durationMonths} Months)`
+        packageName: packageName,
+        packageId: packageId,
+        description: comment || `Membership Renewal: ${packageName} (${start.toLocaleDateString('en-GB')} - ${end.toLocaleDateString('en-GB')})`,
+        splitPayment: paymentMode === 'Split' ? splitPayment : { cash: 0, online: 0 }
     });
 
     res.json(member);
@@ -344,7 +442,8 @@ const createFreshSale = asyncHandler(async (req, res) => {
         paymentMethod,
         commitmentDate,
         comment,
-        closedBy
+        closedBy,
+        splitPayment
     } = req.body;
 
     const member = await Member.findById(memberId);
@@ -352,6 +451,18 @@ const createFreshSale = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Member not found');
     }
+
+    // --- DUPLICATE PREVENTION ---
+    const recentSubscription = await Subscription.findOne({
+        memberId,
+        createdAt: { $gte: new Date(Date.now() - 30000) } // 30 seconds
+    });
+
+    if (recentSubscription) {
+        res.status(409);
+        throw new Error('A sale was already processed just now. Please wait a moment.');
+    }
+    // ----------------------------
 
     // Mark previous subscriptions as not current
     await Subscription.updateMany({ memberId: member._id }, { isCurrent: false });
@@ -370,6 +481,7 @@ const createFreshSale = asyncHandler(async (req, res) => {
             memberId: member._id,
             membershipType: plan.membershipType || 'General Training',
             packageName: plan.name,
+            packageId: plan.packageId,
             duration: plan.durationValue,
             durationType: plan.durationType,
             startDate: start,
@@ -388,6 +500,7 @@ const createFreshSale = asyncHandler(async (req, res) => {
     if (lastPlan) {
         member.membershipType = lastPlan.membershipType || 'General Training';
         member.packageName = lastPlan.name;
+        member.packageId = lastPlan.packageId;
         member.durationMonths = lastPlan.durationType === 'Months' ? lastPlan.durationValue : 0;
         member.startDate = lastPlan.startDate;
         const start = new Date(lastPlan.startDate);
@@ -423,7 +536,8 @@ const createFreshSale = asyncHandler(async (req, res) => {
         type: 'New Membership',
         membershipType: lastPlan?.membershipType || 'General Training',
         description: `Fresh Sale: ${selectedPlans.map(p => p.name).join(', ')}. ${comment || ''}`,
-        closedBy: closedBy || null
+        closedBy: closedBy || null,
+        splitPayment: paymentMethod === 'Split' ? splitPayment : { cash: 0, online: 0 }
     });
 
     res.json({ message: 'Sale processed successfully', member });
@@ -528,6 +642,7 @@ const changeStartDate = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getMemberSubscriptions = asyncHandler(async (req, res) => {
     const subscriptions = await Subscription.find({ memberId: req.params.id })
+        .populate('packageId', 'name baseRate durationValue durationType')
         .populate('assignedTrainer', 'firstName lastName')
         .sort({ startDate: -1 });
     res.json(subscriptions);
@@ -631,18 +746,24 @@ const unfreezeMembership = asyncHandler(async (req, res) => {
 const upgradeMembership = asyncHandler(async (req, res) => {
     const {
         packageName,
+        packageId,
+        duration,
+        durationType,
         durationMonths,
         startDate,
         endDate,
         amount,
-        paidAmount,
-        discount,
         subTotal,
         taxAmount,
+        paidAmount,
+        discount,
         paymentMode,
         commitmentDate,
         assignedTrainer,
-        closedBy
+        closedBy,
+        comment,
+        splitPayment,
+        membershipType
     } = req.body;
 
     const member = await Member.findById(req.params.id);
@@ -651,39 +772,85 @@ const upgradeMembership = asyncHandler(async (req, res) => {
         throw new Error('Member not found');
     }
 
+    // --- DUPLICATE PREVENTION ---
+    const recentSubscription = await Subscription.findOne({
+        memberId: member._id,
+        createdAt: { $gte: new Date(Date.now() - 30000) } // 30 seconds
+    });
+
+    if (recentSubscription) {
+        res.status(409);
+        throw new Error('An upgrade was already processed just now. Please wait a moment.');
+    }
+    // ----------------------------
+
+    // Check if package is Personal Training and trainer is assigned
+    // We need to know the membershipType too, which might be in req.body or we might need to check packageId
+    // For now assume it's passed in req.body. Some functions might not have it explicitly.
+    // Let's check upgradeMembership again.
+    if (req.body.membershipType === 'Personal Training' && !assignedTrainer) {
+        res.status(400);
+        throw new Error('Trainer is mandatory for Personal Training');
+    }
+
+    // Find the previous current subscription to carry forward payments
+    const previousSub = await Subscription.findOne({ memberId: member._id, isCurrent: true });
+    let carriedPaidAmount = 0;
+    let carriedDiscount = 0;
+
+    if (previousSub) {
+        carriedPaidAmount = previousSub.paidAmount || 0;
+        carriedDiscount = previousSub.discount || 0;
+    }
+
     // Mark previous subscriptions as not current
     await Subscription.updateMany({ memberId: member._id }, { isCurrent: false });
 
-    // Create new subscription
+    // Create a new Subscription record
     const subscription = await Subscription.create({
         memberId: member._id,
+        membershipType: membershipType || member.membershipType || 'General Training',
         packageName,
-        duration: durationMonths,
+        packageId,
+        duration: duration || durationMonths,
+        durationType: durationType || 'Months',
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        totalAmount: amount,
-        paidAmount: paidAmount,
-        discount: discount || 0,
+        paidAmount: carriedPaidAmount + Number(paidAmount),
+        discount: carriedDiscount + (Number(discount) || 0),
         status: 'Active',
         isCurrent: true,
         assignedTrainer: assignedTrainer || null,
         createdBy: closedBy || null
     });
 
-    // Update member details
+    // Update Member master record
+    member.membershipType = membershipType || member.membershipType || 'General Training';
     member.packageName = packageName;
-    member.durationMonths = durationMonths;
+    member.packageId = packageId;
+    member.duration = duration || durationMonths;
+    member.durationType = durationType || 'Months';
+    member.durationMonths = durationMonths || (durationType === 'Months' ? duration : 0);
     member.startDate = new Date(startDate);
     member.endDate = new Date(endDate);
-    member.totalAmount += Number(amount);
+
+    // Increment paidAmount and discount with the NEW upgrade transaction values
+    member.totalAmount += Number(subTotal || amount); // Increment by the upgrade cost (before tax/discount logic) 
+    // Wait, the most reliable way to sync totalAmount is to use the package's price
+    // But since member.totalAmount is cumulative history, we should be careful.
+    // However, the dashboard and dues usually look at the current state.
+
+    // Better: Update Member totalAmount to match the new package value for the current period
+    // If we want to keep cumulative history, we add the difference.
     member.paidAmount += Number(paidAmount);
-    member.dueAmount = member.totalAmount - member.paidAmount;
     member.discount += Number(discount || 0);
+
+    // Auto-update dueAmount will be handled by pre-save
     if (commitmentDate) member.commitmentDate = commitmentDate;
     member.status = 'Active';
     await member.save();
 
-    // Create Sale record
+    // Create Sale record for the upgrade payment
     await Sale.create({
         memberId: member._id,
         amount: paidAmount,
@@ -694,7 +861,11 @@ const upgradeMembership = asyncHandler(async (req, res) => {
         trainerId: assignedTrainer || null,
         closedBy: closedBy || null,
         type: 'Upgrade',
-        description: `Upgraded to ${packageName}.`
+        membershipType: member.membershipType,
+        packageName: packageName,
+        packageId: packageId,
+        description: comment || `Upgraded to ${packageName}. (${new Date(startDate).toLocaleDateString('en-GB')} - ${new Date(endDate).toLocaleDateString('en-GB')})`,
+        splitPayment: paymentMode === 'Split' ? splitPayment : { cash: 0, online: 0 }
     });
 
     res.json({ message: 'Membership upgraded successfully', subscription });
@@ -845,9 +1016,14 @@ const payDue = asyncHandler(async (req, res) => {
     member.paidAmount += Number(amount);
 
     // Update or clear commitment date
-    if (member.totalAmount - (member.paidAmount + (member.discount || 0)) <= 0) {
+    const remainingDue = member.totalAmount - (member.paidAmount + (member.discount || 0));
+    if (remainingDue <= 0) {
         member.commitmentDate = null;
-    } else if (commitmentDate) {
+    } else {
+        if (!commitmentDate) {
+            res.status(400);
+            throw new Error('Please provide a new commitment date for the remaining balance');
+        }
         member.commitmentDate = commitmentDate;
     }
 
@@ -862,6 +1038,8 @@ const payDue = asyncHandler(async (req, res) => {
         taxAmount: 0,
         paymentMode: paymentMode || 'Cash',
         type: 'Due Payment',
+        packageName: subscription.packageName,
+        packageId: subscription.packageId,
         description: `Due payment for ${subscription.packageName} package.`,
         closedBy: closedBy || null
     });
@@ -877,7 +1055,7 @@ const payDue = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/members/:id/pay-due
 // @access  Private/Admin
 const payDueMember = asyncHandler(async (req, res) => {
-    const { amount, paymentMode, closedBy } = req.body;
+    const { amount, paymentMode, closedBy, comment, splitPayment } = req.body;
     const member = await Member.findById(req.params.id);
 
     if (!member) {
@@ -948,8 +1126,10 @@ const payDueMember = asyncHandler(async (req, res) => {
         taxAmount: 0,
         paymentMode: paymentMode || 'Cash',
         type: 'Due Payment',
-        description: `Due payment for member ${member.firstName} ${member.lastName}. Applied to ${updatedSubscriptions.length} subscriptions.`,
-        closedBy: closedBy || null
+        description: comment || `Due payment for member ${member.firstName} ${member.lastName}. Applied to ${updatedSubscriptions.length} subscriptions.`,
+        closedBy: closedBy || null,
+        paymentMode: paymentMode || 'Cash',
+        splitPayment: paymentMode === 'Split' ? splitPayment : { cash: 0, online: 0 }
     });
 
     res.json({

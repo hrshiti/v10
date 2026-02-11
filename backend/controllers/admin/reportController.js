@@ -66,7 +66,11 @@ const getSalesReport = asyncHandler(async (req, res) => {
 
     const count = await Sale.countDocuments(query);
     const sales = await Sale.find(query)
-        .populate('memberId', 'firstName lastName mobile memberId packageName startDate endDate durationMonths')
+        .populate({
+            path: 'memberId',
+            select: 'firstName lastName mobile memberId packageName startDate endDate durationMonths duration durationType packageId',
+            populate: { path: 'packageId', select: 'name' }
+        })
         .populate('trainerId', 'firstName lastName')
         .populate('closedBy', 'firstName lastName')
         .sort({ date: -1 })
@@ -74,7 +78,6 @@ const getSalesReport = asyncHandler(async (req, res) => {
         .skip(pageSize * (page - 1));
 
     // Calculate Stats for Top Widgets (on the full filtered dataset)
-    // We use aggregation for performance
     const stats = await Sale.aggregate([
         { $match: query },
         {
@@ -83,22 +86,48 @@ const getSalesReport = asyncHandler(async (req, res) => {
                 totalAmount: { $sum: "$amount" }, // Paid Amount
                 taxAmount: { $sum: "$taxAmount" },
                 invoiceCount: { $sum: 1 },
-                // Payment Modes
-                onlineTotal: {
+                // Standard Payment Modes
+                upiTotal: {
                     $sum: {
-                        $cond: [{ $in: ["$paymentMode", ["UPI", "Google Pay", "Card"]] }, "$amount", 0]
+                        $cond: [{ $in: ["$paymentMode", ["UPI", "Google Pay", "Online", "UPI / Online"]] }, "$amount", 0]
                     }
                 },
-                cashTotal: {
+                cardTotal: {
+                    $sum: {
+                        $cond: [{ $eq: ["$paymentMode", "Card"] }, "$amount", 0]
+                    }
+                },
+                chequeTotal: {
+                    $sum: {
+                        $cond: [{ $eq: ["$paymentMode", "Cheque"] }, "$amount", 0]
+                    }
+                },
+                cashOnlyTotal: {
                     $sum: {
                         $cond: [{ $eq: ["$paymentMode", "Cash"] }, "$amount", 0]
                     }
-                }
+                },
+                // Split Payment components
+                splitCash: { $sum: { $cond: [{ $eq: ["$paymentMode", "Split"] }, "$splitPayment.cash", 0] } },
+                splitOnline: { $sum: { $cond: [{ $eq: ["$paymentMode", "Split"] }, "$splitPayment.online", 0] } }
+            }
+        },
+        {
+            $project: {
+                _id: 0,
+                invoiceCount: 1,
+                totalAmount: 1,
+                taxAmount: 1,
+                cashTotal: { $add: ["$cashOnlyTotal", "$splitCash"] },
+                onlineTotal: { $add: ["$upiTotal", "$cardTotal", "$splitOnline"] }, // Keep original onlineTotal for compatibility
+                upiTotal: { $add: ["$upiTotal", "$splitOnline"] }, // Associate split online with UPI by default
+                cardTotal: 1,
+                chequeTotal: 1
             }
         }
     ]);
 
-    const statResult = stats.length > 0 ? stats[0] : { totalAmount: 0, taxAmount: 0, invoiceCount: 0, onlineTotal: 0, cashTotal: 0 };
+    const statResult = stats.length > 0 ? stats[0] : { totalAmount: 0, taxAmount: 0, invoiceCount: 0, upiTotal: 0, cashTotal: 0, cardTotal: 0, chequeTotal: 0 };
 
     res.json({
         sales,
@@ -236,6 +265,7 @@ const getMembershipExpiryReport = asyncHandler(async (req, res) => {
     const members = await Member.find(query)
         .populate('assignedTrainer', 'firstName lastName')
         .populate('closedBy', 'firstName lastName')
+        .populate('packageId', 'name baseRate')
         .sort({ endDate: 1 }) // Closest expiry first
         .limit(pageSize)
         .skip(pageSize * (page - 1));

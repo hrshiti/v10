@@ -18,43 +18,11 @@ import {
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
+import GenerateReportModal from '../../components/GenerateReportModal';
 
 // --- Reusable Components ---
 
-const GenerateReportModal = ({ isOpen, onClose, isDarkMode }) => {
-  if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className={`w-full max-w-[500px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
-        <div className={`px-6 py-5 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
-          <div className="flex items-center gap-3">
-            <Calendar size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
-            <h2 className={`text-[18px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Generate Report</h2>
-          </div>
-          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-8">
-          <label className={`block text-[14px] font-bold mb-3 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>OTP*</label>
-          <input
-            type="text"
-            placeholder="OTP"
-            className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
-          />
-        </div>
-
-        <div className={`px-6 py-4 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-          <button className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[15px] font-bold shadow-md active:scale-95 transition-none hover:bg-orange-600">
-            Validate
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -260,6 +228,8 @@ const Memberships = () => {
   const [showAddOnModal, setShowAddOnModal] = useState(false);
   const [showStartDateModal, setShowStartDateModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [allDataForExport, setAllDataForExport] = useState([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   const fetchStats = async () => {
     try {
@@ -302,6 +272,49 @@ const Memberships = () => {
       console.error('Error fetching members:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAllDataForExport = async () => {
+    setIsExporting(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const params = new URLSearchParams({
+        pageNumber: 1,
+        pageSize: 10000,
+        keyword: searchQuery,
+        status: 'Active'
+      });
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const cleanData = (data.members || []).map(m => ({
+          'Member ID': m.memberId,
+          'Name': `${m.firstName} ${m.lastName}`,
+          'Mobile': m.mobile,
+          'Package': m.packageName,
+          'Duration': m.durationType === 'Months'
+            ? `${m.durationMonths || m.duration || 0} Months`
+            : `${m.duration || 0} ${m.durationType || 'Days'}`,
+          'Start Date': new Date(m.startDate).toLocaleDateString(),
+          'End Date': new Date(m.endDate).toLocaleDateString(),
+          'Trainer': m.assignedTrainer ? `${m.assignedTrainer.firstName} ${m.assignedTrainer.lastName}` : '--',
+          'Status': m.status
+        }));
+        setAllDataForExport(cleanData);
+        setIsReportModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Error fetching data for export:', error);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -441,11 +454,12 @@ const Memberships = () => {
           />
         </div>
         <button
-          onClick={() => setIsReportModalOpen(true)}
+          onClick={fetchAllDataForExport}
+          disabled={isExporting}
           className={`flex items-center gap-3 px-8 py-3.5 border rounded-xl text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f8f9fa] border-gray-100 shadow-sm text-gray-700'}`}
         >
           <Download size={20} className="text-gray-400" />
-          Export active list
+          {isExporting ? 'Preparing...' : 'Generate XLS Report'}
         </button>
       </div>
 
@@ -498,7 +512,12 @@ const Memberships = () => {
                         {member.packageName}
                       </div>
                     </td>
-                    <td className="px-6 py-7 text-center">{member.durationMonths} Months</td>
+                    <td className="px-6 py-7 text-center">
+                      {member.durationType === 'Months'
+                        ? `${member.durationMonths || member.duration || 0} Months`
+                        : `${member.duration || 0} ${member.durationType || 'Days'}`
+                      }
+                    </td>
                     <td className="px-6 py-7">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[12px]">{new Date(member.startDate).toLocaleDateString('en-GB')}</span>
@@ -581,8 +600,13 @@ const Memberships = () => {
 
       <GenerateReportModal
         isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setAllDataForExport([]);
+        }}
         isDarkMode={isDarkMode}
+        filename="Subscription_Report"
+        data={allDataForExport}
       />
 
       <AddOnDaysModal
