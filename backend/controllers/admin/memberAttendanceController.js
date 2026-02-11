@@ -27,6 +27,17 @@ const scanQRCode = asyncHandler(async (req, res) => {
         throw new Error('Member not found');
     }
 
+    // Check if subscription has expired
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    const memberEndDate = new Date(member.endDate);
+    memberEndDate.setHours(0, 0, 0, 0);
+
+    if (memberEndDate < currentDate || member.status === 'Expired') {
+        res.status(400);
+        throw new Error(`Member's subscription has expired on ${member.endDate.toLocaleDateString()}. Please renew membership.`);
+    }
+
     if (member.status !== 'Active') {
         res.status(400);
         throw new Error(`Member status is ${member.status}. Attendance cannot be marked.`);

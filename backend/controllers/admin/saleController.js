@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Sale = require('../../models/Sale');
+const Member = require('../../models/Member'); // Added for getSales search
 
 // @desc    Get All Sales with Pagination
 // @route   GET /api/admin/sales
@@ -7,13 +8,12 @@ const Sale = require('../../models/Sale');
 const getSales = asyncHandler(async (req, res) => {
     const pageSize = Number(req.query.pageSize) || 10;
     const page = Number(req.query.pageNumber) || 1;
-    const { keyword, fromDate, toDate } = req.query;
+    const { keyword, fromDate, toDate } = req.query; // Added fromDate, toDate
 
-    const query = {};
+    let query = {};
 
-    // Member search/Keyword search
+    // Keyword Search
     if (keyword) {
-        const Member = require('../../models/Member');
         const matchingMembers = await Member.find({
             $or: [
                 { firstName: { $regex: keyword, $options: 'i' } },
@@ -28,7 +28,7 @@ const getSales = asyncHandler(async (req, res) => {
         ];
     }
 
-    // Date Range
+    // Date Range Filter
     if (fromDate && toDate) {
         const start = new Date(fromDate);
         start.setHours(0, 0, 0, 0);
@@ -78,4 +78,19 @@ const getSaleByInvoiceNumber = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { getSales, getSalesByMember, getSaleByInvoiceNumber };
+// @desc    Delete Sale
+// @route   DELETE /api/admin/sales/:id
+// @access  Private/Admin
+const deleteSale = asyncHandler(async (req, res) => {
+    const sale = await Sale.findById(req.params.id);
+
+    if (sale) {
+        await sale.deleteOne();
+        res.json({ message: 'Sale removed' });
+    } else {
+        res.status(404);
+        throw new Error('Sale not found');
+    }
+});
+
+module.exports = { getSales, getSalesByMember, getSaleByInvoiceNumber, deleteSale };

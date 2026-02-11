@@ -634,23 +634,35 @@ const UpgradePlan = () => {
 };
 
 // Internal Helper Components
-const FinancialInput = ({ label, value, suffix, onChange, readOnly, highlight, isDarkMode }) => (
-    <div className="space-y-2">
-        <div className="flex justify-between items-center">
-            <label className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</label>
-            <div className={`flex rounded-lg border overflow-hidden transition-all ${highlight ? 'border-orange-500 ring-2 ring-orange-500/20' : (isDarkMode ? 'border-white/10' : 'border-gray-200')}`}>
-                <input
-                    type="number"
-                    readOnly={readOnly}
-                    value={value}
-                    onChange={(e) => onChange && onChange(e.target.value)}
-                    className={`w-24 px-3 py-2 text-right bg-transparent outline-none text-[13px] font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                />
-                <div className={`px-2 py-2 flex items-center justify-center min-w-[32px] text-[12px] font-black ${highlight ? 'bg-orange-500 text-white' : (isDarkMode ? 'bg-white/10 text-gray-400' : 'bg-gray-100 text-gray-500')}`}>
-                    {suffix}
+const FinancialInput = ({ label, value, suffix, onChange, readOnly, highlight, isDarkMode }) => {
+    const handleChange = (e) => {
+        if (!onChange) return;
+        const val = e.target.value.replace(/[^0-9.]/g, ''); // Only allow numbers and decimal
+        const numVal = parseFloat(val) || 0;
+        onChange(Math.max(0, numVal)); // Prevent negative values
+    };
+
+    const displayValue = value === 0 ? '0' : value;
+
+    return (
+        <div className="space-y-2">
+            <div className="flex justify-between items-center">
+                <label className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</label>
+                <div className={`flex rounded-lg border overflow-hidden transition-all ${highlight ? 'border-orange-500 ring-2 ring-orange-500/20' : (isDarkMode ? 'border-white/10' : 'border-gray-200')}`}>
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        readOnly={readOnly}
+                        value={displayValue}
+                        onChange={handleChange}
+                        className={`w-24 px-3 py-2 text-right bg-transparent outline-none text-[13px] font-black ${isDarkMode ? 'text-white' : 'text-gray-900'} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                    />
+                    <div className={`px-2 py-2 flex items-center justify-center min-w-[32px] text-[12px] font-black ${highlight ? 'bg-orange-500 text-white' : (isDarkMode ? 'bg-white/10 text-gray-400' : 'bg-gray-100 text-gray-500')}`}>
+                        {suffix}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 export default UpgradePlan;

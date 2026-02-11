@@ -16,7 +16,7 @@ import PrivacyPolicy from './modules/user/pages/PrivacyPolicy';
 import Achievements from './modules/user/pages/Achievements';
 import AdminRoutes from './modules/admin/routes/AdminRoutes';
 import Login from './modules/user/pages/Login';
-import Register from './modules/user/pages/Register';
+
 import VerifyOtp from './modules/user/pages/VerifyOtp';
 import ScanQR from './modules/user/pages/ScanQR';
 import AttendanceSuccess from './modules/user/pages/AttendanceSuccess';
@@ -38,7 +38,7 @@ function App() {
 
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+
           <Route path="/verify-otp" element={<VerifyOtp />} />
 
           {/* Protected User Routes */}

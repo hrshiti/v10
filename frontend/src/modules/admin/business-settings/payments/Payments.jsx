@@ -5,6 +5,8 @@ import {
   Calendar,
   ChevronDown,
   Wallet,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
@@ -142,6 +144,41 @@ const AdvancedDateRangePicker = ({ isDarkMode, placeholder, onChange }) => {
   );
 };
 
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
+      <div className={`w-[400px] rounded-lg shadow-2xl relative pt-10 pb-8 px-6 flex flex-col items-center text-center ${isDarkMode ? 'bg-white' : 'bg-white'}`}>
+        <button
+          onClick={onClose}
+          className={`absolute top-4 right-4 p-1 rounded transition-colors text-gray-400 hover:text-gray-600`}
+        >
+          <X size={20} />
+        </button>
+
+        <div className="mb-6 bg-red-100 p-4 rounded-xl">
+          <Trash2 size={40} className="text-red-500" />
+        </div>
+
+        <h2 className="text-[24px] font-bold mb-2 text-gray-900">Delete Transaction?</h2>
+        <p className="text-[14px] font-medium mb-8 text-gray-500 max-w-[260px]">
+          Do you really want to delete this record?
+          This process cannot be undone.
+        </p>
+
+        <button
+          onClick={onConfirm}
+          className="bg-[#ef4444] hover:bg-red-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-lg shadow-red-500/20 transition-all flex items-center gap-2"
+        >
+          <Trash2 size={16} />
+          Yes, Delete Record
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const Payments = () => {
   const { isDarkMode } = useOutletContext();
   const navigate = useNavigate();
@@ -157,6 +194,10 @@ const Payments = () => {
   const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionContainerRefs = useRef({});
+
+  // Delete State
+  const [deleteId, setDeleteId] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const fetchSales = async () => {
     setIsLoading(true);
@@ -203,10 +244,39 @@ const Payments = () => {
   }, [activeActionRow]);
 
   const handleAction = (action, sale) => {
+    setActiveActionRow(null);
     if (action === "View Invoice") {
       navigate(`/admin/business/payments/invoice-detail?id=${sale.invoiceNumber}`);
+    } else if (action === "Delete") {
+      setDeleteId(sale._id);
+      setIsDeleteModalOpen(true);
     }
-    setActiveActionRow(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/sales/${deleteId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        fetchSales();
+        setIsDeleteModalOpen(false);
+        setDeleteId(null);
+      } else {
+        alert("Failed to delete transaction");
+      }
+    } catch (error) {
+      console.error('Error deleting sale:', error);
+      alert("Error deleting transaction");
+    }
   };
 
   const totalRevenue = sales.reduce((sum, s) => sum + (s.amount || 0), 0);
@@ -322,6 +392,13 @@ const Payments = () => {
           </div>
         </div>
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

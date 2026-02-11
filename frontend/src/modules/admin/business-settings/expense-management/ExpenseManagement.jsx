@@ -773,8 +773,16 @@ const ExpenseManagement = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
   const rowsDropdownRef = useRef(null);
+
+  // Reset page when search or rowsPerPage changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, rowsPerPage]);
+
+
 
   // State for active stat card
   const [selectedStat, setSelectedStat] = useState('');
@@ -783,6 +791,14 @@ const ExpenseManagement = () => {
   const [expenses, setExpenses] = useState([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [toast, setToast] = useState(null); // { message }
+
+  // Fix: Reset page if current page becomes empty after deletion
+  useEffect(() => {
+    const totalPages = Math.ceil(expenses.length / rowsPerPage) || 1;
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [expenses.length, rowsPerPage, currentPage]);
 
   // Edit & Delete State
   const [editingExpense, setEditingExpense] = useState(null); // Stores the expense being edited
@@ -1080,17 +1096,20 @@ const ExpenseManagement = () => {
                 <th className="px-8 py-4">Staff Name</th>
                 <th className="px-8 py-4">Amount</th>
                 <th className="px-8 py-4">Payment Mode</th>
+                <th className="px-8 py-4"></th>
               </tr>
             </thead>
             <tbody className="transition-none">
               {expenses.length === 0 ? (
                 <tr className="border-b dark:border-white/5">
-                  <td colSpan={7} className="px-8 py-8 text-center text-gray-400 font-medium">No expenses found</td>
+                  <td colSpan={8} className="px-8 py-8 text-center text-gray-400 font-medium">No expenses found</td>
                 </tr>
               ) : (
-                expenses.map((expense, idx) => (
+                expenses.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((expense, idx) => (
                   <tr key={expense._id} className={`border-b transition-none ${isDarkMode ? 'bg-transparent border-white/5 hover:bg-white/5' : 'bg-white border-gray-50 hover:bg-gray-50'}`}>
-                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{idx + 1}</td>
+                    <td className={`px-8 py-5 font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                      {(currentPage - 1) * rowsPerPage + idx + 1}
+                    </td>
                     <td className="px-8 py-5">
                       <span className={`inline-block px-3 py-1 border rounded text-[13px] font-bold ${isDarkMode ? 'border-orange-500/30 text-orange-400 bg-orange-500/10' : 'border-orange-200 text-orange-600 bg-orange-50'}`}>
                         {expense.expenseType}
@@ -1131,9 +1150,31 @@ const ExpenseManagement = () => {
         {/* Pagination */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2">
-            <button className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-bold bg-[#f97316] text-white shadow-md transition-none">1</button>
-            <button className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'} ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              « Previous
+            </button>
+            {Array.from({ length: Math.ceil(expenses.length / rowsPerPage) || 1 }, (_, i) => i + 1).map(p => (
+              <button
+                key={p}
+                onClick={() => setCurrentPage(p)}
+                className={`w-10 h-10 border rounded-lg text-[13px] font-bold transition-none ${currentPage === p
+                  ? 'bg-[#f97316] text-white shadow-md'
+                  : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm')}`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(expenses.length / rowsPerPage) || 1, prev + 1))}
+              disabled={currentPage === (Math.ceil(expenses.length / rowsPerPage) || 1)}
+              className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'} ${currentPage === (Math.ceil(expenses.length / rowsPerPage) || 1) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">

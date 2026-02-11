@@ -424,6 +424,7 @@ const MemberMemberships = () => {
 
     const tabs = [
         { name: 'Active Membership' },
+        { name: 'Upcoming Membership' },
         { name: 'Past Membership' },
     ];
 
@@ -461,8 +462,9 @@ const MemberMemberships = () => {
     }, []);
 
     const filteredSubscriptions = subscriptions.filter(s => {
-        if (activeTab === 'Active Membership') return s.isCurrent === true;
-        if (activeTab === 'Past Membership') return s.isCurrent === false;
+        if (activeTab === 'Active Membership') return s.status === 'Active';
+        if (activeTab === 'Upcoming Membership') return s.status === 'Upcoming';
+        if (activeTab === 'Past Membership') return s.status !== 'Active' && s.status !== 'Upcoming';
         return false;
     });
 
@@ -602,8 +604,9 @@ const MemberMemberships = () => {
                 <div className="flex items-center gap-10 px-8 pt-6 border-b dark:border-white/5 border-gray-50">
                     {tabs.map(tab => {
                         const count = subscriptions.filter(s => {
-                            if (tab.name === 'Active Membership') return s.isCurrent === true;
-                            if (tab.name === 'Past Membership') return s.isCurrent === false;
+                            if (tab.name === 'Active Membership') return s.status === 'Active';
+                            if (tab.name === 'Upcoming Membership') return s.status === 'Upcoming';
+                            if (tab.name === 'Past Membership') return s.status !== 'Active' && s.status !== 'Upcoming';
                             return false;
                         }).length;
 

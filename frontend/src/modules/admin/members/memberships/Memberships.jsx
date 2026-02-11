@@ -472,6 +472,7 @@ const Memberships = () => {
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-500' : 'bg-[#fcfcfc] border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
+                <th className="px-6 py-6 uppercase">#</th>
                 <th className="px-6 py-6 uppercase">Member ID</th>
                 <th className="px-6 py-6 uppercase">Full Name</th>
                 <th className="px-6 py-6 uppercase">Mobile Number</th>
@@ -486,7 +487,7 @@ const Memberships = () => {
             <tbody className={`text-[14px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
               {isLoading ? (
                 <tr>
-                  <td colSpan="9" className="py-20 text-center">
+                  <td colSpan="10" className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-8 h-8 border-4 border-[#f97316] border-t-transparent rounded-full animate-spin"></div>
                       <span className="text-gray-500 uppercase tracking-widest text-[11px]">Syncing with backend...</span>
@@ -495,13 +496,16 @@ const Memberships = () => {
                 </tr>
               ) : membershipsData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="py-20 text-center text-gray-500 uppercase tracking-widest text-[11px]">
+                  <td colSpan="10" className="py-20 text-center text-gray-500 uppercase tracking-widest text-[11px]">
                     No active memberships found
                   </td>
                 </tr>
               ) : (
                 membershipsData.map((member, idx) => (
                   <tr key={member._id} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                    <td className="px-6 py-7 font-black text-gray-400">
+                      {(currentPage - 1) * rowsPerPage + idx + 1}
+                    </td>
                     <td className="px-6 py-7">
                       <span className="font-black text-orange-500">#{member.memberId}</span>
                     </td>
@@ -572,15 +576,23 @@ const Memberships = () => {
           <div className="flex flex-wrap items-center gap-3">
             <button
               disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => p - 1)}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               className={`px-6 py-2.5 border rounded-xl text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'} ${currentPage === 1 ? 'opacity-50' : ''}`}
             >
               « Previous
             </button>
-            <button className="w-11 h-11 border rounded-xl text-[13px] font-bold bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button
+                key={p}
+                onClick={() => setCurrentPage(p)}
+                className={`w-11 h-11 border rounded-xl text-[13px] font-bold transition-none ${currentPage === p ? 'bg-[#f97316] text-white shadow-lg' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm')}`}
+              >
+                {p}
+              </button>
+            ))}
             <button
               disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => p + 1)}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               className={`px-6 py-2.5 border rounded-xl text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'} ${currentPage === totalPages ? 'opacity-50' : ''}`}
             >
               Next »

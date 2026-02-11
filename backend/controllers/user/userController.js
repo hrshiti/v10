@@ -29,6 +29,20 @@ const userScanQR = asyncHandler(async (req, res) => {
     // For this simple case, we assume scanning ANY valid QR from the gym works
     const member = req.user;
 
+    // Check if subscription has expired
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    const memberEndDate = new Date(member.endDate);
+    memberEndDate.setHours(0, 0, 0, 0);
+
+    if (memberEndDate < currentDate || member.status === 'Expired') {
+        return res.status(400).json({
+            success: false,
+            message: 'Your subscription/plan has expired. Please contact admin to renew your membership.',
+            type: 'expired'
+        });
+    }
+
     if (member.status !== 'Active') {
         res.status(400);
         throw new Error('Your membership is not active. Please contact admin.');

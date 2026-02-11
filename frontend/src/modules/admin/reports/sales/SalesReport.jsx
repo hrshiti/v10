@@ -253,7 +253,6 @@ const SalesReport = () => {
         'Mobile': row.memberId?.mobile || 'N/A',
         'Membership Type': row.type?.includes('PT') ? 'Personal Training' : 'General Training',
         'Plan Name': row.memberId?.packageName || '-',
-        'Remarks': row.description || '',
         'Start Date': row.memberId?.startDate ? new Date(row.memberId.startDate).toLocaleDateString() : 'N/A',
         'Duration': row.memberId?.durationType === 'Months'
           ? `${row.memberId?.durationMonths || row.memberId?.duration || 0} Months`

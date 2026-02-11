@@ -149,7 +149,27 @@ const ScanQR = () => {
                     navigate('/success', { state: { message: result.message, type: result.type } });
                 }, 800);
             } else {
-                toast.error(result.message || 'Error marking attendance');
+                // Check if subscription expired
+                if (result.type === 'expired') {
+                    // Show a more prominent error for expired subscription
+                    toast.error(
+                        <div className="flex flex-col gap-2">
+                            <p className="font-bold text-base">⚠️ Subscription Expired</p>
+                            <p className="text-sm">{result.message}</p>
+                        </div>,
+                        {
+                            duration: 6000,
+                            style: {
+                                background: '#dc2626',
+                                color: '#fff',
+                                border: '2px solid #fca5a5',
+                                minWidth: '300px'
+                            }
+                        }
+                    );
+                } else {
+                    toast.error(result.message || 'Error marking attendance');
+                }
                 setIsProcessing(false); // Unlock to try again
                 setScannedData(null);
             }
