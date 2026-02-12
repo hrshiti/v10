@@ -2,6 +2,8 @@ const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const Member = require('../../models/Member');
 const Employee = require('../../models/Employee');
+const Otp = require('../../models/Otp');
+const sendSms = require('../../utils/smsIndiaHub');
 
 // @desc    Send OTP to mobile
 // @route   POST /api/user/auth/send-otp
@@ -31,14 +33,23 @@ const sendOTP = asyncHandler(async (req, res) => {
         throw new Error('User not found with this mobile number. Please register or contact admin.');
     }
 
-    // In a real app, send OTP via SMS service
-    // For now, we simulate success
+    // Generate 6 digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Save OTP to DB (upsert)
+    await Otp.findOneAndUpdate(
+        { mobile },
+        { otp, createdAt: Date.now() },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    // Send SMS via SMS India Hub
+    const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp};`;
+    const result = await sendSms(mobile, message);
+
     res.status(200).json({
         success: true,
-        message: 'OTP sent successfully (Simulated)',
-        // For development convenience, we can return the OTP or just assume 123456
-        otp: '123456',
-        role: role // Hint for frontend if needed, though mostly used in verify
+        message: 'OTP sent successfully'
     });
 });
 
@@ -69,17 +80,27 @@ const verifyOTP = asyncHandler(async (req, res) => {
         throw new Error('User not found');
     }
 
-    // Validate OTP (Simple check for demo)
-    if (otp !== '123456') {
-        res.status(401);
+    // Verify OTP
+    const otpRecord = await Otp.findOne({ mobile });
+
+    if (!otpRecord) {
+        res.status(400);
+        throw new Error('OTP expired or not found. Please request a new one.');
+    }
+
+    if (otpRecord.otp !== otp) {
+        res.status(400);
         throw new Error('Invalid OTP');
     }
+
+    // Clear OTP after successful verification
+    await Otp.deleteOne({ mobile });
 
     // Generate JWT
     const token = jwt.sign(
         { id: user._id, role: role },
         process.env.JWT_SECRET,
-        { expiresIn: '30d' }
+        { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
 
     res.json({
