@@ -33,8 +33,13 @@ const sendOTP = asyncHandler(async (req, res) => {
         throw new Error('User not found with this mobile number. Please register or contact admin.');
     }
 
-    // Generate 6 digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6 digit OTP or use default for specific number
+    let otp;
+    if (mobile === '6260491554') {
+        otp = '123456';
+    } else {
+        otp = Math.floor(100000 + Math.random() * 900000).toString();
+    }
 
     // Save OTP to DB (upsert)
     await Otp.findOneAndUpdate(
@@ -43,9 +48,11 @@ const sendOTP = asyncHandler(async (req, res) => {
         { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    // Send SMS via SMS India Hub
-    const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp};`;
-    const result = await sendSms(mobile, message);
+    // Send SMS via SMS India Hub only if NOT the default number
+    if (mobile !== '6260491554') {
+        const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+        await sendSms(mobile, message);
+    }
 
     res.status(200).json({
         success: true,
