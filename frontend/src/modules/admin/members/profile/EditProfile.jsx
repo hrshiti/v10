@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Calendar, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Calendar, ChevronDown, CheckCircle2, CreditCard } from 'lucide-react';
 import { API_BASE_URL } from '../../../../config/api';
 
 const CustomDatePicker = ({ value, onChange, placeholder, isDarkMode }) => {
@@ -122,7 +122,8 @@ const EditProfile = () => {
         maritalStatus: 'Single',
         birthDate: '',
         anniversaryDate: '',
-        address: ''
+        address: '',
+        commitmentDate: ''
     });
 
     useEffect(() => {
@@ -138,7 +139,8 @@ const EditProfile = () => {
                 maritalStatus: memberData.maritalStatus || 'Single',
                 birthDate: memberData.dob ? new Date(memberData.dob).toLocaleDateString('en-GB').replace(/\//g, '-') : '',
                 anniversaryDate: memberData.anniversaryDate ? new Date(memberData.anniversaryDate).toLocaleDateString('en-GB').replace(/\//g, '-') : '',
-                address: memberData.address || ''
+                address: memberData.address || '',
+                commitmentDate: memberData.commitmentDate ? new Date(memberData.commitmentDate).toLocaleDateString('en-GB').replace(/\//g, '-') : ''
             });
         }
     }, [memberData, id]);
@@ -182,7 +184,8 @@ const EditProfile = () => {
                 emergencyContact: {
                     name: formData.emergencyName,
                     number: formData.emergencyNumber
-                }
+                },
+                commitmentDate: formData.commitmentDate ? new Date(formData.commitmentDate.split('-').reverse().join('-')) : null
             };
 
             const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}`, {
@@ -404,6 +407,33 @@ const EditProfile = () => {
                             rows="4"
                             className={`w-full px-4 py-3 border rounded-lg text-sm outline-none resize-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
                         ></textarea>
+                    </div>
+
+                    {/* Financial Status Section */}
+                    <div className="col-span-1 md:col-span-2 mt-4">
+                        <div className={`p-6 rounded-xl border-2 border-dashed ${isDarkMode ? 'border-white/5 bg-white/5' : 'border-gray-100 bg-gray-50'}`}>
+                            <h3 className={`text-sm font-black uppercase tracking-wider mb-6 flex items-center gap-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                <CreditCard size={18} className="text-[#f97316]" />
+                                Financial Status & commitment
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-2">
+                                    <label className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Current Outstanding Due</label>
+                                    <div className={`px-4 py-3 rounded-lg border font-black text-lg ${memberData?.dueAmount > 0 ? 'text-red-500 border-red-500/20 bg-red-500/5' : 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5'}`}>
+                                        ₹{memberData?.dueAmount || 0}
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Commitment Date to Pay Due</label>
+                                    <CustomDatePicker
+                                        value={formData.commitmentDate}
+                                        onChange={(date) => setFormData(p => ({ ...p, commitmentDate: date }))}
+                                        placeholder="dd-mm-yyyy"
+                                        isDarkMode={isDarkMode}
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                 </div>

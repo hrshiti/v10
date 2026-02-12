@@ -51,7 +51,7 @@ const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, on
                 : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600 border-b border-gray-50 last:border-0'
                 }`}
             >
-              {opt}
+              {typeof opt === 'object' ? opt.name : opt}
             </div>
           ))}
         </div>
@@ -69,9 +69,20 @@ const ExpiredMemberReport = () => {
   const yyyy = today.getFullYear();
   const todayStr = `${dd}-${mm}-${yyyy}`;
 
+  const getFirstDayOfMonth = () => {
+    const d = new Date();
+    return `01-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+  };
+
+  const getLastDayOfMonth = () => {
+    const d = new Date();
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    return `${String(lastDay).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [fromDate, setFromDate] = useState(todayStr);
-  const [toDate, setToDate] = useState(todayStr);
+  const [fromDate, setFromDate] = useState(getFirstDayOfMonth());
+  const [toDate, setToDate] = useState(getLastDayOfMonth());
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
@@ -101,13 +112,13 @@ const ExpiredMemberReport = () => {
 
         if (trainerRes.ok) {
           const data = await trainerRes.json();
-          setTrainers(data.map(t => `${t.firstName} ${t.lastName}`));
+          setTrainers(data.map(t => ({ id: t._id, name: `${t.firstName} ${t.lastName}` })));
         }
 
         if (empRes.ok) {
           const data = await empRes.json();
           const empList = Array.isArray(data) ? data : (data.employees || []);
-          setEmployees(empList.map(e => `${e.firstName} ${e.lastName}`));
+          setEmployees(empList.map(e => ({ id: e._id, name: `${e.firstName} ${e.lastName}` })));
         }
 
       } catch (error) {
@@ -128,9 +139,9 @@ const ExpiredMemberReport = () => {
   }, []);
 
   const filterOptions = {
-    'Select Membership Type': ['General Training', 'Personal Training', 'Group Ex'],
-    'Select Trainer': trainers.length > 0 ? trainers : ['No Trainers Found'],
-    'Select Closed By': employees.length > 0 ? employees : ['No Employees Found'],
+    'Select Membership Type': ['All', 'General Training', 'Personal Training', 'Group Ex'],
+    'Select Trainer': trainers.length > 0 ? [{ id: 'All', name: 'All' }, ...trainers] : [{ id: 'none', name: 'No Trainers Found' }],
+    'Select Closed By': employees.length > 0 ? [{ id: 'All', name: 'All' }, ...employees] : [{ id: 'none', name: 'No Employees Found' }],
   };
 
   const [memberData, setMemberData] = useState([]);
@@ -153,7 +164,10 @@ const ExpiredMemberReport = () => {
         search: searchQuery,
         status: isExpiredReport ? 'Expired' : 'ExpiringSoon',
         fromDate: fromDate?.split('-').reverse().join('-') || '',
-        toDate: toDate?.split('-').reverse().join('-') || ''
+        toDate: toDate?.split('-').reverse().join('-') || '',
+        membershipType: filterValues['Select Membership Type'] || '',
+        trainer: filterValues['Select Trainer']?.id || '',
+        closedBy: filterValues['Select Closed By']?.id || ''
       });
 
       const res = await fetch(`${API_BASE_URL}/api/admin/reports/membership-expiry?${queryParams.toString()}`, {
@@ -185,11 +199,12 @@ const ExpiredMemberReport = () => {
 
   const handleClear = () => {
     setSearchQuery('');
-    setFromDate('01-01-2026');
-    setToDate('30-01-2026');
+    setFromDate(getFirstDayOfMonth());
+    setToDate(getLastDayOfMonth());
     setIsExpiredReport(false);
     setFilterValues({});
     setCurrentPage(1);
+    // fetchData is called via effects or manual call
     setTimeout(fetchExpiringMembers, 100);
   };
 
@@ -200,6 +215,12 @@ const ExpiredMemberReport = () => {
   const handleFilterSelect = (label, val) => {
     setFilterValues({ ...filterValues, [label]: val });
     setActiveFilter(null);
+  };
+
+  const getActiveVal = (label) => {
+    const val = filterValues[label];
+    if (!val) return null;
+    return typeof val === 'object' ? val.name : val;
   };
 
   const statsRender = [
@@ -281,7 +302,7 @@ const ExpiredMemberReport = () => {
               isOpen={activeFilter === label}
               onToggle={() => toggleFilter(label)}
               onSelect={(val) => handleFilterSelect(label, val)}
-              activeVal={filterValues[label]}
+              activeVal={getActiveVal(label)}
             />
           ))}
 
@@ -350,14 +371,14 @@ const ExpiredMemberReport = () => {
                     <td className="px-6 py-8">{row.memberId}</td>
                     <td className="px-6 py-8">
                       <div
-                        onClick={() => navigate(`/admin/members/profile/${row._id}/edit`, { state: { member: row } })}
-                        className="flex flex-col transition-none cursor-pointer group"
+                        onClick={() => navigate(`/admin/members/profile/${row._id}/memberships`)}
+                        className="flex flex-col cursor-pointer group/name"
                       >
-                        <span className="text-[#3b82f6] uppercase group-hover:underline font-black">{row.firstName} {row.lastName}</span>
+                        <span className="text-[#3b82f6] uppercase font-black group-hover/name:underline">{row.firstName} {row.lastName}</span>
                         <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.mobile}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-8">General Training</td> {/* Placeholder, need field if exists */}
+                    <td className="px-6 py-8">General Training</td>
                     <td className="px-6 py-8">{row.packageName}</td>
                     <td className="px-6 py-8 text-center">{new Date(row.startDate).toLocaleDateString()}</td>
                     <td className="px-6 py-8 text-center">{new Date(row.endDate).toLocaleDateString()}</td>
@@ -377,9 +398,21 @@ const ExpiredMemberReport = () => {
         {/* Pagination Section */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2 transition-none">
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
+            >
+              « Previous
+            </button>
+            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">

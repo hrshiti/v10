@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Sale = require('../../models/Sale');
+const Member = require('../../models/Member'); // Added for getSales search
 
 // @desc    Get All Sales with Pagination
 // @route   GET /api/admin/sales
@@ -7,16 +8,43 @@ const Sale = require('../../models/Sale');
 const getSales = asyncHandler(async (req, res) => {
     const pageSize = Number(req.query.pageSize) || 10;
     const page = Number(req.query.pageNumber) || 1;
+    const { keyword, fromDate, toDate } = req.query; // Added fromDate, toDate
 
-    // Filter by Member ID if provided
-    const match = {};
-    if (req.query.memberId) {
-        match.memberId = req.query.memberId;
+    let query = {};
+
+    // Keyword Search
+    if (keyword) {
+        const matchingMembers = await Member.find({
+            $or: [
+                { firstName: { $regex: keyword, $options: 'i' } },
+                { lastName: { $regex: keyword, $options: 'i' } },
+                { mobile: { $regex: keyword, $options: 'i' } }
+            ]
+        }).select('_id');
+
+        query.$or = [
+            { invoiceNumber: { $regex: keyword, $options: 'i' } },
+            { memberId: { $in: matchingMembers.map(m => m._id) } }
+        ];
     }
 
-    const count = await Sale.countDocuments(match);
-    const sales = await Sale.find(match)
-        .populate('memberId', 'firstName lastName mobile') // Link member details
+    // Date Range Filter
+    if (fromDate && toDate) {
+        const start = new Date(fromDate);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+
+        query.date = {
+            $gte: start,
+            $lte: end
+        };
+    }
+
+    const count = await Sale.countDocuments(query);
+    const sales = await Sale.find(query)
+        .populate('memberId', 'firstName lastName mobile')
         .limit(pageSize)
         .skip(pageSize * (page - 1))
         .sort({ date: -1 });
@@ -50,4 +78,19 @@ const getSaleByInvoiceNumber = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { getSales, getSalesByMember, getSaleByInvoiceNumber };
+// @desc    Delete Sale
+// @route   DELETE /api/admin/sales/:id
+// @access  Private/Admin
+const deleteSale = asyncHandler(async (req, res) => {
+    const sale = await Sale.findById(req.params.id);
+
+    if (sale) {
+        await sale.deleteOne();
+        res.json({ message: 'Sale removed' });
+    } else {
+        res.status(404);
+        throw new Error('Sale not found');
+    }
+});
+
+module.exports = { getSales, getSalesByMember, getSaleByInvoiceNumber, deleteSale };

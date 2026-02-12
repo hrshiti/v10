@@ -15,6 +15,7 @@ const GymDetails = () => {
 
   const [formData, setFormData] = useState({
     logo: null,
+    name: '',
     contactNumber: '',
     address: '',
     gstNo: '',
@@ -34,10 +35,11 @@ const GymDetails = () => {
       if (response.ok) {
         setFormData({
           ...formData,
+          name: data.name || 'V-10 Fitness',
           contactNumber: data.contactNumber || '',
           address: data.address || '',
           gstNo: data.gstNo || '',
-          logoUrl: data.logo || ''
+          logoUrl: data.logo ? (data.logo.startsWith('http') ? data.logo : `${API_BASE_URL}/uploads/${data.logo}`) : ''
         });
         setGymId(data._id);
       }
@@ -65,6 +67,7 @@ const GymDetails = () => {
     try {
       const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
       const data = new FormData();
+      data.append('name', formData.name);
       data.append('contactNumber', formData.contactNumber);
       data.append('address', formData.address);
       data.append('gstNo', formData.gstNo);
@@ -84,12 +87,15 @@ const GymDetails = () => {
         const updatedData = await response.json();
         setFormData({
           ...formData,
-          logoUrl: updatedData.logo,
+          name: updatedData.name,
+          logoUrl: updatedData.logo ? (updatedData.logo.startsWith('http') ? updatedData.logo : `${API_BASE_URL}/uploads/${updatedData.logo}`) : '',
           logo: null
         });
         setToastMsg('Gym details updated successfully');
         setShowToast(true);
         setShowEditModal(false);
+        // Dispatch event for Navbar to update
+        window.dispatchEvent(new Event('gymDetailsUpdated'));
       } else {
         setToastMsg('Failed to update details');
         setShowToast(true);
@@ -128,7 +134,7 @@ const GymDetails = () => {
               />
             </div>
             <div>
-              <h2 className="text-2xl font-black uppercase italic tracking-tighter">V-10 Fitness</h2>
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter">{formData.name || 'V-10 Fitness'}</h2>
               <p className="text-gray-500 font-bold text-sm tracking-widest mt-1 uppercase">Official Gym Account</p>
             </div>
           </div>
@@ -178,6 +184,22 @@ const GymDetails = () => {
             {/* Modal Body */}
             <form onSubmit={handleSubmit} className="p-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Gym Name */}
+                <div className="col-span-1 md:col-span-2">
+                  <label className={`block text-[11px] font-black uppercase tracking-widest mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Gym Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className={`w-full px-5 py-4 border rounded-2xl text-sm font-bold tracking-tight outline-none focus:ring-4 focus:ring-orange-500/10 transition-all ${isDarkMode
+                      ? 'bg-[#121212] border-white/5 text-white focus:border-orange-500'
+                      : 'bg-gray-50 border-transparent text-black focus:border-orange-500'
+                      }`}
+                    placeholder="Enter Gym Name"
+                  />
+                </div>
                 {/* Logo Upload */}
                 <div className="col-span-1 md:col-span-2">
                   <label className={`block text-[11px] font-black uppercase tracking-widest mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -194,12 +216,18 @@ const GymDetails = () => {
                     <div
                       onClick={() => fileInputRef.current.click()}
                       className={`w-full h-32 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${formData.logo
-                          ? 'border-orange-500 bg-orange-500/5'
-                          : 'border-gray-200 dark:border-white/10 hover:border-orange-500/50 hover:bg-orange-500/5'
+                        ? 'border-orange-500 bg-orange-500/5'
+                        : 'border-gray-200 dark:border-white/10 hover:border-orange-500/50 hover:bg-orange-500/5'
                         }`}
                     >
                       {formData.logo ? (
-                        <p className="text-orange-500 font-bold">{formData.logo.name}</p>
+                        <div className="w-full h-full p-2 flex items-center justify-center">
+                          <img
+                            src={URL.createObjectURL(formData.logo)}
+                            alt="Preview"
+                            className="max-w-full max-h-full object-contain rounded-lg"
+                          />
+                        </div>
                       ) : (
                         <>
                           <Edit2 className="text-gray-400" size={24} />

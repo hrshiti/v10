@@ -43,21 +43,7 @@ const UserDashboard = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-medium text-gray-300">
-            <div className="flex items-center gap-1.5">
-              <div className="p-1 bg-green-500/20 rounded-md">
-                <TrendingUp size={14} className="text-green-400" />
-              </div>
-              <span>Active Members: 152</span>
-            </div>
-            <div className="h-4 w-[1px] bg-gray-700"></div>
-            <div className="flex items-center gap-1.5">
-              <div className="p-1 bg-blue-500/20 rounded-md">
-                <Users size={14} className="text-blue-400" />
-              </div>
-              <span>Total Members: 350</span>
-            </div>
-          </div>
+          {/* Active & Total Members count removed as per request */}
         </div>
 
         {/* Progress Card (Overlapping) */}

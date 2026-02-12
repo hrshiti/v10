@@ -2,6 +2,8 @@ import React from 'react';
 import { Bell, Menu, ChevronDown, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { API_BASE_URL } from '../../../config/api';
+
 const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, toggleTheme }) => {
     const navigate = useNavigate();
 
@@ -9,6 +11,35 @@ const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, t
     const adminInfo = JSON.parse(localStorage.getItem('adminInfo') || '{}');
     const adminName = adminInfo.name || 'Admin';
     const adminEmail = adminInfo.email || '';
+    const [gymData, setGymData] = React.useState({ name: 'V10 Fitness Gym', logo: '/v10_logo.png' });
+
+    React.useEffect(() => {
+        const fetchGymDetails = async () => {
+            try {
+                const adminData = JSON.parse(localStorage.getItem('adminInfo') || '{}');
+                if (!adminData?.token) return;
+
+                const res = await fetch(`${API_BASE_URL}/api/admin/gym-details`, {
+                    headers: { 'Authorization': `Bearer ${adminData.token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setGymData({
+                        name: data.name || 'V10 Fitness Gym',
+                        logo: data.logo ? (data.logo.startsWith('http') ? data.logo : `${API_BASE_URL}/uploads/${data.logo}`) : '/v10_logo.png'
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching gym info in navbar:', err);
+            }
+        };
+
+        fetchGymDetails();
+
+        // Listen for updates from GymDetails component
+        window.addEventListener('gymDetailsUpdated', fetchGymDetails);
+        return () => window.removeEventListener('gymDetailsUpdated', fetchGymDetails);
+    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem('adminInfo');
@@ -25,15 +56,21 @@ const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, t
                     <Menu size={24} />
                 </button>
 
-                <div className="flex items-center gap-2 lg:gap-3">
+                <div
+                    onClick={() => navigate('/admin/dashboard')}
+                    className="flex items-center gap-2 lg:gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                >
                     <img
-                        src="/v10_logo.png"
-                        alt="V10 Fitness Gym"
+                        src={gymData.logo}
+                        alt={gymData.name}
                         className="h-8 lg:h-9 object-contain"
+                        onError={(e) => { e.target.src = '/v10_logo.png' }}
                     />
-                    <span className="text-xl lg:text-2xl font-black tracking-tight text-[#f97316]">V10 Fitness Gym</span>
+                    <span className="text-xl lg:text-2xl font-black tracking-tight text-[#f97316]">{gymData.name}</span>
                 </div>
             </div>
+
+
 
             <div className="flex items-center gap-2 lg:gap-4">
                 <button
@@ -49,13 +86,14 @@ const Navbar = ({ toggleSidebar, sidebarOpen, onNotificationClick, isDarkMode, t
                     <div className={`flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 cursor-pointer transition-colors rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}>
                         <div className="w-9 h-9 lg:w-11 lg:h-11 rounded-full overflow-hidden border border-gray-200 shadow-sm bg-white">
                             <img
-                                src="/v10_logo.png"
-                                alt="V10 Fitness Gym"
+                                src={gymData.logo}
+                                alt={gymData.name}
                                 className="w-full h-full object-contain p-1"
+                                onError={(e) => { e.target.src = '/v10_logo.png' }}
                             />
                         </div>
                         <div className="hidden sm:block leading-none text-left">
-                            <h4 className={`text-[14px] lg:text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>V10 Fitness Gym</h4>
+                            <h4 className={`text-[14px] lg:text-[15px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>{gymData.name}</h4>
                             <p className="text-[11px] lg:text-[13px] text-gray-500 font-bold mt-1 uppercase tracking-tight">{adminName}</p>
                         </div>
                         <ChevronDown size={16} className="text-gray-400" />

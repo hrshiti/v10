@@ -27,7 +27,7 @@ const AttendanceReport = () => {
   const [fromDate, setFromDate] = useState(todayStr);
   const [toDate, setToDate] = useState(todayStr);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
   const [selectedMembership, setSelectedMembership] = useState('Membership Type');
   const [isMembershipDropdownOpen, setIsMembershipDropdownOpen] = useState(false);
 
@@ -49,6 +49,7 @@ const AttendanceReport = () => {
         pageSize: rowsPerPage,
         search: searchQuery,
         view: view,
+        membershipType: selectedMembership,
         fromDate: fromDate?.split('-').reverse().join('-') || '',
         toDate: toDate?.split('-').reverse().join('-') || ''
       });
@@ -73,7 +74,7 @@ const AttendanceReport = () => {
 
   useEffect(() => {
     fetchAttendanceData();
-  }, [view, currentPage, rowsPerPage]);
+  }, [view, currentPage, rowsPerPage, selectedMembership]);
 
   const handleApply = () => {
     setCurrentPage(1);
@@ -227,35 +228,33 @@ const AttendanceReport = () => {
             isDarkMode={isDarkMode}
           />
 
-          {view === 'attendance' && (
-            <div className="relative min-w-[220px]">
-              <div
-                onClick={() => setIsMembershipDropdownOpen(!isMembershipDropdownOpen)}
-                className={`flex items-center justify-between px-4 py-2.5 border rounded-lg cursor-pointer transition-all ${isDarkMode
-                  ? 'bg-[#1a1a1a] border-white/10 text-white'
-                  : isMembershipDropdownOpen ? 'border-[#f97316] text-[#f97316] bg-white' : 'bg-white border-gray-200 text-[#f97316] shadow-sm'}`}
-              >
-                <span className="text-[14px] font-bold">{selectedMembership}</span>
-                <ChevronDown size={14} className={isMembershipDropdownOpen ? 'text-[#f97316]' : 'text-gray-400'} />
-              </div>
-
-              {isMembershipDropdownOpen && (
-                <div className={`absolute top-full left-0 mt-1 w-full rounded-lg shadow-xl border z-50 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
-                  {['General Training', 'Personal Training'].map(type => (
-                    <div
-                      key={type}
-                      onClick={() => { setSelectedMembership(type); setIsMembershipDropdownOpen(false); }}
-                      className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-colors ${isDarkMode
-                        ? 'text-gray-300 hover:bg-white/5'
-                        : 'text-gray-700 hover:bg-orange-50 hover:text-[#f97316]'}`}
-                    >
-                      {type}
-                    </div>
-                  ))}
-                </div>
-              )}
+          <div className="relative min-w-[220px]">
+            <div
+              onClick={() => setIsMembershipDropdownOpen(!isMembershipDropdownOpen)}
+              className={`flex items-center justify-between px-4 py-2.5 border rounded-lg cursor-pointer transition-all ${isDarkMode
+                ? 'bg-[#1a1a1a] border-white/10 text-white'
+                : isMembershipDropdownOpen ? 'border-[#f97316] text-[#f97316] bg-white' : 'bg-white border-gray-200 text-[#f97316] shadow-sm'}`}
+            >
+              <span className="text-[14px] font-bold">{selectedMembership}</span>
+              <ChevronDown size={14} className={isMembershipDropdownOpen ? 'text-[#f97316]' : 'text-gray-400'} />
             </div>
-          )}
+
+            {isMembershipDropdownOpen && (
+              <div className={`absolute top-full left-0 mt-1 w-full rounded-lg shadow-xl border z-50 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
+                {['Membership Type', 'General Training', 'Personal Training'].map(type => (
+                  <div
+                    key={type}
+                    onClick={() => { setSelectedMembership(type); setIsMembershipDropdownOpen(false); }}
+                    className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-colors ${isDarkMode
+                      ? 'text-gray-300 hover:bg-white/5'
+                      : 'text-gray-700 hover:bg-orange-50 hover:text-[#f97316]'}`}
+                  >
+                    {type}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button onClick={handleApply} className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Apply</button>
           <button onClick={handleWeekly} className="bg-[#f97316] hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-black shadow-md transition-none active:scale-95">Weekly</button>
@@ -274,13 +273,7 @@ const AttendanceReport = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button
-            onClick={() => setIsReportModalOpen(true)}
-            className={`flex items-center gap-2 px-8 py-2.5 border rounded-lg text-[14px] font-black transition-none active:scale-95 shadow-md ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-100 text-gray-700'}`}
-          >
-            <Download size={18} className="text-gray-500" />
-            Generate XLS Report
-          </button>
+
         </div>
       </div>
 
@@ -450,11 +443,7 @@ const AttendanceReport = () => {
         </div>
       </div>
 
-      <GenerateReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        isDarkMode={isDarkMode}
-      />
+
     </div>
   );
 };

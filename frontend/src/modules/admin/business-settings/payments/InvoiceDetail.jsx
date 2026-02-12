@@ -14,6 +14,12 @@ const InvoiceDetail = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [invoiceData, setInvoiceData] = useState(null);
     const [subscriptions, setSubscriptions] = useState([]);
+    const [gymInfo, setGymInfo] = useState({
+        name: 'V-10 Fitness Lab',
+        address: '1st Floor, Rajshree Skyz Near Baroda Express Highway, CTM, Ahmedabad Gujarat 380026',
+        contactNumber: '8347008511',
+        logo: ''
+    });
 
     useEffect(() => {
         const fetchInvoiceData = async () => {
@@ -31,6 +37,20 @@ const InvoiceDetail = () => {
                 if (res.ok) {
                     const data = await res.json();
                     setInvoiceData(data);
+
+                    // Fetch gym info
+                    const gymRes = await fetch(`${API_BASE_URL}/api/admin/gym-details`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (gymRes.ok) {
+                        const gymData = await gymRes.json();
+                        setGymInfo({
+                            name: gymData.name || 'V-10 Fitness Lab',
+                            address: gymData.address || '1st Floor, Rajshree Skyz Near Baroda Express Highway, CTM, Ahmedabad Gujarat 380026',
+                            contactNumber: gymData.contactNumber || '8347008511',
+                            logo: gymData.logo ? (gymData.logo.startsWith('http') ? gymData.logo : `${API_BASE_URL}/uploads/${gymData.logo}`) : ''
+                        });
+                    }
 
                     // Fetch subscriptions for this member to show plan details
                     if (data.memberId?._id) {
@@ -195,11 +215,15 @@ const InvoiceDetail = () => {
                         {/* Top Row: Logo and Bill Info */}
                         <div className="flex flex-col md:flex-row justify-between gap-8">
                             <div className="space-y-4">
-                                <div className="w-24 h-24 rounded-lg flex items-center justify-center p-2 border bg-white border-gray-100">
-                                    <div className="text-center">
-                                        <p className="text-[14px] font-black leading-tight text-black">V-10</p>
-                                        <p className="text-[12px] font-black leading-tight text-black uppercase">Fitness Lab</p>
-                                    </div>
+                                <div className="w-24 h-24 rounded-lg flex items-center justify-center p-2 border bg-white border-gray-100 overflow-hidden">
+                                    {gymInfo.logo ? (
+                                        <img src={gymInfo.logo} alt="Logo" className="w-full h-full object-contain" />
+                                    ) : (
+                                        <div className="text-center">
+                                            <p className="text-[14px] font-black leading-tight text-black">V-10</p>
+                                            <p className="text-[12px] font-black leading-tight text-black uppercase">Fitness Lab</p>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="text-[13px] space-y-1 font-medium">
                                     <p className="text-gray-500"><span className="font-bold">Invoice ID :</span> {invoiceData.invoiceNumber}</p>
@@ -219,11 +243,11 @@ const InvoiceDetail = () => {
                             <div className="space-y-3">
                                 <h3 className="print-orange font-black uppercase text-sm" style={{ color: '#f97316' }}>Bill From</h3>
                                 <div className="space-y-1">
-                                    <p className="text-lg font-black uppercase text-gray-900">V-10 Fitness Lab</p>
+                                    <p className="text-lg font-black uppercase text-gray-900">{gymInfo.name}</p>
                                     <p className="max-w-[300px] text-[13px] leading-relaxed font-bold text-gray-600">
-                                        1st Floor, Rajshree Skyz Near Baroda Express Highway, CTM, Ahmedabad Gujarat 380026
+                                        {gymInfo.address}
                                     </p>
-                                    <p className="text-[13px] font-black text-gray-900">8347008511</p>
+                                    <p className="text-[13px] font-black text-gray-900">{gymInfo.contactNumber}</p>
                                 </div>
                             </div>
 
@@ -256,7 +280,9 @@ const InvoiceDetail = () => {
                                             <td className="px-6 py-5 print-orange border border-gray-100" style={{ color: '#f97316' }}>
                                                 {invoiceData.description || (relatedSub ? relatedSub.packageName : 'Membership Fee')}
                                             </td>
-                                            <td className="px-6 py-5 border border-gray-100">{relatedSub ? `${relatedSub.duration} Months` : '--'}</td>
+                                            <td className="px-6 py-5 border border-gray-100">
+                                                {relatedSub ? `${relatedSub.duration || relatedSub.packageId?.durationValue || '--'} ${relatedSub.durationType || relatedSub.packageId?.durationType || 'Months'}` : '--'}
+                                            </td>
                                             <td className="px-6 py-5 border border-gray-100">{relatedSub ? new Date(relatedSub.startDate).toLocaleDateString('en-GB') : '--'}</td>
                                             <td className="px-6 py-5 border border-gray-100">{relatedSub ? new Date(relatedSub.endDate).toLocaleDateString('en-GB') : '--'}</td>
                                             <td className="px-6 py-5 text-right whitespace-nowrap border border-gray-100">₹{invoiceData.subTotal?.toFixed(2) || invoiceData.amount?.toFixed(2)}</td>

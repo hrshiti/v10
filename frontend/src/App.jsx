@@ -16,13 +16,16 @@ import PrivacyPolicy from './modules/user/pages/PrivacyPolicy';
 import Achievements from './modules/user/pages/Achievements';
 import AdminRoutes from './modules/admin/routes/AdminRoutes';
 import Login from './modules/user/pages/Login';
-import Register from './modules/user/pages/Register';
+
 import VerifyOtp from './modules/user/pages/VerifyOtp';
 import ScanQR from './modules/user/pages/ScanQR';
 import AttendanceSuccess from './modules/user/pages/AttendanceSuccess';
 import Feedback from './modules/user/pages/Feedback';
+import UserSuccessStories from './modules/user/pages/UserSuccessStories';
+import AttendanceCalendar from './modules/user/pages/AttendanceCalendar';
 
 import ProtectedRoute from './modules/user/components/ProtectedRoute';
+import TrainerRoutes from './modules/trainer/routes/TrainerRoutes';
 
 function App() {
   return (
@@ -35,7 +38,7 @@ function App() {
 
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+
           <Route path="/verify-otp" element={<VerifyOtp />} />
 
           {/* Protected User Routes */}
@@ -52,6 +55,7 @@ function App() {
               <Route path="workout/:id" element={<WorkoutDetails />} />
               <Route path="workout-details/:id" element={<AssignedWorkoutDetails />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="attendance-history" element={<AttendanceCalendar />} />
               <Route path="settings" element={<Settings />} />
               <Route path="feedback" element={<Feedback />} />
             </Route>
@@ -62,7 +66,12 @@ function App() {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/achievements" element={<Achievements />} />
+            <Route path="/stories" element={<UserSuccessStories />} />
           </Route>
+
+          {/* Trainer Routes */}
+          <Route path="/trainer/*" element={<TrainerRoutes />} />
+
         </Routes>
       </ThemeProvider>
     </div>

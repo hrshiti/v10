@@ -173,7 +173,7 @@ const CreateWorkoutModal = ({ isOpen, onClose, isDarkMode, onNext }) => {
 const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, privacyMode, initialData, onSubmit }) => {
   const [activeDay, setActiveDay] = useState('Monday');
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const [copyToDays, setCopyToDays] = useState([]);
+  const [copyRoutes, setCopyRoutes] = useState({}); // { 'Monday': ['Wednesday', 'Friday'] }
   const [exercisesPerDay, setExercisesPerDay] = useState(() => {
     const initial = {};
     days.forEach(day => initial[day] = []);
@@ -184,6 +184,9 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
   const [memberResults, setMemberResults] = useState([]);
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [isSearchingMembers, setIsSearchingMembers] = useState(false);
+
+  const [localName, setLocalName] = useState('');
+  const [localPrivacy, setLocalPrivacy] = useState('');
 
   useEffect(() => {
     if (initialData) {
@@ -196,16 +199,20 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
       }
       setExercisesPerDay(loadedExercises);
       setSelectedMembers(initialData.assignedMembers || []);
+      setLocalName(initialData.name || '');
+      setLocalPrivacy(initialData.privacyMode || 'Public');
     } else if (isOpen) {
       const initial = {};
       days.forEach(day => initial[day] = []);
       setExercisesPerDay(initial);
       setActiveDay('Monday');
-      setCopyToDays([]);
+      setCopyRoutes({});
       setCurrentExercise({ category: '', exercise: '', reps: '', sets: '', weight: '' });
       setSelectedMembers([]);
+      setLocalName(workoutName || '');
+      setLocalPrivacy(privacyMode || 'Public');
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, workoutName, privacyMode]);
 
   useEffect(() => {
     const searchMembers = async () => {
@@ -250,21 +257,69 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
 
   if (!isOpen) return null;
 
-  const handleCopyToChange = (day) => {
-    if (copyToDays.includes(day)) setCopyToDays(prev => prev.filter(d => d !== day));
-    else setCopyToDays(prev => [...prev, day]);
+  const handleCopyToChange = (targetDay) => {
+    // Check if currently selected BEFORE state update
+    const currentTargets = copyRoutes[activeDay] || [];
+    const isCurrentlySelected = currentTargets.includes(targetDay);
+
+    // 1. Update Routes Selection (State)
+    setCopyRoutes(prev => {
+      const current = prev[activeDay] || [];
+      const newTargets = isCurrentlySelected
+        ? current.filter(d => d !== targetDay)
+        : [...current, targetDay];
+      return { ...prev, [activeDay]: newTargets };
+    });
+
+    // 2. If Selecting (Checking) -> Immediate Copy of Existing Exercises
+    if (!isCurrentlySelected) {
+      const currentExercises = exercisesPerDay[activeDay] || [];
+      if (currentExercises.length > 0) {
+        const newExercisesForTarget = currentExercises.map(ex => ({
+          ...ex,
+          id: Date.now() + Math.random() // Unique IDs for copies
+        }));
+
+        setExercisesPerDay(prev => ({
+          ...prev,
+          [targetDay]: [...(prev[targetDay] || []), ...newExercisesForTarget]
+        }));
+
+        toast.success(`Copied ${currentExercises.length} exercises to ${targetDay}`);
+      }
+    }
   };
 
   const handleAddExercise = () => {
     if (!currentExercise.category || !currentExercise.exercise) {
-      alert("Please fill in Category and Exercise");
+      toast.error("Please fill in Category and Exercise");
       return;
     }
     const newExercise = { ...currentExercise, id: Date.now() };
-    setExercisesPerDay(prev => ({
-      ...prev,
-      [activeDay]: [...prev[activeDay], newExercise]
-    }));
+
+    setExercisesPerDay(prev => {
+      const newState = { ...prev };
+
+      // Add to current active day
+      newState[activeDay] = [...newState[activeDay], newExercise];
+
+      // Auto-copy to selected target days for this active day
+      const targets = copyRoutes[activeDay] || [];
+      targets.forEach(targetDay => {
+        // Create a unique instance for the copy
+        const copyExercise = { ...newExercise, id: Date.now() + Math.random() };
+        newState[targetDay] = [...newState[targetDay], copyExercise];
+      });
+
+      if (targets.length > 0) {
+        toast.success(`Added to ${activeDay} and copied to ${targets.length} other days`);
+      } else {
+        toast.success('Exercise added');
+      }
+
+      return newState;
+    });
+
     setCurrentExercise({ category: '', exercise: '', reps: '', sets: '', weight: '' });
   };
 
@@ -279,13 +334,11 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
     if (currentExercise.category && currentExercise.exercise) {
       const pendingExercise = { ...currentExercise, id: Date.now() };
       finalExercises[activeDay] = [...finalExercises[activeDay], pendingExercise];
-    }
 
-    const sourceExercises = finalExercises[activeDay];
-
-    if (sourceExercises.length > 0) {
-      copyToDays.forEach(day => {
-        finalExercises[day] = [...sourceExercises].map(ex => ({ ...ex, id: Date.now() + Math.random() }));
+      // Also apply copy logic for pending exercise if any
+      const targets = copyRoutes[activeDay] || [];
+      targets.forEach(targetDay => {
+        finalExercises[targetDay] = [...finalExercises[targetDay], { ...pendingExercise, id: Date.now() + Math.random() }];
       });
     }
 
@@ -294,8 +347,14 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
       exercises: finalExercises[day] || []
     }));
 
-    const finalName = initialData ? initialData.name : workoutName;
-    const finalPrivacy = initialData ? initialData.privacyMode : privacyMode;
+    // Validate empty schedule
+    if (fullSchedule.every(d => d.exercises.length === 0)) {
+      toast.error("Please add at least one exercise");
+      return;
+    }
+
+    const finalName = localName || workoutName;
+    const finalPrivacy = localPrivacy || privacyMode;
 
     const newWorkout = {
       _id: initialData ? initialData._id : undefined,
@@ -318,7 +377,7 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
         </div>
         <button onClick={onClose}><X size={24} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-400 hover:text-black'} /></button>
       </div>
-      <div className="p-6 grid grid-cols-12 gap-6 max-w-[1600px] mx-auto">
+      <div className="p-6 pb-40 grid grid-cols-12 gap-6 max-w-[1600px] mx-auto">
         <div className="col-span-12 lg:col-span-3">
           <div className={`rounded-lg p-5 border h-fit ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
             <h3 className="flex justify-center text-[15px] font-bold mb-6 uppercase tracking-tight">Assign Members</h3>
@@ -381,8 +440,26 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
           <h2 className="text-[16px] font-black uppercase tracking-tight">Weekly Workout Plan</h2>
           <div className="flex flex-wrap gap-6 border-b border-gray-200 dark:border-white/10 pb-1">
             {days.map(day => (
-              <button key={day} onClick={() => setActiveDay(day)} className={`pb-3 text-[14px] font-bold transition-all relative uppercase tracking-wider ${activeDay === day ? 'text-[#f97316]' : isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-black'}`}>
+              <button
+                key={day}
+                onClick={() => {
+                  setActiveDay(day);
+                }}
+                className={`pb-3 text-[14px] font-bold transition-all relative uppercase tracking-wider flex items-center gap-1 ${activeDay === day ? 'text-[#f97316]' : isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-black'}`}
+              >
                 {day}
+                {/* Show indicator if this day is a target for the currently active day */}
+                {(copyRoutes[activeDay] || []).includes(day) && (
+                  <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-600 px-1.5 py-0.5 rounded ml-1 normal-case font-black animate-pulse">
+                    (Target)
+                  </span>
+                )}
+                {/* Show indicator if this day HAS its own copy targets set */}
+                {(copyRoutes[day] && copyRoutes[day].length > 0) && activeDay !== day && (
+                  <span className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 px-1.5 py-0.5 rounded ml-1 normal-case font-black">
+                    Wait→
+                  </span>
+                )}
                 {activeDay === day && <div className="absolute bottom-0 left-0 w-full h-[3px] bg-[#f97316] rounded-t-full"></div>}
               </button>
             ))}
@@ -391,8 +468,15 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
             <span className={`text-[13px] font-bold uppercase tracking-tight ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Copy To :-</span>
             {days.filter(d => d !== activeDay).map(day => (
               <label key={day} className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" checked={copyToDays.includes(day)} onChange={() => handleCopyToChange(day)} className="w-4 h-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316] cursor-pointer" />
-                <span className={`text-[12px] font-bold transition-colors group-hover:text-[#f97316] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{day}</span>
+                <input
+                  type="checkbox"
+                  checked={(copyRoutes[activeDay] || []).includes(day)}
+                  onChange={() => handleCopyToChange(day)}
+                  className="w-4 h-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316] cursor-pointer"
+                />
+                <span className={`text-[12px] font-bold transition-colors group-hover:text-[#f97316] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {day}
+                </span>
               </label>
             ))}
           </div>
@@ -443,7 +527,7 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <div>
                 <label className="block text-[11px] font-black mb-2 uppercase tracking-widest text-gray-500">Reps</label>
                 <input
@@ -474,17 +558,21 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
                   className={`w-full px-5 py-4 border rounded-xl text-[14px] font-bold outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-[#fcfcfc] border-gray-300 text-black'}`}
                 />
               </div>
+            </div>
+
+            <div className="flex justify-end">
               <button
                 onClick={handleAddExercise}
-                className="bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl text-[13px] font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-600 dark:hover:text-white transition-all shadow-lg active:scale-95"
+                className="bg-black dark:bg-white text-white dark:text-black px-10 py-4 rounded-xl text-[13px] font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-600 dark:hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-2"
               >
+                <Plus size={18} strokeWidth={3} />
                 Add To Plan
               </button>
             </div>
           </div>
         </div>
       </div>
-      <div className={`fixed bottom-0 right-0 w-full p-6 border-t flex justify-end gap-6 bg-white dark:bg-[#1e1e1e] ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+      <div className={`fixed bottom-0 right-0 z-50 w-full p-6 border-t flex justify-end gap-6 bg-white dark:bg-[#1e1e1e] ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
         <button
           onClick={onClose}
           className={`px-10 py-4 rounded-xl text-[13px] font-black uppercase tracking-widest border transition-all ${isDarkMode ? 'border-white/10 text-white hover:bg-white/5' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}

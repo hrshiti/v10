@@ -503,6 +503,7 @@ const Members = () => {
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [isAssignTrainerModalOpen, setIsAssignTrainerModalOpen] = useState(false);
   const [trainers, setTrainers] = useState([]);
+  const [selectedStatus, setSelectedStatus] = useState('All');
 
   const toggleSelectMember = (id) => {
     setSelectedMembers(prev =>
@@ -583,7 +584,8 @@ const Members = () => {
         pageNumber: currentPage,
         pageSize: rowsPerPage,
         keyword: searchQuery,
-        gender: selectedGender === 'Gender' ? '' : selectedGender
+        gender: selectedGender === 'Gender' ? '' : selectedGender,
+        status: selectedStatus === 'All Members' ? '' : (selectedStatus === 'Expiring Soon' ? 'expiringSoon' : (selectedStatus === 'Expired Members' ? 'expired' : (selectedStatus === 'Active Members' ? 'Active' : '')))
       });
 
       const membersRes = await fetch(`${API_BASE_URL}/api/admin/members?${query.toString()}`, { headers });
@@ -618,7 +620,7 @@ const Members = () => {
   useEffect(() => {
     fetchMembers();
     fetchTrainers();
-  }, [currentPage, rowsPerPage, selectedGender]);
+  }, [currentPage, rowsPerPage, selectedGender, selectedStatus]);
 
   const handleSearch = () => {
     setCurrentPage(1);
@@ -628,8 +630,41 @@ const Members = () => {
   const handleClear = () => {
     setSelectedGender('');
     setSearchQuery('');
+    setSelectedStatus('All');
     setCurrentPage(1);
     // fetchData is called via effects
+  };
+
+  const handleDownloadReport = () => {
+    if (!members || members.length === 0) {
+      alert("No members found to download.");
+      return;
+    }
+
+    const headers = ["Member ID", "First Name", "Last Name", "Mobile", "Gender", "Status", "Package", "End Date", "Due Amount"];
+    const csvContent = [
+      headers.join(","),
+      ...members.map(m => [
+        m.memberId,
+        m.firstName,
+        m.lastName,
+        m.mobile,
+        m.gender,
+        m.status,
+        m.packageName,
+        new Date(m.endDate).toLocaleDateString(),
+        m.dueAmount || 0
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Members_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const stats = [
@@ -795,6 +830,58 @@ const Members = () => {
     }
   };
 
+  const handleDeleteMember = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this member? This action cannot be undone.')) return;
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setSuccessMessage('Member deleted successfully!');
+        setShowSuccessNotification(true);
+        setTimeout(() => setShowSuccessNotification(false), 3000);
+        fetchMembers();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to delete member');
+      }
+    } catch (error) {
+      console.error('Error deleting member:', error);
+    }
+  };
+
+  const handleUnfreeze = async (id) => {
+    if (!window.confirm('Are you sure you want to resume this membership?')) return;
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}/unfreeze`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setSuccessMessage('Membership resumed successfully!');
+        setShowSuccessNotification(true);
+        setTimeout(() => setShowSuccessNotification(false), 3000);
+        fetchMembers();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to unfreeze member');
+      }
+    } catch (error) {
+      console.error('Error unfreezing member:', error);
+    }
+  };
+
   return (
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>
       {/* Header */}
@@ -816,11 +903,16 @@ const Members = () => {
           return (
             <div
               key={idx}
+              onClick={() => {
+                setSelectedStatus(stat.label);
+                setCurrentPage(1);
+              }}
               className={`group p-6 rounded-xl flex items-center gap-5 transition-all duration-300 cursor-pointer border
-                ${isDarkMode
-                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
-                  : `bg-white border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
-                }`}
+                ${selectedStatus === stat.label ? `${config.bg} text-white ${config.shadow} border-transparent scale-105` :
+                  (isDarkMode
+                    ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                    : `bg-white border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  )}`}
             >
               <div className={`p-4 rounded-xl transition-all duration-300 
                 ${isDarkMode
@@ -857,9 +949,6 @@ const Members = () => {
             >
               Assign Trainer
             </button>
-            <button className="bg-[#f97316] text-white px-6 py-2 rounded-lg text-[13px] font-black shadow-md hover:bg-orange-600 active:scale-95 transition-all flex items-center gap-2">
-              Send SMS
-            </button>
             <button
               onClick={handleBulkDeactivate}
               className="bg-red-500 text-white px-6 py-2 rounded-lg text-[13px] font-black shadow-md hover:bg-red-600 active:scale-95 transition-all flex items-center gap-2"
@@ -894,25 +983,35 @@ const Members = () => {
           Clear
         </button>
 
-        <div className="relative flex-1 max-w-sm">
-          <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search"
-            className={`w-full pl-12 pr-4 py-2.5 border rounded-xl text-[15px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#f8f9fa] border-gray-200 text-black placeholder:text-gray-400'}`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex items-center gap-2 flex-1 max-w-md">
+          <div className="relative flex-1">
+            <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by Name, ID or Mobile"
+              className={`w-full pl-12 pr-4 py-2.5 border rounded-xl text-[15px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#f8f9fa] border-gray-200 text-black placeholder:text-gray-400'}`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="bg-[#f97316] text-white px-6 py-2.5 rounded-xl text-[14px] font-bold transition-none active:scale-95 shadow-md hover:bg-orange-600 flex items-center gap-2"
+          >
+            <Search size={18} />
+            Search
+          </button>
         </div>
 
         <div className="flex-1" />
 
         <button
-          onClick={() => setIsReportModalOpen(true)}
-          className={`flex items-center gap-3 px-8 py-3.5 border rounded-xl text-[14px] font-bold transition-none active:scale-95 border-gray-200 shadow-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f8f9fa] text-gray-700'}`}
+          onClick={handleDownloadReport}
+          className={`flex items-center gap-3 px-8 py-3.5 border rounded-xl text-[14px] font-bold transition-none active:scale-95 border-gray-200 shadow-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f8f9fa] text-gray-700 hover:bg-gray-100'}`}
         >
           <Download size={20} className="text-gray-400" />
-          Generate XLS Report
+          Download Report
         </button>
       </div>
 
@@ -920,18 +1019,6 @@ const Members = () => {
       <div className={`mt-8 border rounded-xl overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
         <div className="p-6 border-b flex justify-between items-center transition-none bg-white dark:bg-white/5">
           <span className="text-[14px] font-black uppercase text-gray-800 dark:text-gray-200 tracking-wider">Memberships</span>
-          <div className="flex gap-4">
-            <button className={`flex items-center gap-3 px-8 py-2.5 rounded-full text-[13px] font-black transition-none shadow-sm border ${isDarkMode ? 'bg-white/5 text-white border-white/10' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'}`}>
-              <MessageSquare size={16} className="fill-current text-gray-400" />
-              Send SMS (4998)
-              <Send size={16} className="text-gray-400" />
-            </button>
-            <button className={`flex items-center gap-3 px-8 py-2.5 rounded-full text-[13px] font-black transition-none shadow-sm border ${isDarkMode ? 'bg-white/5 text-white border-white/10' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'}`}>
-              <Bell size={16} className="text-gray-400" />
-              Send Notification
-              <Send size={16} className="text-gray-400" />
-            </button>
-          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left whitespace-nowrap">
@@ -950,6 +1037,8 @@ const Members = () => {
                 <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Gender</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Status</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-[11px]">Package</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Duration</th>
+                <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Trainer</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-center text-red-500 text-[11px]">Due</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Expiry Date</th>
                 <th className={`px-4 py-6 border-l dark:border-white/5 w-[80px] text-center text-[11px] sticky right-0 z-20 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-[#fcfcfc]'}`}>Action</th>
@@ -958,7 +1047,10 @@ const Members = () => {
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
               {members.length > 0 ? (
                 members.map((row, idx) => (
-                  <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                  <tr key={idx} className={`border-b transition-none ${isDarkMode
+                    ? (selectedMembers.includes(row._id) ? 'bg-[#f97316]/10 border-white/5' : 'border-white/5 hover:bg-white/5')
+                    : (selectedMembers.includes(row._id) ? 'bg-orange-50 border-orange-100' : 'border-gray-50 hover:bg-gray-50/50')
+                    }`}>
                     <td className="px-4 py-6">
                       <input
                         type="checkbox"
@@ -994,7 +1086,14 @@ const Members = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-6">{row.packageName}</td>
+                    <td className="px-4 py-6">{row.packageId?.name || row.packageName}</td>
+                    <td className="px-4 py-6 text-center">
+                      {row.durationType === 'Months'
+                        ? `${row.durationMonths || row.duration || 0} Months`
+                        : `${row.duration || 0} ${row.durationType || 'Days'}`
+                      }
+                    </td>
+                    <td className="px-4 py-6 text-center">{row.assignedTrainer ? `${row.assignedTrainer.firstName} ${row.assignedTrainer.lastName || ''}` : '-'}</td>
                     <td className="px-4 py-6 text-center text-red-500 font-black">₹{row.dueAmount || 0}</td>
                     <td className="px-4 py-6 text-center">
                       {new Date(row.endDate).toLocaleDateString()}
@@ -1013,8 +1112,10 @@ const Members = () => {
                             {[
                               'View Profile',
                               'Vaccination',
-                              'Schedule Followup'
-                            ].map((action, i) => (
+                              'Schedule Followup',
+                              row.status === 'Frozen' ? 'Unfreeze' : null,
+                              'Delete'
+                            ].filter(Boolean).map((action, i) => (
                               <div key={i}>
                                 {action === 'View Profile' ? (
                                   <div
@@ -1046,6 +1147,26 @@ const Members = () => {
                                     }}
                                     className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
                                       }`}
+                                  >
+                                    {action}
+                                  </div>
+                                ) : action === 'Unfreeze' ? (
+                                  <div
+                                    onClick={() => {
+                                      setActiveActionRow(null);
+                                      handleUnfreeze(row._id);
+                                    }}
+                                    className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 ${isDarkMode ? 'border-white/5' : 'border-gray-50'}`}
+                                  >
+                                    {action}
+                                  </div>
+                                ) : action === 'Delete' ? (
+                                  <div
+                                    onClick={() => {
+                                      setActiveActionRow(null);
+                                      handleDeleteMember(row._id);
+                                    }}
+                                    className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 ${isDarkMode ? 'border-white/5' : 'border-gray-50'}`}
                                   >
                                     {action}
                                   </div>

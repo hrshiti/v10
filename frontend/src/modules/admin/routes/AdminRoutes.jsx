@@ -48,6 +48,8 @@ import SlotManagement from '../business-settings/slot-management/SlotManagement'
 import GymDetails from '../settings/gym-details/GymDetails';
 import Biometric from '../settings/biometric/Biometric';
 import AccessControl from '../business-settings/team/access-control/AccessControl';
+import SuccessStoryManagement from '../success-stories/SuccessStoryManagement';
+import WorkoutLibraryManagement from '../workouts-library/WorkoutLibraryManagement';
 
 import AdminProtectedRoute from '../components/AdminProtectedRoute';
 import Login from '../auth/Login';
@@ -67,6 +69,7 @@ const AdminRoutes = () => {
                     <Route path="follow-ups" element={<FollowUps />} />
 
                     <Route path="members">
+                        <Route index element={<Navigate to="list" replace />} />
                         <Route path="list" element={<Members />} />
                         <Route path="add" element={<AddMember />} />
                         <Route path="memberships" element={<Memberships />} />
@@ -98,10 +101,12 @@ const AdminRoutes = () => {
                     </Route>
 
                     <Route path="feedback" element={<FeedbackManagement />} />
+                    <Route path="success-stories" element={<SuccessStoryManagement />} />
+                    <Route path="workout-library" element={<WorkoutLibraryManagement />} />
                     <Route path="diet-plan" element={<DietPlanManagement />} />
 
                     <Route path="reports">
-                        {/* <Route path="sales" element={<SalesReport />} /> */}
+                        <Route path="sales" element={<SalesReport />} />
                         <Route path="balance-due" element={<BalanceDueReport />} />
                         <Route path="attendance" element={<AttendanceReport />} />
                         <Route path="expired" element={<ExpiredMemberReport />} />

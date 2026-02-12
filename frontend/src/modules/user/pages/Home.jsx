@@ -3,12 +3,15 @@ import {
     Users,
     Flame,
     User,
-    CheckCircle2
+    CheckCircle2,
+    Trophy
 } from 'lucide-react';
 import ProgressCard from '../components/ProgressCard';
 import RecommendationCard from '../components/RecommendationCard';
+import SuccessStoryCard from '../components/SuccessStoryCard';
 import WaterTracker from '../components/WaterTracker';
 import DietPlanSection from '../components/DietPlanSection';
+import BMICalculator from '../components/BMICalculator';
 import logo from '../../../assets/logo.jpg';
 import { API_BASE_URL } from '../../../config/api';
 
@@ -17,8 +20,12 @@ const Home = () => {
         totalMembers: 0,
         activeMembers: 0,
         todayAttendance: 0,
+        activeInGym: 0,
+        activeTrainers: 0,
         userStatus: { isPresent: false, type: null }
     });
+    const [stories, setStories] = useState([]);
+    const [loadingStories, setLoadingStories] = useState(true);
 
     // Get user data from localStorage
     const userDataStr = localStorage.getItem('userData');
@@ -30,6 +37,7 @@ const Home = () => {
 
     useEffect(() => {
         fetchStats();
+        fetchStories();
     }, []);
 
     const fetchStats = async () => {
@@ -46,6 +54,23 @@ const Home = () => {
             }
         } catch (error) {
             console.error('Error fetching home stats:', error);
+        }
+    };
+
+    const fetchStories = async () => {
+        try {
+            const token = localStorage.getItem('userToken');
+            const response = await fetch(`${API_BASE_URL}/api/user/trainer/stories`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setStories(data);
+            }
+        } catch (error) {
+            console.error('Error fetching stories:', error);
+        } finally {
+            setLoadingStories(false);
         }
     };
 
@@ -67,16 +92,7 @@ const Home = () => {
             tagColor: '#F59E0B', // amber-500
             tagBg: '#FEF3C7', // amber-100
             image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&q=80&w=200&h=200'
-        },
-        {
-            title: 'Biceps curl',
-            duration: '2 hours',
-            level: 'Pro',
-            tag: 'Strength',
-            tagColor: '#8B5CF6', // violet-500
-            tagBg: '#EDE9FE', // violet-100
-            image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&q=80&w=200&h=200'
-        },
+        }
     ];
 
     return (
@@ -129,34 +145,27 @@ const Home = () => {
                     </div>
                     {stats.userStatus.isPresent && (
                         <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border animate-in fade-in slide-in-from-right-4 
-                            ${stats.userStatus.type === 'checkin'
+                            ${stats.userStatus.isSessionActive
                                 ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
                                 : 'bg-blue-500/20 border-blue-500/50 text-blue-400'}`}>
-                            {stats.userStatus.type === 'checkin' ? '• Checked In' : '• Session Done'}
+                            {stats.userStatus.isSessionActive ? '• Active Session' : '• Session Done'}
                         </div>
                     )}
                 </div>
 
                 {/* Stats Row (Pills) */}
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2 w-full max-w-full">
-
-                    {/* Active Members Pill */}
                     <div className="flex-shrink-0 flex items-center gap-1.5 bg-[#252A36] px-3 py-2 rounded-xl border border-white/5 shadow-sm">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse"></div>
-                        <span className="text-[9px] text-gray-300 font-bold uppercase tracking-wider whitespace-nowrap">Active: <span className="text-white">{stats.activeMembers}</span></span>
+                        <Flame size={10} className="text-orange-500 fill-orange-500 animate-pulse" />
+                        <span className="text-[9px] text-gray-300 font-bold uppercase tracking-wider whitespace-nowrap">Active in Gym: <span className="text-white">{stats.activeInGym}</span></span>
                     </div>
 
-                    {/* Today Present Pill */}
-                    <div className="flex-shrink-0 flex items-center gap-1.5 bg-[#252A36] px-3 py-2 rounded-xl border border-white/5 shadow-sm">
-                        <CheckCircle2 size={10} className="text-blue-400" />
-                        <span className="text-[9px] text-gray-300 font-bold uppercase tracking-wider whitespace-nowrap">Today: <span className="text-white">{stats.todayAttendance}</span></span>
-                    </div>
-
-                    {/* Total Members Pill */}
-                    <div className="flex-shrink-0 flex items-center gap-1.5 bg-[#252A36] px-3 py-2 rounded-xl border border-white/5 shadow-sm">
-                        <Users size={10} className="text-gray-400" />
-                        <span className="text-[9px] text-gray-300 font-bold uppercase tracking-wider whitespace-nowrap">Total: <span className="text-white">{stats.totalMembers}</span></span>
-                    </div>
+                    {stats.activeTrainers > 0 && (
+                        <div className="flex-shrink-0 flex items-center gap-1.5 bg-[#252A36] px-3 py-2 rounded-xl border border-white/5 shadow-sm">
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <span className="text-[9px] text-gray-300 font-bold uppercase tracking-wider whitespace-nowrap">Trainers Active: <span className="text-white">{stats.activeTrainers}</span></span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -165,30 +174,57 @@ const Home = () => {
                 <ProgressCard />
             </div>
 
+            {/* BMI Calculator */}
+            <div className="px-5">
+                <BMICalculator />
+            </div>
+
+            {/* Transformation Highlights (Social Style) */}
+            <div className="px-5 mt-6 mb-8">
+                <div className="flex items-center justify-between mb-5 px-1">
+                    <h2 className="text-xl font-black text-gray-900 dark:text-white transition-colors duration-300 flex items-center gap-2">
+                        <Trophy size={20} className="text-amber-500" />
+                        Transformation Lab
+                    </h2>
+                    {stories.length > 0 && (
+                        <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                                Live News
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide snap-x snap-mandatory">
+                    {stories.length > 0 ? (
+                        stories.map((story) => (
+                            <div key={story._id} className="w-[88%] flex-shrink-0 snap-center">
+                                <SuccessStoryCard
+                                    story={story}
+                                />
+                            </div>
+                        ))
+                    ) : (
+                        <div className="w-full flex flex-col gap-4">
+                            {recommendations.map((item, index) => (
+                                <RecommendationCard
+                                    key={index}
+                                    {...item}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Diet Plan Section */}
-            {/* Diet Plan Section */}
-            <div className="px-5 flex-grow">
+            <div className="px-5">
                 <DietPlanSection />
                 <div className="mt-6">
                     <WaterTracker />
                 </div>
             </div>
-
-            {/* Recommendation Section */}
-            <div className="px-5 mt-4 mb-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 px-1 transition-colors duration-300">Recommendation</h2>
-                <div className="flex flex-col gap-3">
-                    {recommendations.map((item, index) => (
-                        <RecommendationCard
-                            key={index}
-                            {...item}
-                        />
-                    ))}
-                </div>
-            </div>
-
-            {/* Modal */}
-
         </div>
     );
 };

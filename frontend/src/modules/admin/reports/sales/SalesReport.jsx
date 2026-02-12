@@ -9,7 +9,8 @@ import {
   Wallet,
   CreditCard,
   Banknote,
-  DollarSign
+  DollarSign,
+  Loader2
 } from 'lucide-react';
 import { API_BASE_URL } from '../../../../config/api';
 import { useOutletContext } from 'react-router-dom';
@@ -144,6 +145,8 @@ const SalesReport = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [exportData, setExportData] = useState([]);
+  const [isExportLoading, setIsExportLoading] = useState(false);
 
   const [stats, setStats] = useState({
     invoiceCount: 0,
@@ -210,6 +213,76 @@ const SalesReport = () => {
     }
   };
 
+  const fetchExportData = async () => {
+    setIsExportLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const queryParams = new URLSearchParams({
+        pageNumber: 1,
+        pageSize: 10000, // Fetch a large number for export
+        fromDate: fromDate?.split('-').reverse().join('-') || '',
+        toDate: toDate?.split('-').reverse().join('-') || '',
+        search: searchQuery,
+      });
+
+      if (filterValues['Select Sale Type']) queryParams.append('type', filterValues['Select Sale Type']);
+      if (filterValues['Payment Mode']) queryParams.append('paymentMode', filterValues['Payment Mode']);
+
+      if (filterValues['Select Trainer']) {
+        const t = trainers.find(t => `${t.firstName} ${t.lastName}` === filterValues['Select Trainer']);
+        if (t) queryParams.append('trainer', t._id);
+      }
+      if (filterValues['Select Closed By']) {
+        const e = employees.find(e => `${e.firstName} ${e.lastName}` === filterValues['Select Closed By']);
+        if (e) queryParams.append('closedBy', e._id);
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/sales?${queryParams.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+
+      // format data for export
+      const formatted = (data.sales || []).map(row => ({
+        'Client Id': row.memberId?.memberId || 'N/A',
+        'Name': `${row.memberId?.firstName || ''} ${row.memberId?.lastName || ''}`,
+        'Mobile': row.memberId?.mobile || 'N/A',
+        'Membership Type': row.type?.includes('PT') ? 'Personal Training' : 'General Training',
+        'Plan Name': row.memberId?.packageName || '-',
+        'Start Date': row.memberId?.startDate ? new Date(row.memberId.startDate).toLocaleDateString() : 'N/A',
+        'Duration': row.memberId?.durationType === 'Months'
+          ? `${row.memberId?.durationMonths || row.memberId?.duration || 0} Months`
+          : `${row.memberId?.duration || 0} ${row.memberId?.durationType || 'Days'}`,
+        'Invoice Number': row.invoiceNumber || 'N/A',
+        'Paid Amount': row.amount || 0,
+        'SGST': (row.taxAmount / 2).toFixed(2),
+        'CGST': (row.taxAmount / 2).toFixed(2),
+        'Payment Mode': row.paymentMode === 'Split'
+          ? `Split (Cash: ${row.splitPayment?.cash}, Online: ${row.splitPayment?.online})`
+          : (row.paymentMode || 'N/A'),
+        'Invoice Amount': row.subTotal || row.amount || 0,
+        'Discount': row.discountAmount || 0,
+        'Closed By': `${row.closedBy?.firstName || ''} ${row.closedBy?.lastName || ''}`,
+        'Handled By': `${row.trainerId?.firstName || ''} ${row.trainerId?.lastName || ''}`,
+        'Invoice Date': new Date(row.date).toLocaleDateString(),
+        'Payment Date': new Date(row.date).toLocaleDateString(),
+        'Sale Type': row.type || 'N/A',
+        'Remarks': row.description || ''
+      }));
+
+      setExportData(formatted);
+      setIsReportModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching export data:", error);
+    } finally {
+      setIsExportLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchSalesData();
   }, [currentPage, rowsPerPage]); // Fetch on page change
@@ -222,8 +295,8 @@ const SalesReport = () => {
   const handleClearFilters = () => {
     setFilterValues({});
     setSearchQuery('');
-    setFromDate('01-02-2026'); // Reset to default or today
-    setToDate('01-02-2026');
+    setFromDate(todayStr);
+    setToDate(todayStr);
     setCurrentPage(1);
     setTimeout(fetchSalesData, 100);
   };
@@ -231,10 +304,11 @@ const SalesReport = () => {
   const statCards = [
     { label: 'Invoice Generated', value: stats.invoiceCount || 0 },
     { label: 'Total Amount', value: `₹${stats.totalAmount?.toFixed(2) || '0.00'}` },
-    { label: 'Paid Amount', value: `₹${stats.totalAmount?.toFixed(2) || '0.00'}` }, // Assuming totalAmount is paid amount for now
     { label: 'Tax Amount', value: `₹${stats.taxAmount?.toFixed(2) || '0.00'}` },
-    { label: 'Online', value: `₹${stats.onlineTotal?.toFixed(2) || '0.00'}` },
     { label: 'Cash', value: `₹${stats.cashTotal?.toFixed(2) || '0.00'}` },
+    { label: 'UPI / Online', value: `₹${stats.upiTotal?.toFixed(2) || '0.00'}` },
+    { label: 'Card Payment', value: `₹${stats.cardTotal?.toFixed(2) || '0.00'}` },
+    { label: 'Cheque', value: `₹${stats.chequeTotal?.toFixed(2) || '0.00'}` },
   ];
 
   const salesTypeRender = (type) => {
@@ -250,16 +324,15 @@ const SalesReport = () => {
       {/* Header */}
       <h1 className="text-[28px] font-black tracking-tight">Sales Report</h1>
 
-      {/* Stats Cards Grid - Matching Image 1 */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 transition-none">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 transition-none">
         {statCards.map((stat, idx) => (
           <div key={idx} className={`p-4 rounded-lg flex items-center gap-4 border transition-none min-h-[90px] ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-[#fcfcfc] border-gray-100 shadow-sm'}`}>
-            <div className={`p-3 rounded-lg bg-gray-100/50 dark:bg-white/5`}>
-              <Wallet size={24} className="text-gray-300" />
+            <div className={`p-2.5 rounded-lg bg-gray-100/50 dark:bg-white/5`}>
+              <Wallet size={20} className="text-gray-400" />
             </div>
-            <div>
-              <p className="text-[20px] font-black leading-none mb-1">{stat.value}</p>
-              <p className="text-[12px] font-bold text-gray-500 uppercase tracking-tight">{stat.label}</p>
+            <div className="min-w-0">
+              <p className="text-[16px] font-black leading-none mb-1 truncate">{stat.value}</p>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight truncate">{stat.label}</p>
             </div>
           </div>
         ))}
@@ -312,11 +385,21 @@ const SalesReport = () => {
             />
           </div>
           <button
-            onClick={() => setIsReportModalOpen(true)}
+            onClick={fetchExportData}
+            disabled={isExportLoading}
             className={`flex items-center gap-2 px-8 py-3.5 border rounded-lg text-[14px] font-black transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-100 shadow-md text-gray-700'}`}
           >
-            <Download size={20} className="text-gray-600" />
-            Generate XLS Report
+            {isExportLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 size={18} className="animate-spin" />
+                Preparing...
+              </div>
+            ) : (
+              <>
+                <Download size={20} className="text-gray-600" />
+                Generate XLS Report
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -358,6 +441,7 @@ const SalesReport = () => {
                 <th className="px-6 py-5">Payment Date</th>
                 <th className="px-6 py-5">Assign Trainer</th>
                 <th className="px-6 py-5">Sale Types</th>
+                <th className="px-6 py-5">Remarks</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -370,30 +454,45 @@ const SalesReport = () => {
                   <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                     <td className="px-6 py-8">{row.memberId?.memberId || 'N/A'}</td>
                     <td className="px-6 py-8">
-                      <div className="flex flex-col">
-                        <span className="text-[#3b82f6] uppercase font-black cursor-pointer hover:underline">
-                          {row.memberId?.firstName} {row.memberId?.lastName}
-                        </span>
-                        <span className="text-[#3b82f6] text-[12px] mt-0.5">{row.memberId?.mobile}</span>
+                      <div
+                        onClick={() => navigate(`/admin/members/profile/${row.memberId?._id}/memberships`)}
+                        className="flex flex-col cursor-pointer group/name"
+                      >
+                        <span className="text-[#3b82f6] uppercase font-black group-hover/name:underline">{row.memberId?.firstName} {row.memberId?.lastName}</span>
+                        <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.memberId?.mobile}</span>
                       </div>
                     </td>
                     <td className="px-6 py-8">
                       <div className="px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-orange-600 text-[13px] font-black inline-block">
-                        {row.type?.includes('PT') ? 'Personal Training' : 'General Training'}
+                        {row.membershipType || (row.type?.includes('PT') ? 'Personal Training' : 'General Training')}
                       </div>
                     </td>
                     <td className="px-6 py-8">
                       <div className="px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-orange-600 text-[13px] font-black inline-block">
-                        {row.memberId?.packageName || row.description}
+                        {row.packageName || row.memberId?.packageName || '-'}
                       </div>
                     </td>
                     <td className="px-6 py-8">{row.memberId?.startDate ? new Date(row.memberId.startDate).toLocaleDateString() : '-'}</td>
-                    <td className="px-6 py-8 text-center">{row.memberId?.durationMonths || 0} Months</td>
+                    <td className="px-6 py-8 text-center">
+                      {row.memberId?.durationType === 'Months'
+                        ? `${row.memberId?.durationMonths || row.memberId?.duration || 0} Months`
+                        : `${row.memberId?.duration || 0} ${row.memberId?.durationType || 'Days'}`
+                      }
+                    </td>
                     <td className="px-6 py-8 text-blue-500 font-black cursor-pointer hover:underline">{row.invoiceNumber}</td>
                     <td className="px-6 py-8 font-black">₹{row.amount}</td>
                     <td className="px-6 py-8 font-black">₹{(row.taxAmount / 2).toFixed(2)}</td>
                     <td className="px-6 py-8 font-black">₹{(row.taxAmount / 2).toFixed(2)}</td>
-                    <td className="px-6 py-8 text-center">{row.paymentMode}</td>
+                    <td className="px-6 py-8 text-center">
+                      {row.paymentMode === 'Split' ? (
+                        <div className="flex flex-col items-center justify-center">
+                          <span className="text-orange-600 font-black px-2 py-0.5 bg-orange-50 border border-orange-200 rounded text-[11px]">Split</span>
+                          <span className="text-[10px] text-gray-500 font-bold mt-1 leading-none">C: ₹{row.splitPayment?.cash} | O: ₹{row.splitPayment?.online}</span>
+                        </div>
+                      ) : (
+                        row.paymentMode
+                      )}
+                    </td>
                     <td className="px-6 py-8 font-black">₹{row.subTotal || row.amount}</td>
                     <td className="px-6 py-8 font-black">₹{row.discountAmount || 0}</td>
                     <td className="px-6 py-8 font-black text-red-500">₹0</td> {/* Assuming balance handled in dues report */}
@@ -407,6 +506,7 @@ const SalesReport = () => {
                     <td className="px-6 py-8">{new Date(row.date).toLocaleDateString()}</td>
                     <td className="px-6 py-8">{row.trainerId?.firstName} {row.trainerId?.lastName}</td>
                     <td className="px-6 py-8 text-gray-500">{salesTypeRender(row.type)}</td>
+                    <td className="px-6 py-8 text-gray-500 whitespace-normal min-w-[200px]">{row.description || '-'}</td>
                   </tr>
                 ))
               )}
@@ -417,9 +517,21 @@ const SalesReport = () => {
         {/* Pagination Section - Matching Image 2 */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2 transition-none">
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
+            >
+              « Previous
+            </button>
+            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">
@@ -452,7 +564,12 @@ const SalesReport = () => {
 
       <GenerateReportModal
         isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setExportData([]);
+        }}
+        data={exportData}
+        filename={`Sales_Report_${fromDate}_to_${toDate}`}
         isDarkMode={isDarkMode}
       />
     </div>

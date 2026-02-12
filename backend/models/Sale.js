@@ -15,13 +15,25 @@ const saleSchema = new mongoose.Schema({
 
     // Meta
     type: { type: String, required: true }, // 'New Membership', 'Renewal', 'PT', 'Product'
+    membershipType: {
+        type: String,
+        enum: ['General Training', 'Personal Training'],
+        default: 'General Training'
+    },
     date: { type: Date, default: Date.now },
     paymentMode: { type: String, default: 'Cash' }, // Cash, UPI, Card
+
+    packageName: { type: String },
+    packageId: { type: mongoose.Schema.Types.ObjectId, ref: 'Package' },
 
     // Staff Links
     trainerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }, // Link to Employee
     closedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }, // Link to Employee
-    transactionId: { type: String } // For UPI/Online payments
+    transactionId: { type: String }, // For UPI/Online payments
+    splitPayment: {
+        cash: { type: Number, default: 0 },
+        online: { type: Number, default: 0 }
+    }
 }, { timestamps: true });
 
 // Auto-generate Invoice Number

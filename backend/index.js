@@ -4,6 +4,7 @@ const connectDB = require('./config/db');
 const path = require('path');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const rateLimit = require('express-rate-limit');
 
 // Load env vars
 // Load env vars
@@ -17,16 +18,18 @@ const app = express();
 
 // Middleware
 const allowedOrigins = [
-    'https://v10-fitness.netlify.app',
     'http://localhost:5173',
+    'https://v10-five-xi.vercel.app',
     'http://localhost:5174',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5174',
     'http://127.0.0.1:3000',
+
     'https://www.v10fitnesslab.in',
     'v10fitnesslab.in'
-];
+]
+
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -47,6 +50,23 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Static Folders
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/v10_profiles', express.static(path.join(__dirname, 'v10_profiles')));
+
+
+
+// Rate Limiting
+const limiter = rateLimit({
+    windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000, // 15 minutes
+    max: process.env.RATE_LIMIT_MAX || 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later',
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+app.use(limiter);
+
 // Routes
 // Admin Routes
 app.use('/api/admin/auth', require('./routes/admin/authRoutes'));
@@ -63,6 +83,8 @@ app.use('/api/admin/diet-plans', require('./routes/admin/dietRoutes'));
 app.use('/api/admin/follow-ups', require('./routes/admin/followUpRoutes'));
 app.use('/api/admin/expenses', require('./routes/admin/expenseRoutes'));
 app.use('/api/admin/gym-details', require('./routes/admin/gymRoutes'));
+app.use('/api/admin/stories', require('./routes/admin/storyRoutes'));
+app.use('/api/admin/workout-library', require('./routes/admin/workoutLibraryRoutes'));
 
 // User Routes
 app.use('/api/user/auth', require('./routes/user/authRoutes'));

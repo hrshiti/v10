@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, PlayCircle, Clock, Zap } from 'lucide-react';
+import { Search, PlayCircle, Clock, Zap, Dumbbell } from 'lucide-react';
 import { API_BASE_URL } from '../../../config/api';
 
 const Workouts = () => {
@@ -8,49 +8,50 @@ const Workouts = () => {
     const [activeCategory, setActiveCategory] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
     const [myWorkouts, setMyWorkouts] = useState([]);
+    const [libraryWorkouts, setLibraryWorkouts] = useState([]);
     const [loading, setLoading] = useState(true);
 
     React.useEffect(() => {
-        const fetchMyWorkouts = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/user/workouts`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('userToken')}`
-                    }
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    setMyWorkouts(data);
-                }
+                const token = localStorage.getItem('userToken');
+                const [myRes, libRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/user/workouts`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`${API_BASE_URL}/api/user/workout-library`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+
+                if (myRes.ok) setMyWorkouts(await myRes.json());
+                if (libRes.ok) setLibraryWorkouts(await libRes.json());
+
             } catch (err) {
-                console.error('Error fetching workouts:', err);
+                console.error('Error fetching data:', err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchMyWorkouts();
+        fetchData();
     }, []);
 
-    const categories = ['All', 'Cardio', 'Strength', 'Yoga', 'HIIT'];
-
-    // Mock Database
-    const workoutsData = [
-        { id: 1, title: 'Full Body HIIT', category: 'HIIT', duration: '25 min', intensity: 'High', image: 'https://images.unsplash.com/photo-1601422407692-ec4eeec1d9b3?q=80&w=400&auto=format&fit=crop' },
-        { id: 2, title: 'Yoga Flow', category: 'Yoga', duration: '45 min', intensity: 'Low', image: 'https://images.unsplash.com/photo-1544367563-121955b75268?q=80&w=400&auto=format&fit=crop' },
-        { id: 3, title: 'Upper Body Power', category: 'Strength', duration: '30 min', intensity: 'Medium', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=400&auto=format&fit=crop' },
-        { id: 4, title: 'Cardio Blast', category: 'Cardio', duration: '20 min', intensity: 'High', image: 'https://images.unsplash.com/photo-1538805060504-d1d52d9557a0?q=80&w=400&auto=format&fit=crop' },
-        { id: 5, title: 'Pilates Core', category: 'Strength', duration: '40 min', intensity: 'Low', image: 'https://images.unsplash.com/photo-1518602164578-cd0074062767?q=80&w=400&auto=format&fit=crop' },
-        { id: 6, title: 'Extreme Shred', category: 'HIIT', duration: '35 min', intensity: 'Very High', image: 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=400&auto=format&fit=crop' },
-        { id: 7, title: 'Runner High', category: 'Cardio', duration: '15 min', intensity: 'Medium', image: 'https://images.unsplash.com/photo-1552674605-46d536d2325c?q=80&w=400&auto=format&fit=crop' },
-        { id: 8, title: 'Power Lifting', category: 'Strength', duration: '60 min', intensity: 'High', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&auto=format&fit=crop' },
-    ];
+    const categories = ['All', 'Cardio', 'Strength', 'Yoga', 'HIIT', 'Pilates', 'Functional'];
 
     // Filter Logic
-    const filteredWorkouts = workoutsData.filter(workout => {
+    const filteredWorkouts = libraryWorkouts.filter(workout => {
         const matchesCategory = activeCategory === 'All' || workout.category === activeCategory;
         const matchesSearch = workout.title.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesCategory && matchesSearch;
     });
+
+    const getImageUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith('http')) return path;
+        const normalizedPath = path.replace(/\\/g, '/');
+        const cleanPath = normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath;
+        return `${API_BASE_URL}/${cleanPath}`;
+    };
 
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-[#121212] min-h-screen transition-colors duration-300">
@@ -129,29 +130,47 @@ const Workouts = () => {
                     <div className="grid grid-cols-2 gap-4">
                         {filteredWorkouts.map((workout) => (
                             <div
-                                key={workout.id}
-                                onClick={() => navigate(`/workout/${workout.id}`)}
-                                className="bg-white dark:bg-[#1A1F2B] p-3 rounded-[1.5rem] shadow-sm border border-gray-100 dark:border-gray-800 relative group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                                key={workout._id}
+                                onClick={() => navigate(`/workout/${workout._id}`)}
+                                className="bg-white dark:bg-[#1A1F2B] p-2.5 rounded-[1.8rem] shadow-sm border border-gray-100 dark:border-gray-800/50 relative group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
                             >
-                                <div className="bg-gray-100 dark:bg-gray-800 h-32 rounded-2xl mb-3 relative overflow-hidden">
-                                    <img src={workout.image} alt={workout.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                <div className="bg-gray-100 dark:bg-gray-800 h-32 rounded-3xl mb-3 relative overflow-hidden shrink-0">
+                                    <img src={workout.images?.[0] ? getImageUrl(workout.images[0]) : 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&auto=format&fit=crop'} alt={workout.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                     {/* Overlay */}
-                                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                        <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30">
                                             <PlayCircle className="text-white fill-white" size={20} />
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className="px-1">
-                                    <h3 className="font-bold text-gray-900 dark:text-white leading-tight mb-1 line-clamp-1">{workout.title}</h3>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                                    <div className="absolute top-2 left-2">
+                                        <span className="bg-black/40 backdrop-blur-md text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-white/10 tracking-widest">
                                             {workout.category}
                                         </span>
-                                        <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-0.5">
-                                            <Zap size={10} fill="currentColor" /> {workout.intensity}
-                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="px-1 flex-1 flex flex-col justify-between gap-3">
+                                    <h3 className="font-black text-gray-900 dark:text-white leading-none text-sm uppercase tracking-tight line-clamp-1">{workout.title}</h3>
+
+                                    <div className="grid grid-cols-2 gap-1.5 pb-1">
+                                        <div className="flex items-center gap-1.5 text-gray-400">
+                                            <div className="w-5 h-5 rounded-md bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                                                <Dumbbell size={10} className="text-emerald-500" />
+                                            </div>
+                                            <span className="text-[10px] font-bold dark:text-gray-300 truncate">{workout.sets || '3'} Sets</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-gray-400">
+                                            <div className="w-5 h-5 rounded-md bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                                                <Zap size={10} className="text-amber-500" />
+                                            </div>
+                                            <span className="text-[10px] font-bold dark:text-gray-300 truncate">{workout.reps || '12'} Reps</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-gray-400 col-span-2 mt-0.5">
+                                            <div className="w-5 h-5 rounded-md bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                                                <Clock size={10} className="text-blue-500" />
+                                            </div>
+                                            <span className="text-[10px] font-bold dark:text-gray-300">{workout.duration || '20m'}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -6,20 +6,29 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  User
+  User,
+  Loader2
 } from 'lucide-react';
 import { API_BASE_URL } from '../../../../config/api';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
 
 const PtReport = () => {
   const { isDarkMode } = useOutletContext();
+  const navigate = useNavigate();
   const tableContainerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [fromDate, setFromDate] = useState('01-01-2026');
-  const [toDate, setToDate] = useState('31-01-2026');
-  const [selectedTrainer, setSelectedTrainer] = useState('Select Trainer');
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date();
+    return `01-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
+  });
+  const [toDate, setToDate] = useState(() => {
+    const d = new Date();
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    return `${lastDay}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
+  });
+  const [selectedTrainer, setSelectedTrainer] = useState({ id: 'all', name: 'Select Trainer' });
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isTrainerDropdownOpen, setIsTrainerDropdownOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -39,7 +48,7 @@ const PtReport = () => {
         });
         if (res.ok) {
           const data = await res.json();
-          setTrainers(data.map(t => `${t.firstName} ${t.lastName}`));
+          setTrainers(data);
         }
       } catch (error) {
         console.error("Error fetching trainers:", error);
@@ -50,6 +59,10 @@ const PtReport = () => {
 
   const [ptData, setPtData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [exportData, setExportData] = useState([]);
+  const [isExportLoading, setIsExportLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchPtData = async () => {
     setIsLoading(true);
@@ -62,8 +75,14 @@ const PtReport = () => {
         type: 'PT',
         fromDate: fromDate?.split('-').reverse().join('-') || '',
         toDate: toDate?.split('-').reverse().join('-') || '',
-        search: searchQuery
+        search: searchQuery,
+        pageNumber: currentPage,
+        pageSize: rowsPerPage
       });
+
+      if (selectedTrainer.id !== 'all') {
+        queryParams.append('trainer', selectedTrainer.id);
+      }
 
       const res = await fetch(`${API_BASE_URL}/api/admin/reports/sales?${queryParams.toString()}`, {
         headers: {
@@ -74,22 +93,70 @@ const PtReport = () => {
       if (res.ok) {
         const data = await res.json();
         const transformed = (data.sales || []).map(sale => ({
+          id: sale.memberId?._id,
           trainerName: sale.trainerId ? `${sale.trainerId.firstName} ${sale.trainerId.lastName}` : 'N/A',
           customerName: sale.memberId ? `${sale.memberId.firstName} ${sale.memberId.lastName}` : 'N/A',
           customerNumber: sale.memberId ? sale.memberId.mobile : 'N/A',
           startDate: sale.memberId?.startDate ? new Date(sale.memberId.startDate).toLocaleDateString() : 'N/A',
           endDate: sale.memberId?.endDate ? new Date(sale.memberId.endDate).toLocaleDateString() : 'N/A',
-          totalSession: '-',
-          attendedSession: '-',
           amount: sale.amount,
           status: 'Paid'
         }));
         setPtData(transformed);
+        setTotalPages(data.pages || 1);
       }
     } catch (error) {
       console.error("Error fetching PT data:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPtData();
+  }, [fromDate, toDate, currentPage, rowsPerPage]);
+
+  const fetchExportData = async () => {
+    setIsExportLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const queryParams = new URLSearchParams({
+        type: 'PT',
+        fromDate: fromDate?.split('-').reverse().join('-') || '',
+        toDate: toDate?.split('-').reverse().join('-') || '',
+        search: searchQuery,
+        pageSize: 10000 // All records
+      });
+
+      if (selectedTrainer.id !== 'all') {
+        queryParams.append('trainer', selectedTrainer.id);
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/sales?${queryParams.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = (data.sales || []).map(sale => ({
+          'Trainer Name': sale.trainerId ? `${sale.trainerId.firstName} ${sale.trainerId.lastName}` : 'N/A',
+          'Customer Name': sale.memberId ? `${sale.memberId.firstName} ${sale.memberId.lastName}` : 'N/A',
+          'Customer Number': sale.memberId ? sale.memberId.mobile : 'N/A',
+          'Start Date': sale.memberId?.startDate ? new Date(sale.memberId.startDate).toLocaleDateString() : 'N/A',
+          'Expiry Date': sale.memberId?.endDate ? new Date(sale.memberId.endDate).toLocaleDateString() : 'N/A',
+          'Amount': sale.amount,
+          'Status': 'Paid'
+        }));
+        setExportData(formatted);
+        setIsReportModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error fetching export data:", error);
+    } finally {
+      setIsExportLoading(false);
     }
   };
 
@@ -103,17 +170,19 @@ const PtReport = () => {
 
   const handleClear = () => {
     setSearchQuery('');
-    setFromDate('01-01-2026');
-    setToDate('31-01-2026');
-    setSelectedTrainer('Select Trainer');
+    const d = new Date();
+    const firstDay = `01-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
+    const lastDayNum = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    const lastDay = `${lastDayNum}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
+
+    setFromDate(firstDay);
+    setToDate(lastDay);
+    setSelectedTrainer({ id: 'all', name: 'Select Trainer' });
     setTimeout(fetchPtData, 100);
   };
 
-  const filteredData = ptData.filter(item =>
-    item.trainerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.customerNumber.includes(searchQuery)
-  );
+  const filteredData = ptData;
+  // Filtering is now handled on backend via fetchPtData
 
   const stats = [
     { label: 'Total PT', value: ptData.length.toString(), icon: User, theme: 'blue' },
@@ -184,22 +253,31 @@ const PtReport = () => {
                 : isTrainerDropdownOpen ? 'border-[#f97316] text-[#f97316] bg-white' : 'bg-white border-gray-200 text-gray-500 shadow-sm'
                 }`}
             >
-              <span className="text-[14px] font-bold">{selectedTrainer}</span>
+              <span className="text-[14px] font-bold">{selectedTrainer.name}</span>
               <ChevronDown size={14} className={isTrainerDropdownOpen ? 'text-[#f97316]' : 'text-gray-400'} />
             </div>
 
             {isTrainerDropdownOpen && (
               <div className={`absolute top-full left-0 mt-1 w-full rounded-lg shadow-xl border z-50 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}>
-                {(trainers.length > 0 ? trainers : ['No Trainers Found']).map(trainer => (
+                <div
+                  onClick={() => { setSelectedTrainer({ id: 'all', name: 'All Trainers' }); setIsTrainerDropdownOpen(false); }}
+                  className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-colors ${isDarkMode
+                    ? 'text-gray-300 hover:bg-white/5'
+                    : 'text-gray-700 hover:bg-orange-50 hover:text-[#f97316]'
+                    }`}
+                >
+                  All Trainers
+                </div>
+                {trainers.map(trainer => (
                   <div
-                    key={trainer}
-                    onClick={() => { setSelectedTrainer(trainer); setIsTrainerDropdownOpen(false); }}
+                    key={trainer._id}
+                    onClick={() => { setSelectedTrainer({ id: trainer._id, name: `${trainer.firstName} ${trainer.lastName}` }); setIsTrainerDropdownOpen(false); }}
                     className={`px-4 py-3 text-[14px] font-medium cursor-pointer transition-colors ${isDarkMode
                       ? 'text-gray-300 hover:bg-white/5'
                       : 'text-gray-700 hover:bg-orange-50 hover:text-[#f97316]'
                       }`}
                   >
-                    {trainer}
+                    {trainer.firstName} {trainer.lastName}
                   </div>
                 ))}
               </div>
@@ -222,11 +300,16 @@ const PtReport = () => {
             />
           </div>
           <button
-            onClick={() => setIsReportModalOpen(true)}
+            onClick={fetchExportData}
+            disabled={isExportLoading}
             className={`flex items-center gap-2 px-6 py-2.5 border rounded-lg text-[14px] font-black transition-none active:scale-95 whitespace-nowrap ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-100 shadow-md text-gray-700'}`}
           >
-            <Download size={18} className="text-gray-500" />
-            Generate XLS Report
+            {isExportLoading ? (
+              <Loader2 size={18} className="animate-spin text-orange-500" />
+            ) : (
+              <Download size={18} className="text-gray-500" />
+            )}
+            {isExportLoading ? 'Preparing...' : 'Generate XLS Report'}
           </button>
         </div>
       </div>
@@ -252,12 +335,11 @@ const PtReport = () => {
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-white border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
                 <th className="px-6 py-5">Trainer Name</th>
                 <th className="px-6 py-5">Customer Name & Number</th>
-                <th className="px-6 py-5">Package Start Date</th>
-                <th className="px-6 py-5">Package End Date</th>
-                <th className="px-6 py-5 text-center">Total Session</th>
-                <th className="px-6 py-5 text-center">Attended Session</th>
+                <th className="px-6 py-5">Start Date</th>
+                <th className="px-6 py-5">Expiry Date</th>
                 <th className="px-6 py-5">Amount</th>
                 <th className="px-6 py-5">Status</th>
+                <th className="px-6 py-5 text-center">Action</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -266,22 +348,37 @@ const PtReport = () => {
               ) : filteredData.length === 0 ? (
                 <tr><td colSpan="8" className="text-center py-10">No PT records found</td></tr>
               ) : (
-                filteredData.slice(0, rowsPerPage).map((row, idx) => (
+                filteredData.map((row, idx) => (
                   <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                     <td className="px-6 py-8">{row.trainerName}</td>
                     <td className="px-6 py-8">
-                      <div className="flex flex-col transition-none">
-                        <span className="text-[#3b82f6] uppercase font-black">{row.customerName}</span>
+                      <div
+                        onClick={() => navigate(`/admin/members/profile/${row.id}/memberships`)}
+                        className="flex flex-col transition-none cursor-pointer group/name"
+                      >
+                        <span className="text-[#3b82f6] uppercase font-black group-hover/name:underline">{row.customerName}</span>
                         <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.customerNumber}</span>
                       </div>
                     </td>
                     <td className="px-6 py-8">{row.startDate}</td>
-                    <td className="px-6 py-8">{row.endDate}</td>
-                    <td className="px-6 py-8 text-center font-black">{row.totalSession}</td>
-                    <td className="px-6 py-8 text-center font-black">{row.attendedSession}</td>
+                    <td className="px-6 py-8">
+                      <span className={`font-black ${new Date(row.endDate.split('/').reverse().join('-')) < new Date() ? 'text-red-500' : 'text-emerald-500'}`}>
+                        {row.endDate}
+                      </span>
+                    </td>
                     <td className="px-6 py-8 font-black">₹{row.amount?.toFixed(2)}</td>
                     <td className="px-6 py-8">
                       <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[11px] font-black uppercase">{row.status}</span>
+                    </td>
+                    <td className="px-6 py-8">
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => navigate(`/admin/members/profile/${row.id}/membership/renew`, { state: { category: 'Personal Training' } })}
+                          className="px-4 py-2 bg-[#f97316] hover:bg-orange-600 text-white rounded-lg text-xs font-black uppercase transition-all shadow-md active:scale-95"
+                        >
+                          Renew
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -293,9 +390,21 @@ const PtReport = () => {
         {/* Pagination */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
           <div className="flex flex-wrap items-center gap-2 transition-none">
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">1</button>
-            <button className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>Next »</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 shadow-sm text-gray-700'}`}
+            >
+              « Previous
+            </button>
+            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 shadow-sm text-gray-700'}`}
+            >
+              Next »
+            </button>
           </div>
 
           <div className="flex items-center gap-4 transition-none">
@@ -316,7 +425,12 @@ const PtReport = () => {
 
       <GenerateReportModal
         isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setExportData([]);
+        }}
+        data={exportData}
+        filename={`PT_Report_${fromDate}_to_${toDate}`}
         isDarkMode={isDarkMode}
       />
     </div>

@@ -14,7 +14,9 @@ import {
     Grid,
     Fingerprint,
     ChevronDown,
-    Info
+    Info,
+    Trophy,
+    Dumbbell
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, isDarkMode }) => {
@@ -49,15 +51,17 @@ const Sidebar = ({ isOpen, isDarkMode }) => {
             icon: <BarChartBig size={20} />,
             subItems: [
                 { title: 'Balance Due', path: '/admin/reports/balance-due' },
-                // { title: 'Sales Report', path: '/admin/reports/sales' },
+                { title: 'Sales Report', path: '/admin/reports/sales' },
                 { title: 'Expired Members', path: '/admin/reports/expired' },
-                { title: 'Report Cards', path: '/admin/reports/members' },
-                { title: 'Due Membership', path: '/admin/reports/due' },
+                // { title: 'Report Cards', path: '/admin/reports/members' },
+                // { title: 'Expiring Soon', path: '/admin/reports/due' },
                 { title: 'Attendance Audit', path: '/admin/reports/attendance' },
                 { title: 'PT Report', path: '/admin/reports/pt' },
             ]
         },
         { title: 'DietPlan Management', path: '/admin/diet-plan', icon: <Utensils size={20} /> },
+        { title: 'Success Story Lab', path: '/admin/success-stories', icon: <Trophy size={20} /> },
+        { title: 'Workout Library', path: '/admin/workout-library', icon: <Dumbbell size={20} /> },
         { header: 'Business Setting' },
         {
             title: 'Team',

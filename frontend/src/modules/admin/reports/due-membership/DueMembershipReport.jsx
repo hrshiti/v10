@@ -225,7 +225,7 @@ const DueMembershipReport = () => {
     <div className={`space-y-6 transition-none ${isDarkMode ? 'text-white' : 'text-black'} max-w-full overflow-x-hidden`}>
       {/* Header */}
       <div className="flex justify-between items-center transition-none">
-        <h1 className="text-[28px] font-black tracking-tight">Due Membership Report</h1>
+        <h1 className="text-[28px] font-black tracking-tight">Expiring Soon</h1>
       </div>
 
       {/* Stats Cards */}
@@ -332,7 +332,7 @@ const DueMembershipReport = () => {
       <div className={`mt-4 border rounded-lg overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
         <div className="px-5 py-5 border-b bg-white dark:bg-white/5 flex items-center gap-4 transition-none">
           <span className="text-[14px] font-black text-gray-800 dark:text-gray-200 tracking-tight">
-            Due Membership Report
+            Expiring Soon
           </span>
           <div className="flex items-center gap-3">
             <ChevronLeft size={20} className="text-gray-400 cursor-pointer hover:text-gray-800" />

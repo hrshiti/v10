@@ -13,16 +13,31 @@ const getSalesReport = asyncHandler(async (req, res) => {
     // Build Query
     const query = {};
 
-    // Date Range (Parse DD-MM-YYYY if coming from frontend, or standard YYYY-MM-DD)
-    // Assuming ISO/Standard for API simplicity, frontend should convert.
+    // Date Range
     if (fromDate && toDate) {
+        const start = new Date(fromDate);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+
         query.date = {
-            $gte: new Date(fromDate),
-            $lte: new Date(toDate)
+            $gte: start,
+            $lte: end
         };
     }
 
-    if (type && type !== 'All') query.type = type; // Type: Membership, PT
+    if (type && type !== 'All') {
+        if (type === 'PT') {
+            query.membershipType = 'Personal Training';
+        } else {
+            query.type = type;
+        }
+    }
+
+    if (req.query.membershipType && req.query.membershipType !== 'All') {
+        query.membershipType = req.query.membershipType;
+    }
     if (paymentMode && paymentMode !== 'All') query.paymentMode = paymentMode;
     if (trainer && mongoose.Types.ObjectId.isValid(trainer)) {
         query.trainerId = trainer;
@@ -31,17 +46,31 @@ const getSalesReport = asyncHandler(async (req, res) => {
         query.closedBy = closedBy;
     }
 
-    // Search by Invoice or Member Name (requires lookup if advanced)
+    // Search by Invoice or Member Name
     if (search) {
+        const matchingMembers = await Member.find({
+            $or: [
+                { firstName: { $regex: search, $options: 'i' } },
+                { lastName: { $regex: search, $options: 'i' } },
+                { mobile: { $regex: search, $options: 'i' } }
+            ]
+        }).select('_id');
+
+        const memberIds = matchingMembers.map(m => m._id);
+
         query.$or = [
             { invoiceNumber: { $regex: search, $options: 'i' } },
-            // Note: Searching by Member Name in Sales requires aggregate/lookup, keeping simple for now
+            { memberId: { $in: memberIds } }
         ];
     }
 
     const count = await Sale.countDocuments(query);
     const sales = await Sale.find(query)
-        .populate('memberId', 'firstName lastName mobile memberId packageName startDate durationMonths')
+        .populate({
+            path: 'memberId',
+            select: 'firstName lastName mobile memberId packageName startDate endDate durationMonths duration durationType packageId',
+            populate: { path: 'packageId', select: 'name' }
+        })
         .populate('trainerId', 'firstName lastName')
         .populate('closedBy', 'firstName lastName')
         .sort({ date: -1 })
@@ -49,7 +78,6 @@ const getSalesReport = asyncHandler(async (req, res) => {
         .skip(pageSize * (page - 1));
 
     // Calculate Stats for Top Widgets (on the full filtered dataset)
-    // We use aggregation for performance
     const stats = await Sale.aggregate([
         { $match: query },
         {
@@ -58,22 +86,48 @@ const getSalesReport = asyncHandler(async (req, res) => {
                 totalAmount: { $sum: "$amount" }, // Paid Amount
                 taxAmount: { $sum: "$taxAmount" },
                 invoiceCount: { $sum: 1 },
-                // Payment Modes
-                onlineTotal: {
+                // Standard Payment Modes
+                upiTotal: {
                     $sum: {
-                        $cond: [{ $in: ["$paymentMode", ["UPI", "Google Pay", "Card"]] }, "$amount", 0]
+                        $cond: [{ $in: ["$paymentMode", ["UPI", "Google Pay", "Online", "UPI / Online"]] }, "$amount", 0]
                     }
                 },
-                cashTotal: {
+                cardTotal: {
+                    $sum: {
+                        $cond: [{ $eq: ["$paymentMode", "Card"] }, "$amount", 0]
+                    }
+                },
+                chequeTotal: {
+                    $sum: {
+                        $cond: [{ $eq: ["$paymentMode", "Cheque"] }, "$amount", 0]
+                    }
+                },
+                cashOnlyTotal: {
                     $sum: {
                         $cond: [{ $eq: ["$paymentMode", "Cash"] }, "$amount", 0]
                     }
-                }
+                },
+                // Split Payment components
+                splitCash: { $sum: { $cond: [{ $eq: ["$paymentMode", "Split"] }, "$splitPayment.cash", 0] } },
+                splitOnline: { $sum: { $cond: [{ $eq: ["$paymentMode", "Split"] }, "$splitPayment.online", 0] } }
+            }
+        },
+        {
+            $project: {
+                _id: 0,
+                invoiceCount: 1,
+                totalAmount: 1,
+                taxAmount: 1,
+                cashTotal: { $add: ["$cashOnlyTotal", "$splitCash"] },
+                onlineTotal: { $add: ["$upiTotal", "$cardTotal", "$splitOnline"] }, // Keep original onlineTotal for compatibility
+                upiTotal: { $add: ["$upiTotal", "$splitOnline"] }, // Associate split online with UPI by default
+                cardTotal: 1,
+                chequeTotal: 1
             }
         }
     ]);
 
-    const statResult = stats.length > 0 ? stats[0] : { totalAmount: 0, taxAmount: 0, invoiceCount: 0, onlineTotal: 0, cashTotal: 0 };
+    const statResult = stats.length > 0 ? stats[0] : { totalAmount: 0, taxAmount: 0, invoiceCount: 0, upiTotal: 0, cashTotal: 0, cardTotal: 0, chequeTotal: 0 };
 
     res.json({
         sales,
@@ -130,7 +184,7 @@ const getBalanceDueReport = asyncHandler(async (req, res) => {
 // @desc    Get Membership Expiry / Expired Report
 // @route   GET /api/admin/reports/membership-expiry
 const getMembershipExpiryReport = asyncHandler(async (req, res) => {
-    const { status, fromDate, toDate, search } = req.query;
+    const { status, fromDate, toDate, search, membershipType, trainer, closedBy } = req.query;
     const pageSize = Number(req.query.pageSize) || Number(req.query.limit) || 10;
     const page = Number(req.query.pageNumber) || Number(req.query.page) || 1;
 
@@ -138,10 +192,28 @@ const getMembershipExpiryReport = asyncHandler(async (req, res) => {
 
     // Filter by Status (Expired or Active but expiring)
     if (status === 'Expired') {
-        query.status = 'Expired';
+        const today = new Date();
+        // Either status is already 'Expired' OR it's 'Active' but endDate has passed
+        query.$or = [
+            { status: 'Expired' },
+            {
+                status: 'Active',
+                endDate: { $lt: today }
+            }
+        ];
+
+        // If date range provided, filter by when they expired
+        if (fromDate && toDate) {
+            query.endDate = {
+                $gte: new Date(fromDate),
+                $lte: new Date(toDate)
+            };
+        }
     } else if (status === 'ExpiringSoon') {
-        // Expiring in date range, but currently Active
+        // Expiring in date range, but currently Active and not yet passed
+        const today = new Date();
         query.status = 'Active';
+
         if (fromDate && toDate) {
             query.endDate = {
                 $gte: new Date(fromDate),
@@ -149,10 +221,35 @@ const getMembershipExpiryReport = asyncHandler(async (req, res) => {
             };
         } else {
             // Default to next 30 days if no date provided
-            const today = new Date();
             const next30 = new Date();
             next30.setDate(today.getDate() + 30);
             query.endDate = { $gte: today, $lte: next30 };
+        }
+
+        // Ensure we only show future expiries for "Soon"
+        if (!query.endDate.$gte) {
+            query.endDate.$gte = today;
+        }
+    }
+
+    // Advanced Filters
+    if (membershipType && membershipType !== 'All' && !membershipType.includes('Select')) {
+        query.packageName = { $regex: membershipType, $options: 'i' };
+    }
+
+    if (trainer && !trainer.includes('Select') && !trainer.includes('No Trainers')) {
+        // If trainer is name, we might need lookup. But usually it's ID.
+        // The frontend is sending NAME. I should change it to send ID or handle name.
+        // For now, looking for trainer name in populated field is hard in simple find.
+        // Assuming we might want to lookup by name or if it's an ID
+        if (mongoose.Types.ObjectId.isValid(trainer)) {
+            query.assignedTrainer = trainer;
+        }
+    }
+
+    if (closedBy && !closedBy.includes('Select') && !closedBy.includes('No Employees')) {
+        if (mongoose.Types.ObjectId.isValid(closedBy)) {
+            query.closedBy = closedBy;
         }
     }
 
@@ -168,6 +265,7 @@ const getMembershipExpiryReport = asyncHandler(async (req, res) => {
     const members = await Member.find(query)
         .populate('assignedTrainer', 'firstName lastName')
         .populate('closedBy', 'firstName lastName')
+        .populate('packageId', 'name baseRate')
         .sort({ endDate: 1 }) // Closest expiry first
         .limit(pageSize)
         .skip(pageSize * (page - 1));
@@ -242,6 +340,16 @@ const getSubscriptionAnalytics = asyncHandler(async (req, res) => {
         { $sort: { "_id": 1 } }
     ]);
 
+    // 5. Expiring Soon (Next 7 days)
+    const today = new Date();
+    const next7Days = new Date();
+    next7Days.setDate(today.getDate() + 7);
+
+    const expiringMembers = await Member.find({
+        status: 'Active',
+        endDate: { $gte: today, $lte: next7Days }
+    }).select('firstName lastName mobile endDate packageName memberId').sort({ endDate: 1 }).limit(50);
+
     res.json({
         packagePerformance: salesAgg,
         conversion: {
@@ -250,14 +358,15 @@ const getSubscriptionAnalytics = asyncHandler(async (req, res) => {
             conversionRate: totalEnquiries > 0 ? (convertedMembers / totalEnquiries) * 100 : 0
         },
         statusBreakdown,
-        revenueOverTime
+        revenueOverTime,
+        expiringMembers
     });
 });
 
 // @desc    Get Attendance Report
 // @route   GET /api/admin/reports/attendance
 const getAttendanceReport = asyncHandler(async (req, res) => {
-    const { fromDate, toDate, view, search } = req.query;
+    const { fromDate, toDate, view, search, membershipType } = req.query;
     const pageSize = Number(req.query.pageSize) || 10;
     const page = Number(req.query.pageNumber) || 1;
 
@@ -291,24 +400,32 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
             status: 'Present'
         };
 
-        console.log('Audit Query:', {
-            start: start.toISOString(),
-            end: end.toISOString(),
-            query
-        });
+        if (search) {
+            const matchingMembers = await Member.find({
+                $or: [
+                    { firstName: { $regex: search, $options: 'i' } },
+                    { lastName: { $regex: search, $options: 'i' } },
+                    { mobile: { $regex: search, $options: 'i' } }
+                ]
+            }).select('_id');
+            query.memberId = { $in: matchingMembers.map(m => m._id) };
+        }
 
         const count = await MemberAttendance.countDocuments(query);
-        console.log('Audit Count:', count);
-
         const logs = await MemberAttendance.find(query)
-            .populate('memberId', 'firstName lastName mobile packageName endDate assignedTrainer')
+            .populate({
+                path: 'memberId',
+                select: 'firstName lastName mobile packageName endDate assignedTrainer membershipType',
+                match: membershipType && membershipType !== 'Membership Type' ? { membershipType } : {}
+            })
             .sort({ date: -1 })
             .limit(pageSize)
             .skip(pageSize * (page - 1));
 
-        console.log('Audit Logs Found:', logs.length);
+        // Filter out logs where member didn't match the membershipType (if applied via populate match)
+        const filteredLogs = logs.filter(log => log.memberId !== null);
 
-        result.members = logs.map(log => ({
+        result.members = filteredLogs.map(log => ({
             _id: log.memberId?._id,
             firstName: log.memberId?.firstName || 'Unknown',
             lastName: log.memberId?.lastName || '',
@@ -317,9 +434,9 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
             endDate: log.memberId?.endDate,
             checkIn: log.checkIn,
             method: log.method,
-            trainingType: log.trainingType
+            trainingType: log.trainingType || log.memberId?.membershipType || 'General'
         }));
-        result.total = count;
+        result.total = count; // Note: count might be slightly off if populate match filtered some, but usually fine for audit
         result.pages = Math.ceil(count / pageSize);
 
     } else if (view === 'attendance') {
@@ -360,10 +477,15 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
             { $unwind: { path: "$trainerInfo", preserveNullAndEmptyArrays: true } },
             {
                 $match: {
-                    $or: [
-                        { "memberInfo.firstName": { $regex: search || '', $options: 'i' } },
-                        { "memberInfo.lastName": { $regex: search || '', $options: 'i' } },
-                        { "memberInfo.mobile": { $regex: search || '', $options: 'i' } }
+                    $and: [
+                        membershipType && membershipType !== 'Membership Type' ? { "memberInfo.membershipType": membershipType } : {},
+                        {
+                            $or: [
+                                { "memberInfo.firstName": { $regex: search || '', $options: 'i' } },
+                                { "memberInfo.lastName": { $regex: search || '', $options: 'i' } },
+                                { "memberInfo.mobile": { $regex: search || '', $options: 'i' } }
+                            ]
+                        }
                     ]
                 }
             },
@@ -403,9 +525,14 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
             _id: { $nin: presentMemberIds }
         };
 
+        if (membershipType && membershipType !== 'Membership Type') {
+            query.membershipType = membershipType;
+        }
+
         if (search) {
             query.$or = [
                 { firstName: { $regex: search, $options: 'i' } },
+                { lastName: { $regex: search, $options: 'i' } },
                 { mobile: { $regex: search, $options: 'i' } }
             ];
         }

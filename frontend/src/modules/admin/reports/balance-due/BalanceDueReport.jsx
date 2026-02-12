@@ -6,13 +6,16 @@ import {
   Search,
   User
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
+import PayDueModal from './PayDueModal';
 import { API_BASE_URL } from '../../../../config/api';
+import { CreditCard } from 'lucide-react';
 
 const BalanceDueReport = () => {
   const { isDarkMode } = useOutletContext();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('01-01-2026');
   const [toDate, setToDate] = useState('30-01-2026');
@@ -24,6 +27,10 @@ const BalanceDueReport = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [allDataForExport, setAllDataForExport] = useState([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   const fetchBalanceDueData = async () => {
     setIsLoading(true);
@@ -53,6 +60,44 @@ const BalanceDueReport = () => {
       console.error("Error fetching balance due report:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAllDataForExport = async () => {
+    setIsExporting(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const queryParams = new URLSearchParams({
+        pageNumber: 1,
+        pageSize: 10000, // Fetch all
+        search: searchQuery,
+      });
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/balance-due?${queryParams.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      const cleanData = (data.members || []).map(m => ({
+        'Member ID': m.memberId,
+        'Name': `${m.firstName} ${m.lastName}`,
+        'Mobile': m.mobile,
+        'Package': m.packageName,
+        'Total Amount': m.totalAmount,
+        'Paid Amount': m.paidAmount,
+        'Due Amount': m.dueAmount
+      }));
+      setAllDataForExport(cleanData);
+      setIsReportModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching data for export:", error);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -144,11 +189,12 @@ const BalanceDueReport = () => {
             />
           </div>
           <button
-            onClick={() => setIsReportModalOpen(true)}
+            onClick={fetchAllDataForExport}
+            disabled={isExporting}
             className={`flex items-center gap-2 px-8 py-2.5 border rounded-lg text-[14px] font-black transition-none active:scale-95 shadow-md ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-100 text-gray-700'}`}
           >
             <Download size={18} className="text-gray-500" />
-            Generate XLS Report
+            {isExporting ? 'Preparing...' : 'Generate XLS Report'}
           </button>
         </div>
       </div>
@@ -168,6 +214,7 @@ const BalanceDueReport = () => {
                 <th className="px-6 py-5">Total Amount</th>
                 <th className="px-6 py-5">Paid Amount</th>
                 <th className="px-6 py-5">Due Amount</th>
+                <th className="px-6 py-5 text-center">Action</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -180,8 +227,11 @@ const BalanceDueReport = () => {
                   <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                     <td className="px-6 py-8">{member.memberId}</td>
                     <td className="px-6 py-8">
-                      <div className="flex flex-col">
-                        <span className="text-[#3b82f6] uppercase font-black">{member.firstName} {member.lastName}</span>
+                      <div
+                        onClick={() => navigate(`/admin/members/profile/${member._id}`)}
+                        className="flex flex-col cursor-pointer group/name"
+                      >
+                        <span className="text-[#3b82f6] uppercase font-black group-hover/name:underline">{member.firstName} {member.lastName}</span>
                         <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{member.mobile}</span>
                       </div>
                     </td>
@@ -189,6 +239,20 @@ const BalanceDueReport = () => {
                     <td className="px-6 py-8 font-black">₹{member.totalAmount?.toFixed(2)}</td>
                     <td className="px-6 py-8 font-black">₹{member.paidAmount?.toFixed(2)}</td>
                     <td className="px-6 py-8 font-black text-red-600">₹{member.dueAmount?.toFixed(2)}</td>
+                    <td className="px-6 py-8">
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => {
+                            setSelectedMember(member);
+                            setIsPayModalOpen(true);
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-black uppercase transition-all shadow-md active:scale-95"
+                        >
+                          <CreditCard size={14} />
+                          Pay Due
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -227,8 +291,26 @@ const BalanceDueReport = () => {
 
       <GenerateReportModal
         isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setAllDataForExport([]);
+        }}
         isDarkMode={isDarkMode}
+        filename="Balance_Due_Report"
+        data={allDataForExport}
+      />
+
+      <PayDueModal
+        isOpen={isPayModalOpen}
+        onClose={() => {
+          setIsPayModalOpen(false);
+          setSelectedMember(null);
+        }}
+        member={selectedMember}
+        isDarkMode={isDarkMode}
+        onSuccess={() => {
+          fetchBalanceDueData();
+        }}
       />
     </div>
   );

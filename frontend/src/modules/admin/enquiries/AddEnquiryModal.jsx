@@ -571,14 +571,7 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData, onSuccess }
     const trainerOptions = trainers.map(t => ({ label: `${t.firstName} ${t.lastName}`, id: t._id }));
     const trainerLabels = trainerOptions.map(t => t.label);
 
-    const referralOptions = [
-        "GIRDHAR BHAI",
-        "RAHUL KUSHWAH",
-        "ANURAG SINGH",
-        "Sanjay Dutt",
-        "Salman Khan",
-        "Shahrukh Khan"
-    ];
+
 
     const leadTypeOptions = ["Hot", "Warm", "Cold"];
     const personalityOptions = ["Gym Donor", "Gym Excuser", "Gym Goer"];
@@ -593,6 +586,29 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData, onSuccess }
         "Massage",
         "Pilates"
     ];
+
+    const formatToDBDate = (dateStr) => {
+        if (!dateStr) return null;
+        // Split date and time (if any)
+        const parts = dateStr.split(' ');
+        const datePart = parts[0];
+        const timePart = parts[1] || '';
+
+        // Handle DD-MM-YYYY format
+        const dateSegments = datePart.split('-');
+        if (dateSegments.length !== 3) return dateStr; // Return original if not in expected format
+
+        const [d, m, y] = dateSegments;
+        // Basic check for valid segments (especially for manual typing)
+        if (d.length > 2 || m.length > 2 || y.length !== 4) return dateStr;
+
+        let formatted = `${y}-${m}-${d}`;
+        if (timePart) {
+            // Ensure time is in 24h format HH:mm
+            formatted += `T${timePart}`;
+        }
+        return formatted;
+    };
 
     const handleSubmit = async () => {
         console.log('--- Submit Enquiry Started ---');
@@ -626,15 +642,15 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData, onSuccess }
                 landline: formData.landlineNumber,
                 gender: formData.gender,
                 maritalStatus: formData.maritalStatus,
-                birthDate: formData.birthDate,
-                anniversaryDate: formData.anniversaryDate,
+                birthDate: formatToDBDate(formData.birthDate),
+                anniversaryDate: formatToDBDate(formData.anniversaryDate),
                 address: formData.residentialAddress,
                 occupation: formData.occupation,
                 jobProfile: formData.jobProfile,
                 companyName: formData.companyName,
                 emergencyContactName: formData.emergencyContactPerson,
                 emergencyContactNumber: formData.emergencyContactNumber,
-                commitmentDate: formData.commitmentDate,
+                commitmentDate: formatToDBDate(formData.commitmentDate),
                 source: formData.source,
                 isExercising: formData.isExercising,
                 currentActivities: formData.currentActivities,
@@ -643,8 +659,8 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData, onSuccess }
                 healthIssueDescription: formData.healthIssueDescription,
                 fitnessGoal: formData.fitnessGoal,
                 gymServices: formData.gymService,
-                trialStartDate: formData.trialStartDate,
-                trialEndDate: formData.trialEndDate,
+                trialStartDate: formatToDBDate(formData.trialStartDate),
+                trialEndDate: formatToDBDate(formData.trialEndDate),
                 assignTo: trainerOptions.find(t => t.label === formData.assignTo)?.id || null,
                 leadType: formData.leadType,
                 personalityType: formData.personalityType,
@@ -837,20 +853,24 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData, onSuccess }
                             </div>
 
                             <div>
-                                <CustomDatePicker
-                                    label="Birth Date"
-                                    value={formData.birthDate}
-                                    onChange={(val) => handleInputChange('birthDate', val)}
-                                    isDarkMode={isDarkMode}
+                                <label className={labelClass}>Birth Date</label>
+                                <input
+                                    type="text"
+                                    placeholder="DD-MM-YYYY"
+                                    className={inputClass}
+                                    value={formData.birthDate || ''}
+                                    onChange={(e) => handleInputChange('birthDate', e.target.value)}
                                 />
                             </div>
 
                             <div>
-                                <CustomDatePicker
-                                    label="Aniversary Date"
-                                    value={formData.anniversaryDate}
-                                    onChange={(val) => handleInputChange('anniversaryDate', val)}
-                                    isDarkMode={isDarkMode}
+                                <label className={labelClass}>Anniversary Date</label>
+                                <input
+                                    type="text"
+                                    placeholder="DD-MM-YYYY"
+                                    className={inputClass}
+                                    value={formData.anniversaryDate || ''}
+                                    onChange={(e) => handleInputChange('anniversaryDate', e.target.value)}
                                 />
                             </div>
 
@@ -1127,16 +1147,7 @@ const AddEnquiryModal = ({ isOpen, onClose, isDarkMode, initialData, onSuccess }
                                 />
                             </div>
 
-                            <div>
-                                <CustomDropdown
-                                    label="Member/Employee Referral"
-                                    placeholder="Select"
-                                    options={referralOptions}
-                                    value={formData.referralMember}
-                                    onChange={(val) => handleInputChange('referralMember', val)}
-                                    isDarkMode={isDarkMode}
-                                />
-                            </div>
+
 
                             <div>
                                 <label className={labelClass}>Budget per month</label>

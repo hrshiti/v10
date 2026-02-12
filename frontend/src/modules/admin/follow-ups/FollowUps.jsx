@@ -8,7 +8,8 @@ import {
   X,
   History,
   CheckCircle,
-  Edit2
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
@@ -17,40 +18,7 @@ import FollowUpActionModal from './FollowUpActionModal';
 import FollowUpDoneModal from './FollowUpDoneModal';
 import Toast from '../components/Toast';
 
-const ReportModal = ({ isOpen, onClose, isDarkMode }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
-      <div className={`w-[400px] rounded-lg shadow-2xl transition-all ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
-        <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-          <div className="flex items-center gap-2">
-            <Calendar size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
-            <h3 className={`text-[16px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Generate Report</h3>
-          </div>
-          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
-            <X size={20} />
-          </button>
-        </div>
-        <div className="p-6">
-          <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>OTP*</label>
-          <input
-            type="text"
-            placeholder="OTP"
-            className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none ${isDarkMode
-              ? 'bg-[#1a1a1a] border-white/10 text-white placeholder-gray-500'
-              : 'bg-white border-gray-300 text-black placeholder-gray-400'
-              }`}
-          />
-        </div>
-        <div className={`p-4 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-6 py-2 rounded-lg text-[14px] font-bold shadow-md transition-none">
-            Validate
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+
 
 const FollowTypeDropdown = ({ isDarkMode, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -288,48 +256,7 @@ const SelectAllocateDropdown = ({ isDarkMode, trainers, value, onChange }) => {
   )
 }
 
-const AllocateToMeDropdown = ({ isDarkMode, onAllocateToMe }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative min-w-[160px]" ref={dropdownRef}>
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-4 py-2.5 border rounded-lg text-[14px] font-medium cursor-pointer flex items-center justify-between transition-none ${isDarkMode
-          ? 'bg-[#1a1a1a] border-white/10 text-white'
-          : `bg-white ${isOpen ? 'border-[#f97316] text-[#f97316]' : 'border-gray-200 text-gray-700'}`
-          }`}
-      >
-        <span>Allocate To Me</span>
-        <ChevronDown size={14} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
-      </div>
-      {isOpen && (
-        <div className={`absolute top-full left-0 mt-2 w-full rounded-lg shadow-xl border z-20 overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
-          <div
-            onClick={() => {
-              onAllocateToMe();
-              setIsOpen(false);
-            }}
-            className={`px-4 py-3 text-[13px] font-bold cursor-pointer hover:bg-gray-50 ${isDarkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700'}`}
-          >
-            Show My Tasks
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 const FollowUps = () => {
   const { isDarkMode } = useOutletContext();
@@ -438,6 +365,123 @@ const FollowUps = () => {
   const handleSearch = () => {
     setCurrentPage(1);
     fetchData();
+  };
+
+  // Selection Logic
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(followUps.map(f => f._id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(sid => sid !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const handleDeleteFollowUp = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this follow up? This action cannot be undone.')) return;
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/follow-ups/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setToastMessage("Follow up deleted successfully");
+        setShowToast(true);
+        fetchData();
+        setSelectedIds(prev => prev.filter(pid => pid !== id));
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to delete");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error deleting follow up");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected follow ups?`)) return;
+
+    try {
+      await Promise.all(selectedIds.map(id => {
+        // We need to call the API directly here or reuse logic, but reusing logic with confirms is bad.
+        // So we duplicate the fetch part or abstract it.
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        const token = adminInfo?.token;
+        return fetch(`${API_BASE_URL}/api/admin/follow-ups/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }));
+      setToastMessage(`${selectedIds.length} Follow ups deleted successfully`);
+      setShowToast(true);
+      setSelectedIds([]);
+      fetchData();
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      alert('Error deleting some items');
+    }
+  };
+
+  const handleDownloadReport = () => {
+    if (!followUps || followUps.length === 0) {
+      alert("No data available to download.");
+      return;
+    }
+
+    const headers = [
+      "Date Time",
+      "Status",
+      "Type",
+      "Name",
+      "Number",
+      "Allocated To",
+      "Scheduled By",
+      "Convertibility",
+      "Comment"
+    ];
+
+    const csvRows = [
+      headers.join(','), // Header row
+      ...followUps.map(row => {
+        return [
+          new Date(row.dateTime).toLocaleString('en-IN').replace(/,/g, ' '),
+          row.isDone ? 'DONE' : 'PENDING',
+          row.type,
+          row.name,
+          row.number,
+          row.handledBy ? `${row.handledBy.firstName} ${row.handledBy.lastName}` : 'Not Allocated',
+          row.createdBy,
+          row.status,
+          `"${(row.comment || '').replace(/"/g, '""')}"` // Escape quotes
+        ].join(',');
+      })
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `FollowUps_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const markAsDone = async (id) => {
@@ -554,7 +598,6 @@ const FollowUps = () => {
           value={handledByFilter}
           onChange={(val) => setHandledByFilter(val)}
         />
-        <AllocateToMeDropdown isDarkMode={isDarkMode} onAllocateToMe={handleAllocateToMe} />
 
         <DateRangeFilter
           isDarkMode={isDarkMode}
@@ -576,13 +619,26 @@ const FollowUps = () => {
           />
         </div>
         <button
-          onClick={() => setIsReportModalOpen(true)}
+          onClick={handleDownloadReport}
           className={`flex items-center gap-2 px-6 py-2.5 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}
         >
           <Download size={18} />
-          Generate XLS Report
+          Download Report
         </button>
       </div>
+
+      {/* Bulk Actions */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 transition-none pt-2">
+          <button
+            onClick={handleBulkDelete}
+            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95 transition-none flex items-center gap-2"
+          >
+            <Trash2 size={18} />
+            Delete Selected ({selectedIds.length})
+          </button>
+        </div>
+      )}
 
       <p className="text-[14px] font-bold text-gray-400 pt-2 tracking-tight">Total Follow Ups ({totalFollowUps})</p>
 
@@ -595,6 +651,14 @@ const FollowUps = () => {
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className={`text-[13px] font-bold text-gray-500 border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100'}`}>
+                <th className="px-4 py-5">
+                  <input
+                    type="checkbox"
+                    checked={followUps.length > 0 && selectedIds.length === followUps.length}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]"
+                  />
+                </th>
                 <th className="px-4 py-5">Follow Up Date & Time</th>
                 <th className="px-4 py-5 text-center">Status</th>
                 <th className="px-4 py-5 text-center">Follow Up Type</th>
@@ -609,13 +673,24 @@ const FollowUps = () => {
             <tbody className={`text-[13px] transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-600'}`}>
               {isLoading ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-20 text-center text-gray-400 font-bold uppercase tracking-widest italic animate-pulse">
+                  <td colSpan="10" className="px-6 py-20 text-center text-gray-400 font-bold uppercase tracking-widest italic animate-pulse">
                     Loading Follow Ups...
                   </td>
                 </tr>
               ) : followUps.length > 0 ? (
                 followUps.map((row, idx) => (
-                  <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                  <tr key={idx} className={`border-b transition-none ${isDarkMode
+                    ? (selectedIds.includes(row._id) ? 'bg-[#f97316]/10 border-white/5' : 'border-white/5 hover:bg-white/5')
+                    : (selectedIds.includes(row._id) ? 'bg-orange-50 border-orange-100' : 'border-gray-50 hover:bg-gray-50/50')
+                    }`}>
+                    <td className="px-4 py-7">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(row._id)}
+                        onChange={() => handleSelectOne(row._id)}
+                        className="w-4 h-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]"
+                      />
+                    </td>
                     <td className="px-6 py-7 font-medium whitespace-nowrap">{new Date(row.dateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     <td className="px-6 py-7">
                       <span className={`${row.isDone ? 'bg-[#10b981]' : 'bg-[#f4a261]'} text-white px-4 py-2 rounded-lg text-[11px] font-black uppercase text-center min-w-[80px] inline-block`}>
@@ -654,6 +729,7 @@ const FollowUps = () => {
                           className={`absolute right-10 top-0 mt-2 w-[220px] rounded-lg shadow-2xl border z-[9999] overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100'}`}
                         >
                           {[
+                            { label: "Delete", onClick: () => handleDeleteFollowUp(row._id) },
                             { label: "Edit Response", onClick: () => handleEditResponse(row) },
                             { label: "History", onClick: () => handleHistory(row) },
                             { label: "Done", onClick: () => handleDone(row), hidden: row.isDone }
@@ -676,7 +752,7 @@ const FollowUps = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="px-6 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">
+                  <td colSpan="10" className="px-6 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">
                     No Follow Ups Found
                   </td>
                 </tr>
@@ -769,11 +845,7 @@ const FollowUps = () => {
         </div>
       </div>
 
-      <ReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        isDarkMode={isDarkMode}
-      />
+
 
       <FollowUpActionModal
         isOpen={isActionModalOpen}

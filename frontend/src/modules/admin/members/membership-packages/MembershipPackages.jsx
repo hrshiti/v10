@@ -162,6 +162,7 @@ const MembershipPackages = () => {
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [packages, setPackages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [filterType, setFilterType] = useState('all');
 
   // Fetch packages from backend
   useEffect(() => {
@@ -190,24 +191,28 @@ const MembershipPackages = () => {
   // Calculate stats from real data
   const stats = [
     {
+      id: 'general',
       label: 'General Training',
       value: packages.filter(p => p.type === 'general').length,
       icon: User,
       theme: 'blue'
     },
     {
+      id: 'pt',
       label: 'Personal Training',
       value: packages.filter(p => p.type === 'pt').length,
       icon: User,
       theme: 'emerald'
     },
     {
+      id: 'active',
       label: 'Active Packages',
       value: packages.filter(p => p.active).length,
       icon: User,
       theme: 'purple'
     },
     {
+      id: 'all',
       label: 'Total Packages',
       value: packages.length,
       icon: User,
@@ -235,10 +240,17 @@ const MembershipPackages = () => {
   }, [activeActionRow]);
 
   // Filtering and Pagination
-  const filteredPackages = packages.filter(pkg =>
-    pkg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (pkg._id && pkg._id.toString().includes(searchQuery))
-  );
+  const filteredPackages = packages.filter(pkg => {
+    const matchesSearch = pkg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (pkg._id && pkg._id.toString().includes(searchQuery));
+    if (!matchesSearch) return false;
+
+    if (filterType === 'all') return true;
+    if (filterType === 'general') return pkg.type === 'general';
+    if (filterType === 'pt') return pkg.type === 'pt';
+    if (filterType === 'active') return pkg.active;
+    return true;
+  });
 
   const totalPages = Math.ceil(filteredPackages.length / rowsPerPage);
   const currentPackages = filteredPackages.slice(
@@ -326,26 +338,29 @@ const MembershipPackages = () => {
         </button>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-none">
         {stats.map((stat, idx) => {
           const config = themeConfig[stat.theme];
-          const isActive = false; // Add state logic if needed, for now just hover
+          const isActive = filterType === stat.id;
           return (
             <div
               key={idx}
+              onClick={() => setFilterType(prev => prev === stat.id ? 'all' : stat.id)}
               className={`group p-6 rounded-xl flex items-center gap-5 transition-all duration-300 cursor-pointer border-2 
-                ${isDarkMode
-                  ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
-                  : `bg-white border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                ${isActive
+                  ? `${config.bg} border-transparent text-white shadow-lg ${config.shadow}`
+                  : (isDarkMode
+                    ? `bg-[#1a1a1a] border-white/5 text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                    : `bg-white border-gray-100 text-gray-700 hover:text-white hover:border-transparent hover:${config.bg} hover:shadow-lg ${config.shadow}`
+                  )
                 }`}
             >
-              <div className={`p-4 rounded-xl transition-all duration-300 ${isDarkMode ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white' : 'bg-[#f8f9fa] text-gray-400 group-hover:bg-white/20 group-hover:text-white'}`}>
+              <div className={`p-4 rounded-xl transition-all duration-300 ${isActive ? 'bg-white/20 text-white' : (isDarkMode ? 'bg-white/5 text-gray-400 group-hover:bg-white/20 group-hover:text-white' : 'bg-[#f8f9fa] text-gray-400 group-hover:bg-white/20 group-hover:text-white')}`}>
                 <stat.icon size={28} />
               </div>
               <div>
-                <p className="text-[28px] font-black leading-none transition-colors duration-300 group-hover:text-white">{stat.value}</p>
-                <p className="text-[13px] font-black mt-1 uppercase tracking-tight text-gray-500 group-hover:text-white/80 transition-colors duration-300">{stat.label}</p>
+                <p className={`text-[28px] font-black leading-none transition-colors duration-300 ${isActive ? 'text-white' : 'group-hover:text-white'}`}>{stat.value}</p>
+                <p className={`text-[13px] font-black mt-1 uppercase tracking-tight ${isActive ? 'text-white/80' : 'text-gray-500 group-hover:text-white/80'} transition-colors duration-300`}>{stat.label}</p>
               </div>
             </div>
           );
@@ -402,7 +417,14 @@ const MembershipPackages = () => {
                 </tr>
               ) : (
                 currentPackages.map((row, idx) => (
-                  <tr key={row._id} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
+                  <tr
+                    key={row._id}
+                    onClick={() => {
+                      setSelectedPackage(row);
+                      setIsEditModalOpen(true);
+                    }}
+                    className={`border-b transition-none cursor-pointer ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}
+                  >
                     <td className="px-8 py-8">{row._id?.slice(-6).toUpperCase()}</td>
                     <td className="px-8 py-8 uppercase">
                       <div className="border border-[#f97316]/30 bg-[#fff7ed] dark:bg-[#f97316]/10 text-[#f97316] px-5 py-2.5 rounded-lg text-[13px] font-black inline-block tracking-tight leading-snug max-w-[300px]">
@@ -415,7 +437,10 @@ const MembershipPackages = () => {
                     <td className="px-8 py-8">
                       <div className="flex justify-center">
                         <div
-                          onClick={() => toggleStatus(row._id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleStatus(row._id);
+                          }}
                           className={`relative w-24 h-12 rounded-lg cursor-pointer transition-all p-1 flex items-center shadow-inner ${row.active ? 'bg-[#059669]' : 'bg-[#64748b]'}`}
                         >
                           <span className={`absolute ${row.active ? 'left-4' : 'right-4'} text-[13px] font-black text-white pointer-events-none uppercase tracking-widest`}>
@@ -427,7 +452,10 @@ const MembershipPackages = () => {
                     </td>
                     <td className="px-8 py-8 text-center relative" ref={el => actionRef.current[idx] = el}>
                       <button
-                        onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveActionRow(activeActionRow === idx ? null : idx);
+                        }}
                         className="text-gray-400 hover:text-black dark:hover:text-white transition-none"
                       >
                         <MoreVertical size={24} />

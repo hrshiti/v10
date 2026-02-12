@@ -1,4 +1,4 @@
-import { ChevronLeft, Scale, LogOut, Moon } from 'lucide-react';
+import { ChevronLeft, Scale, LogOut, Moon, Image, ChevronRight } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
@@ -47,7 +47,10 @@ const Settings = () => {
                         </div>
 
                         {/* Dark Mode */}
-                        <div className="flex items-center justify-between p-4">
+                        <button
+                            onClick={toggleTheme}
+                            className="w-full flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800"
+                        >
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
                                     <Moon size={16} />
@@ -55,12 +58,25 @@ const Settings = () => {
                                 <span className="font-bold text-gray-700 dark:text-gray-200 text-sm">Dark Mode</span>
                             </div>
                             <div
-                                onClick={toggleTheme}
-                                className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 ${isDarkMode ? 'bg-black' : 'bg-gray-200'}`}
+                                className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 ${isDarkMode ? 'bg-emerald-500' : 'bg-gray-200'}`}
                             >
                                 <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-300 ${isDarkMode ? 'translate-x-5' : 'translate-x-0'}`}></div>
                             </div>
-                        </div>
+                        </button>
+
+                        {/* Success Stories */}
+                        <button
+                            onClick={() => navigate('/stories')}
+                            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600">
+                                    <Image size={16} />
+                                </div>
+                                <span className="font-bold text-gray-700 dark:text-gray-200 text-sm">Success Stories</span>
+                            </div>
+                            <ChevronRight size={16} className="text-gray-400" />
+                        </button>
                     </div>
                 </div>
 

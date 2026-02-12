@@ -3,6 +3,8 @@ const asyncHandler = require('express-async-handler');
 const Admin = require('../models/Admin');
 const Member = require('../models/Member');
 
+const Employee = require('../models/Employee');
+
 const protect = asyncHandler(async (req, res, next) => {
     let token;
 
@@ -52,11 +54,17 @@ const userProtect = asyncHandler(async (req, res, next) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
             req.user = await Member.findById(decoded.id);
+
+            // If not found in Member, check Employee (Trainer)
+            if (!req.user) {
+                req.user = await Employee.findById(decoded.id);
+            }
+
             if (req.user) {
                 next();
             } else {
                 res.status(401);
-                throw new Error('Not authorized as user');
+                throw new Error('Not authorized as user or trainer');
             }
         } catch (error) {
             console.error(error);

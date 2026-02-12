@@ -269,6 +269,7 @@ const AddOnDaysModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) 
 const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => {
     const [amount, setAmount] = useState('');
     const [paymentMode, setPaymentMode] = useState('Cash');
+    const [commitmentDate, setCommitmentDate] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -279,8 +280,15 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
 
     if (!isOpen || !membership) return null;
 
+    const remainingAfterPay = (membership.dueAmount - Number(amount)) > 0;
+
     const handleSubmit = async () => {
         if (!amount || amount <= 0) return;
+        if (remainingAfterPay && !commitmentDate) {
+            alert('Please select a new commitment date for the remaining balance');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
@@ -294,7 +302,8 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
                 body: JSON.stringify({
                     amount: Number(amount),
                     paymentMode,
-                    closedBy: adminInfo?._id
+                    closedBy: adminInfo?._id,
+                    commitmentDate: remainingAfterPay ? commitmentDate : null
                 })
             });
             if (res.ok) {
@@ -349,14 +358,14 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
 
                         <div className="space-y-1.5">
                             <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Payment Mode</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {['Cash', 'Online', 'Card'].map(mode => (
+                            <div className="grid grid-cols-2 gap-2">
+                                {['Cash', 'UPI / Online', 'Debit / Credit Card', 'Cheque'].map(mode => (
                                     <button
                                         key={mode}
                                         onClick={() => setPaymentMode(mode)}
-                                        className={`py-2.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${paymentMode === mode
+                                        className={`py-2.5 rounded-lg text-[11px] font-black uppercase tracking-wider border transition-all ${paymentMode === mode
                                             ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
-                                            : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
+                                            : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300')
                                             }`}
                                     >
                                         {mode}
@@ -364,6 +373,22 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
                                 ))}
                             </div>
                         </div>
+
+                        {remainingAfterPay && (
+                            <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+                                <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>New Commitment Date*</label>
+                                <div className="relative">
+                                    <input
+                                        type="date"
+                                        value={commitmentDate}
+                                        onChange={(e) => setCommitmentDate(e.target.value)}
+                                        onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()}
+                                        className={`w-full px-4 py-3 rounded-lg border text-sm font-bold outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white focus:border-orange-500/50' : 'bg-white border-gray-300 focus:border-orange-500'}`}
+                                    />
+                                </div>
+                                <p className="text-[10px] text-orange-500 font-bold uppercase">Balance Remaining: ₹{(membership.dueAmount - Number(amount)).toFixed(2)}</p>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="p-6 flex items-center justify-end gap-3 border-t dark:border-white/10 border-gray-100">
@@ -399,8 +424,8 @@ const MemberMemberships = () => {
 
     const tabs = [
         { name: 'Active Membership' },
-        { name: 'Past Membership' },
         { name: 'Upcoming Membership' },
+        { name: 'Past Membership' },
     ];
 
     const fetchSubscriptions = async () => {
@@ -438,8 +463,8 @@ const MemberMemberships = () => {
 
     const filteredSubscriptions = subscriptions.filter(s => {
         if (activeTab === 'Active Membership') return s.status === 'Active';
-        if (activeTab === 'Past Membership') return s.status === 'Expired';
         if (activeTab === 'Upcoming Membership') return s.status === 'Upcoming';
+        if (activeTab === 'Past Membership') return s.status !== 'Active' && s.status !== 'Upcoming';
         return false;
     });
 
@@ -473,14 +498,16 @@ const MemberMemberships = () => {
                         {data.length > 0 ? data.map((item, idx) => (
                             <tr key={item._id} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50'}`}>
                                 <td className="px-6 py-6 uppercase">{item.packageName}</td>
-                                <td className="px-6 py-6 whitespace-nowrap">{item.duration} {item.durationType}</td>
+                                <td className="px-6 py-6 whitespace-nowrap">
+                                    {(item.duration || item.packageId?.durationValue || '-')} {(item.durationType || item.packageId?.durationType || 'Months')}
+                                </td>
                                 <td className="px-6 py-6 whitespace-nowrap text-gray-400">
                                     {item.assignedTrainer ? `${item.assignedTrainer.firstName} ${item.assignedTrainer.lastName}` : '-'}
                                 </td>
                                 <td className="px-6 py-6 whitespace-nowrap">{new Date(item.startDate).toLocaleDateString('en-GB')}</td>
                                 <td className="px-6 py-6 whitespace-nowrap">{new Date(item.endDate).toLocaleDateString('en-GB')}</td>
-                                <td className="px-6 py-6 whitespace-nowrap">₹{item.paidAmount}</td>
-                                <td className="px-6 py-6 text-red-500 whitespace-nowrap">₹{item.dueAmount}</td>
+                                <td className="px-6 py-6 whitespace-nowrap">₹{Number(item.paidAmount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
+                                <td className="px-6 py-6 text-red-500 whitespace-nowrap">₹{Number(item.dueAmount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
                                 <td className="px-6 py-6">
                                     <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${item.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500' :
                                         item.status === 'Expired' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
@@ -501,7 +528,7 @@ const MemberMemberships = () => {
 
                                     {activeMenu === idx && (
                                         <div ref={menuRef} className={`absolute right-10 top-0 w-48 rounded-md shadow-xl border z-50 py-1 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                                            {['Renew', 'Pay Due', 'Add-On Days', 'Change Start Date', 'Freeze', 'Upgrade', 'Resale'].map((opt, i) => (
+                                            {['Renew', 'Pay Due', 'Add-On Days', 'Change Start Date', 'Freeze', 'Upgrade'].map((opt, i) => (
                                                 <div
                                                     key={i}
                                                     className={`px-4 py-3 text-[13px] font-bold cursor-pointer transition-all ${isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'} ${opt === 'Pay Due' && item.dueAmount <= 0 ? 'hidden' : ''}`}
@@ -578,8 +605,8 @@ const MemberMemberships = () => {
                     {tabs.map(tab => {
                         const count = subscriptions.filter(s => {
                             if (tab.name === 'Active Membership') return s.status === 'Active';
-                            if (tab.name === 'Past Membership') return s.status === 'Expired';
                             if (tab.name === 'Upcoming Membership') return s.status === 'Upcoming';
+                            if (tab.name === 'Past Membership') return s.status !== 'Active' && s.status !== 'Upcoming';
                             return false;
                         }).length;
 

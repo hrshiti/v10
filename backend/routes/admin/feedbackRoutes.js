@@ -5,7 +5,8 @@ const {
     getFeedbacks,
     replyToFeedback,
     getFeedbackStats,
-    getMyFeedbacks
+    getMyFeedbacks,
+    deleteFeedback
 } = require('../../controllers/admin/feedbackController');
 
 const { protect, userProtect } = require('../../middlewares/authMiddleware');
@@ -14,6 +15,7 @@ const { protect, userProtect } = require('../../middlewares/authMiddleware');
 router.get('/', protect, getFeedbacks);
 router.get('/stats', protect, getFeedbackStats);
 router.put('/:id/reply', protect, replyToFeedback);
+router.delete('/:id', protect, deleteFeedback);
 router.get('/user/:userId', protect, getMyFeedbacks);
 
 // Public/User Route (To submit)

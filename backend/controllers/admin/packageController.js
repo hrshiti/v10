@@ -1,5 +1,8 @@
 const asyncHandler = require('express-async-handler');
 const Package = require('../../models/Package');
+const Member = require('../../models/Member');
+const Subscription = require('../../models/Subscription');
+const Sale = require('../../models/Sale');
 
 // @desc    Get all packages (active)
 // @route   GET /api/admin/packages
@@ -13,8 +16,6 @@ const getPackages = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/packages
 // @access  Private/Admin
 const createPackage = asyncHandler(async (req, res) => {
-    // We can just dump the body since schema handles validation
-    // But destructing often safer to avoid unwanted fields
     const {
         name, type, activity, timing, description,
         durationType, durationValue, sessions, rackRate, baseRate,
@@ -37,8 +38,11 @@ const createPackage = asyncHandler(async (req, res) => {
 const updatePackage = asyncHandler(async (req, res) => {
     const pkg = await Package.findById(req.params.id);
     if (pkg) {
-        // Update all fields if provided
-        pkg.name = req.body.name || pkg.name;
+        const oldName = pkg.name;
+        const newName = req.body.name || pkg.name;
+
+        // Update fields
+        pkg.name = newName;
         pkg.type = req.body.type || pkg.type;
         pkg.activity = req.body.activity || pkg.activity;
         pkg.timing = req.body.timing || pkg.timing;
@@ -57,6 +61,23 @@ const updatePackage = asyncHandler(async (req, res) => {
         pkg.sessionDays = req.body.sessionDays || pkg.sessionDays;
 
         const updated = await pkg.save();
+
+        // 🚀 Dynamic source of truth magic: 
+        // We NO LONGER need to update Member and Subscription records manually, 
+        // because they link via packageId and use virtuals to show the latest name!
+
+        // However, we still update Sales description for historical reports if name changed
+        if (oldName !== newName) {
+            const matchingSales = await Sale.find({ description: { $regex: oldName, $options: 'i' } });
+            if (matchingSales.length > 0) {
+                const updatePromises = matchingSales.map(sale => {
+                    sale.description = sale.description.replace(new RegExp(oldName, 'gi'), newName);
+                    return sale.save();
+                });
+                await Promise.all(updatePromises);
+            }
+        }
+
         res.json(updated);
     } else {
         res.status(404);
@@ -64,12 +85,12 @@ const updatePackage = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Delete Package (Soft delete preferred)
+// @desc    Delete Package (Soft delete)
 // @route   DELETE /api/admin/packages/:id
 const deletePackage = asyncHandler(async (req, res) => {
     const pkg = await Package.findById(req.params.id);
     if (pkg) {
-        pkg.isDeleted = true; // Soft delete distinct from inactive
+        pkg.isDeleted = true;
         await pkg.save();
         res.json({ message: 'Package deleted' });
     } else {

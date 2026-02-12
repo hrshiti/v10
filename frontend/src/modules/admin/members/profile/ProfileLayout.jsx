@@ -14,15 +14,28 @@ import {
     Edit,
     History,
     ChevronLeft,
-    Plus,
+    Receipt,
+    CheckCircle2,
     X,
-    CheckCircle2
+    Plus,
+    Clock,
+    Shield,
+    Phone,
+    Mail,
+    MapPin,
+    ChevronRight,
+    Ban,
+    AlertCircle,
+    List,
+    Camera
 } from 'lucide-react';
 
 
 const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) => {
     const [amount, setAmount] = useState('');
     const [paymentMode, setPaymentMode] = useState('Cash');
+    const [splitPayment, setSplitPayment] = useState({ cash: 0, online: 0 });
+    const [comment, setComment] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -30,6 +43,16 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
             setAmount(member.dueAmount || '');
         }
     }, [member, isOpen]);
+
+    // Auto-sync split payment when amount changes
+    useEffect(() => {
+        if (paymentMode === 'Split') {
+            const currentTotal = Number(splitPayment.cash) + Number(splitPayment.online);
+            if (currentTotal !== Number(amount)) {
+                setSplitPayment({ cash: Number(amount), online: 0 });
+            }
+        }
+    }, [amount, paymentMode]);
 
     if (!isOpen || !member) return null;
 
@@ -48,7 +71,9 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
                 body: JSON.stringify({
                     amount: Number(amount),
                     paymentMode,
-                    closedBy: adminInfo?._id
+                    splitPayment: paymentMode === 'Split' ? splitPayment : { cash: 0, online: 0 },
+                    closedBy: adminInfo?._id,
+                    comment
                 })
             });
             if (res.ok) {
@@ -67,11 +92,19 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className={`relative w-full max-w-lg rounded-xl shadow-2xl animate-in zoom-in duration-200 ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
-                <div className="p-4 py-3 border-b dark:border-white/10 border-gray-100 flex items-center justify-between">
-                    <h3 className={`text-base font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Pay Outstanding Dues</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
+            <div className={`relative w-full max-w-lg rounded-3xl shadow-2xl animate-in zoom-in duration-200 overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border border-white/10' : 'bg-white'}`}>
+                <div className="p-6 border-b dark:border-white/10 border-gray-100 flex items-center justify-between bg-gradient-to-r from-red-600/5 to-transparent">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-red-600 text-white shadow-lg shadow-red-600/30">
+                            <Receipt size={20} />
+                        </div>
+                        <div>
+                            <h3 className={`text-[15px] font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Pay Outstanding Dues</h3>
+                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Collecting Dues</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-gray-400"><X size={20} /></button>
                 </div>
                 <div className="p-8 space-y-6">
                     <div className="flex justify-between items-center p-5 rounded-xl bg-red-500/5 border border-red-500/10 mb-4">
@@ -103,12 +136,13 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
 
                         <div className="space-y-1.5">
                             <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Payment Mode</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {['Cash', 'Online', 'Card'].map(mode => (
+                            <div className="grid grid-cols-2 gap-2">
+                                {['Cash', 'UPI / Online', 'Card', 'Cheque', 'Split'].map(mode => (
                                     <button
                                         key={mode}
+                                        type="button"
                                         onClick={() => setPaymentMode(mode)}
-                                        className={`py-2.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${paymentMode === mode
+                                        className={`py-2.5 rounded-lg text-[11px] font-black uppercase tracking-wider border transition-all ${paymentMode === mode
                                             ? 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/20'
                                             : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600')
                                             }`}
@@ -117,6 +151,48 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
                                     </button>
                                 ))}
                             </div>
+                        </div>
+
+                        {paymentMode === 'Split' && (
+                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 p-4 rounded-xl bg-red-500/5 border border-dashed border-red-500/20">
+                                <div className="space-y-1.5">
+                                    <label className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Cash Part (₹)</label>
+                                    <input
+                                        type="number"
+                                        value={splitPayment.cash}
+                                        onChange={(e) => {
+                                            const cash = Number(e.target.value) || 0;
+                                            const online = Math.max(0, Number(amount) - cash);
+                                            setSplitPayment({ cash, online });
+                                        }}
+                                        className={`w-full px-3 py-2 rounded-lg border text-sm font-bold outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white focus:border-red-500' : 'bg-white border-gray-200 focus:border-red-500'}`}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Online Part (₹)</label>
+                                    <input
+                                        type="number"
+                                        value={splitPayment.online}
+                                        onChange={(e) => {
+                                            const online = Number(e.target.value) || 0;
+                                            const cash = Math.max(0, Number(amount) - online);
+                                            setSplitPayment({ cash, online });
+                                        }}
+                                        className={`w-full px-3 py-2 rounded-lg border text-sm font-bold outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white focus:border-red-500' : 'bg-white border-gray-200 focus:border-red-500'}`}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Remarks */}
+                        <div className="space-y-1.5">
+                            <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Remarks (Optional)</label>
+                            <textarea
+                                value={comment}
+                                onChange={(e) => setComment(e.target.value)}
+                                placeholder="Add any notes here..."
+                                className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none h-20 resize-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white focus:border-red-500/50' : 'bg-white border-gray-300 focus:border-red-500'}`}
+                            />
                         </div>
 
                         {/* Balance Preview */}
@@ -128,14 +204,18 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
                         )}
                     </div>
                 </div>
-                <div className="p-6 flex items-center justify-end gap-3 border-t dark:border-white/10 border-gray-100">
-                    <button onClick={onClose} className={`px-8 py-2.5 rounded-lg text-sm font-bold ${isDarkMode ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>Cancel</button>
+                <div className="pt-2">
                     <button
                         disabled={isSubmitting || !amount || amount <= 0}
                         onClick={handleSubmit}
-                        className="px-8 py-2.5 bg-emerald-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-600/30 transition-all active:scale-95 text-[14px] uppercase tracking-wider disabled:opacity-30 flex items-center justify-center gap-2 group"
                     >
-                        {isSubmitting ? 'Processing...' : 'Collect Payment'}
+                        {isSubmitting ? 'Recording...' : (
+                            <>
+                                Confirm Collection
+                                <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform" />
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
@@ -244,20 +324,21 @@ const ProfileLayout = () => {
     ];
 
     return (
-        <div className={`flex flex-col gap-6 p-8 min-h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#f8f9fa] text-gray-800'}`}>
-            {/* Back Button */}
-            {/* Back Button - Now sticky or fixed if needed, but keeping it at top of content for now */}
-            <div
-                onClick={() => navigate('/admin/members/list')}
-                className="flex items-center gap-2 text-orange-500 font-bold cursor-pointer w-fit hover:underline z-20"
-            >
-                <ChevronLeft size={20} />
-                <span>Members Profile</span>
+        <div className={`flex flex-col gap-4 h-[calc(100vh-128px)] overflow-hidden transition-colors duration-500 ${isDarkMode ? 'bg-[#0a0a0a] text-white' : 'bg-[#f8f9fa] text-gray-800'}`}>
+            {/* Back Button Container */}
+            <div className="shrink-0 pt-2">
+                <div
+                    onClick={() => navigate('/admin/members/list')}
+                    className="flex items-center gap-2 text-orange-500 font-bold cursor-pointer w-fit hover:underline z-20"
+                >
+                    <ChevronLeft size={20} />
+                    <span>Members Profile</span>
+                </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6 items-start relative">
+            <div className="flex-1 flex flex-col lg:flex-row gap-6 pb-2 overflow-hidden">
                 {/* Left Sidebar */}
-                <div className="w-full lg:w-[300px] flex-shrink-0 space-y-4 lg:sticky lg:top-[100px] self-start z-10">
+                <div className="w-full lg:w-[300px] flex-shrink-0 space-y-4 h-full overflow-y-auto scrollbar-hide pr-1 self-start">
 
                     {/* User Card */}
                     <div className="bg-white dark:bg-[#1e1e1e] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 flex items-center gap-4">
@@ -323,7 +404,7 @@ const ProfileLayout = () => {
                 </div>
 
                 {/* Right Content */}
-                <div className="flex-1 w-full min-w-0">
+                <div className="flex-1 w-full min-w-0 h-full overflow-y-auto custom-scrollbar pr-1">
                     {/* Pass parent context (isDarkMode) + current id + member details */}
                     <Outlet context={{
                         isDarkMode,

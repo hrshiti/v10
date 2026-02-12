@@ -5,13 +5,15 @@ import {
   Calendar,
   ChevronDown,
   Wallet,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
 
 // --- Reusable Components (AdvancedDateRangePicker) ---
 
-const AdvancedDateRangePicker = ({ isDarkMode, placeholder }) => {
+const AdvancedDateRangePicker = ({ isDarkMode, placeholder, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -123,8 +125,17 @@ const AdvancedDateRangePicker = ({ isDarkMode, placeholder }) => {
               ))}
             </div>
             <div className="flex justify-end gap-3 mt-8">
-              <button onClick={() => setIsOpen(false)} className={`px-6 py-2 rounded-lg text-[14px] font-bold ${isDarkMode ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Cancel</button>
-              <button onClick={() => setIsOpen(false)} className="px-8 py-2 rounded-lg text-[14px] font-bold bg-[#f97316] hover:bg-orange-600 text-white shadow-md active:scale-95">Apply</button>
+              <button onClick={() => {
+                setStartDate(null);
+                setEndDate(null);
+                setActiveSidebar('');
+                onChange({ start: null, end: null });
+                setIsOpen(false);
+              }} className={`px-6 py-2 rounded-lg text-[14px] font-bold ${isDarkMode ? 'bg-white/5 text-gray-300' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Clear</button>
+              <button onClick={() => {
+                onChange({ start: startDate, end: endDate });
+                setIsOpen(false);
+              }} className="px-8 py-2 rounded-lg text-[14px] font-bold bg-[#f97316] hover:bg-orange-600 text-white shadow-md active:scale-95">Apply</button>
             </div>
           </div>
         </div>
@@ -132,6 +143,41 @@ const AdvancedDateRangePicker = ({ isDarkMode, placeholder }) => {
     </div>
   );
 };
+
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
+      <div className={`w-[400px] rounded-lg shadow-2xl relative pt-10 pb-8 px-6 flex flex-col items-center text-center ${isDarkMode ? 'bg-white' : 'bg-white'}`}>
+        <button
+          onClick={onClose}
+          className={`absolute top-4 right-4 p-1 rounded transition-colors text-gray-400 hover:text-gray-600`}
+        >
+          <X size={20} />
+        </button>
+
+        <div className="mb-6 bg-red-100 p-4 rounded-xl">
+          <Trash2 size={40} className="text-red-500" />
+        </div>
+
+        <h2 className="text-[24px] font-bold mb-2 text-gray-900">Delete Transaction?</h2>
+        <p className="text-[14px] font-medium mb-8 text-gray-500 max-w-[260px]">
+          Do you really want to delete this record?
+          This process cannot be undone.
+        </p>
+
+        <button
+          onClick={onConfirm}
+          className="bg-[#ef4444] hover:bg-red-600 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-lg shadow-red-500/20 transition-all flex items-center gap-2"
+        >
+          <Trash2 size={16} />
+          Yes, Delete Record
+        </button>
+      </div>
+    </div>
+  )
+}
 
 const Payments = () => {
   const { isDarkMode } = useOutletContext();
@@ -145,8 +191,13 @@ const Payments = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalSales, setTotalSales] = useState(0);
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [activeActionRow, setActiveActionRow] = useState(null);
   const actionContainerRefs = useRef({});
+
+  // Delete State
+  const [deleteId, setDeleteId] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const fetchSales = async () => {
     setIsLoading(true);
@@ -154,7 +205,13 @@ const Payments = () => {
       const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
       const token = adminInfo?.token;
       if (!token) return;
-      const res = await fetch(`${API_BASE_URL}/api/admin/sales?pageNumber=${currentPage}&pageSize=${rowsPerPage}&memberId=${searchQuery}`, {
+
+      let url = `${API_BASE_URL}/api/admin/sales?pageNumber=${currentPage}&pageSize=${rowsPerPage}`;
+      if (searchQuery) url += `&keyword=${searchQuery}`;
+      if (dateRange.start) url += `&fromDate=${dateRange.start.toISOString()}`;
+      if (dateRange.end) url += `&toDate=${dateRange.end.toISOString()}`;
+
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -172,7 +229,7 @@ const Payments = () => {
 
   useEffect(() => {
     fetchSales();
-  }, [currentPage, rowsPerPage, searchQuery]);
+  }, [currentPage, rowsPerPage, searchQuery, dateRange]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -187,10 +244,39 @@ const Payments = () => {
   }, [activeActionRow]);
 
   const handleAction = (action, sale) => {
+    setActiveActionRow(null);
     if (action === "View Invoice") {
       navigate(`/admin/business/payments/invoice-detail?id=${sale.invoiceNumber}`);
+    } else if (action === "Delete") {
+      setDeleteId(sale._id);
+      setIsDeleteModalOpen(true);
     }
-    setActiveActionRow(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/sales/${deleteId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        fetchSales();
+        setIsDeleteModalOpen(false);
+        setDeleteId(null);
+      } else {
+        alert("Failed to delete transaction");
+      }
+    } catch (error) {
+      console.error('Error deleting sale:', error);
+      alert("Error deleting transaction");
+    }
   };
 
   const totalRevenue = sales.reduce((sum, s) => sum + (s.amount || 0), 0);
@@ -216,11 +302,15 @@ const Payments = () => {
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-4 pt-4">
-        <AdvancedDateRangePicker isDarkMode={isDarkMode} placeholder="Select Invoice Date" />
+        <AdvancedDateRangePicker
+          isDarkMode={isDarkMode}
+          placeholder="Select Invoice Date"
+          onChange={(range) => setDateRange(range)}
+        />
         <button onClick={fetchSales} className="bg-[#f97316] text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95">Refresh</button>
         <div className="relative flex-1 max-w-sm ml-auto">
           <Search size={20} className="absolute left-4 top-3 text-gray-400" />
-          <input type="text" placeholder="Search Member ID" className={`w-full pl-12 pr-4 py-2.5 border rounded-xl text-[16px] font-bold outline-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-200 text-black placeholder:text-gray-400'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          <input type="text" placeholder="Search Invoice/Name/Mobile" className={`w-full pl-12 pr-4 py-2.5 border rounded-xl text-[16px] font-bold outline-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-200 text-black placeholder:text-gray-400'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
       </div>
       <div className={`mt-4 border rounded-lg overflow-hidden ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-100 shadow-sm'}`}>
@@ -302,6 +392,13 @@ const Payments = () => {
           </div>
         </div>
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

@@ -5,6 +5,11 @@ const subscriptionSchema = new mongoose.Schema({
     packageId: { type: mongoose.Schema.Types.ObjectId, ref: 'Package' }, // Optional if package is deleted later
 
     // Plan Details (Snapshot as packages might change)
+    membershipType: {
+        type: String,
+        enum: ['General Training', 'Personal Training'],
+        default: 'General Training'
+    },
     packageName: { type: String, required: true },
     duration: { type: Number, required: true },
     durationType: { type: String, enum: ['Months', 'Days'], default: 'Months' },

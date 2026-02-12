@@ -3,7 +3,10 @@ import {
     ChevronDown,
     RefreshCcw,
     Calendar,
-    MoreVertical
+    MoreVertical,
+    UserPlus,
+    MessageSquare,
+    ShoppingCart
 } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -21,6 +24,7 @@ import {
 } from 'recharts';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import DateRangeFilter from '../components/DateRangeFilter';
+import MemberSearch from '../components/MemberSearch';
 import { API_BASE_URL } from '../../../config/api';
 
 const Dashboard = () => {
@@ -65,9 +69,17 @@ const Dashboard = () => {
 
     // API States
     const [stats, setStats] = useState(null);
-    const [followUpsData, setFollowUpsData] = useState([]);
+    const [commitmentDuesData, setCommitmentDuesData] = useState([]);
+    const [commitmentDaysFilter, setCommitmentDaysFilter] = useState(30);
     const [chartsData, setChartsData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    const [dateFilter, setDateFilter] = useState(() => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        return { start, end };
+    });
 
     const fetchData = async () => {
         try {
@@ -80,18 +92,23 @@ const Dashboard = () => {
                 'Authorization': `Bearer ${token}`
             };
 
-            const [statsRes, followUpsRes, chartsRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/admin/dashboard/stats`, { headers }),
-                fetch(`${API_BASE_URL}/api/admin/dashboard/follow-ups`, { headers }),
-                fetch(`${API_BASE_URL}/api/admin/dashboard/charts`, { headers })
+            const queryParams = new URLSearchParams({
+                startDate: dateFilter.start.toISOString(),
+                endDate: dateFilter.end.toISOString()
+            }).toString();
+
+            const [statsRes, commitmentRes, chartsRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/admin/dashboard/stats?${queryParams}`, { headers }),
+                fetch(`${API_BASE_URL}/api/admin/dashboard/commitment-dues?days=${commitmentDaysFilter}`, { headers }),
+                fetch(`${API_BASE_URL}/api/admin/dashboard/charts?${queryParams}`, { headers })
             ]);
 
             const sData = await statsRes.json();
-            const fData = await followUpsRes.json();
+            const eData = await commitmentRes.json();
             const cData = await chartsRes.json();
 
             setStats(sData);
-            setFollowUpsData(fData);
+            setCommitmentDuesData(eData);
             setChartsData(cData);
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
@@ -102,7 +119,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [commitmentDaysFilter, dateFilter]);
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -144,12 +161,12 @@ const Dashboard = () => {
     const yearFilterOptions = ['Today', 'Yesterday', 'This month'];
 
     // Chart Data
-    const leadTypesData = [
-        { name: 'Hot', value: 0, color: '#ef4444' },
-        { name: 'Warm', value: 0, color: '#f97316' },
-        { name: 'Cold', value: 0, color: '#3b82f6' }
+    const packageDataInitial = [
+        { name: 'Yearly', value: 0, color: '#10b981' },
+        { name: 'Half Yearly', value: 0, color: '#f97316' },
+        { name: 'Quarterly', value: 0, color: '#3b82f6' }
     ];
-    const leadTypes = chartsData?.leadTypes || leadTypesData;
+    const packageData = chartsData?.membershipDistribution || packageDataInitial;
 
     const membersTrendData = chartsData?.memberTrendData || [];
     const financialData = chartsData?.financialData || [];
@@ -172,26 +189,37 @@ const Dashboard = () => {
         <div className={`space-y-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
             {/* Header */}
             <div className="flex justify-between items-center">
-                <h1 className={`text-[28px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>Dashboard</h1>
-                <button
-                    onClick={handleRefresh}
-                    className="bg-[#f97316] hover:bg-[#ea580c] text-white px-6 py-2 rounded-md text-[14px] font-bold transition-colors active:scale-95"
-                >
-                    <RefreshCcw size={16} className={`inline mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    Refresh
-                </button>
+                <div className="flex items-center gap-8 flex-1">
+                    <h1 className={`text-[28px] font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>Dashboard</h1>
+                    <MemberSearch isDarkMode={isDarkMode} />
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate('/admin/members/add')}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+                    >
+                        <ShoppingCart size={18} />
+                        New Sale
+                    </button>
+                    <button
+                        onClick={() => navigate('/admin/enquiries?add=true')}
+                        className="bg-[#6366f1] hover:bg-[#4f46e5] text-white px-5 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                    >
+                        <MessageSquare size={18} />
+                        New Enquiry
+                    </button>
+                    <button
+                        onClick={handleRefresh}
+                        className="bg-[#f97316] hover:bg-[#ea580c] text-white px-5 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-orange-600/20"
+                    >
+                        <RefreshCcw size={18} className={isRefreshing ? 'animate-spin' : ''} />
+                        Refresh
+                    </button>
+                </div>
             </div>
 
-            {/* Search & Date Filter */}
-            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4">
-                <div className="relative w-full lg:max-w-xs">
-                    <input
-                        type="text"
-                        placeholder='Search & Create "New Sales"'
-                        className={`w-full px-4 py-2.5 border rounded-md text-[14px] font-normal outline-none ${isDarkMode ? 'bg-[#1e1e1e] border-white/10 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 text-black placeholder:text-gray-400'
-                            }`}
-                    />
-                </div>
+            {/* Date Filter */}
+            <div className="flex justify-end items-center gap-4">
                 <div className="flex items-center gap-3">
                     <span className={`text-[14px] font-normal ${isDarkMode ? 'text-gray-400' : 'text-black'}`}>Sort by</span>
                     <div className="relative">
@@ -202,46 +230,46 @@ const Dashboard = () => {
                             onApply={(range) => {
                                 setSelectedDateRange(range.label);
                                 setSelectedDateRangeText(`${range.startDate.toLocaleDateString()} - ${range.endDate.toLocaleDateString()}`);
+                                setDateFilter({ start: range.startDate, end: range.endDate });
                             }}
                         />
                     </div>
                 </div>
             </div>
 
-            {/* Follow Ups Section */}
+            {/* Commitment Dues Section */}
             <section className="space-y-3">
-                <p className={`text-[13px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Follow Ups ({followUpsData.length})</p>
+                <p className={`text-[13px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Commitment Dues Today ({stats?.commitmentDues?.today || 0})</p>
                 <div className={`border rounded-lg ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
                     {/* Table Header */}
                     <div className={`px-5 py-3 border-b flex justify-between items-center ${isDarkMode ? 'border-white/5 bg-white/5' : 'border-gray-100 bg-white'}`}>
-                        <span className={`font-bold text-[14px] ${isDarkMode ? 'text-white' : 'text-black'}`}>Follow Ups</span>
+                        <span className={`font-bold text-[14px] ${isDarkMode ? 'text-white' : 'text-black'}`}>Members with Pending Dues</span>
                         <div className="flex items-center gap-4">
-                            <button className="text-[13px] font-normal text-[#f97316] hover:underline">Hide</button>
-
-                            {/* Follow Up Type Dropdown */}
+                            {/* Filter Dropdown */}
                             <div className="relative" ref={followUpTypeRef}>
                                 <div
                                     onClick={() => setShowFollowUpType(!showFollowUpType)}
                                     className={`flex items-center gap-2 px-3 py-1.5 border rounded-md cursor-pointer ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 text-black'
                                         }`}
                                 >
-                                    <span className="text-[13px] font-normal">Follow up Type</span>
+                                    <span className="text-[13px] font-normal">Pay within: {commitmentDaysFilter} Days</span>
                                     <ChevronDown size={14} className="text-gray-400" />
                                 </div>
 
                                 {showFollowUpType && (
-                                    <div className={`absolute right-0 top-full mt-1 w-48 rounded-lg shadow-xl border z-50 py-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
+                                    <div className={`absolute right-0 top-full mt-1 w-40 rounded-lg shadow-xl border z-50 py-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
                                         }`}>
-                                        {followUpTypes.map((type, idx) => (
+                                        {[7, 15, 30, 60].map((days) => (
                                             <div
-                                                key={idx}
+                                                key={days}
                                                 onClick={() => {
+                                                    setCommitmentDaysFilter(days);
                                                     setShowFollowUpType(false);
                                                 }}
                                                 className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
                                                     }`}
                                             >
-                                                {type}
+                                                {days} Days
                                             </div>
                                         ))}
                                     </div>
@@ -255,87 +283,59 @@ const Dashboard = () => {
                         <table className="min-w-full text-left border-collapse">
                             <thead>
                                 <tr className={`text-[13px] font-bold border-b ${isDarkMode ? 'border-white/5 text-gray-400' : 'border-gray-100 text-black'}`}>
-                                    <th className="px-5 py-3 font-bold">Name & Number</th>
-                                    <th className="px-5 py-3 font-bold">Follow Up Type</th>
-                                    <th className="px-5 py-3 font-bold">Follow Up Date & Time</th>
-                                    <th className="px-5 py-3 font-bold">Convertibility Status</th>
-                                    <th className="px-5 py-3 font-bold">Comment</th>
-                                    <th className="px-5 py-3 w-10"></th>
+                                    <th className="px-5 py-3 font-bold">Member</th>
+                                    <th className="px-5 py-3 font-bold">Mobile</th>
+                                    <th className="px-5 py-3 font-bold">Package</th>
+                                    <th className="px-5 py-3 font-bold">Amount Due</th>
+                                    <th className="px-5 py-3 font-bold">Commitment</th>
+                                    <th className="px-5 py-3 font-bold text-center">Status</th>
                                 </tr>
                             </thead>
                             <tbody className={`text-[13px] ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>
-                                {followUpsData.length > 0 ? (
-                                    followUpsData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((item, idx) => (
+                                {commitmentDuesData.length > 0 ? (
+                                    commitmentDuesData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((member, idx) => (
                                         <tr key={idx} className={`border-b ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                                             <td className="px-5 py-4">
-                                                <div
-                                                    onClick={() => navigate(`/admin/members/profile/edit?id=${item._id}`, { state: { member: item } })}
-                                                    className="flex flex-col gap-0.5 cursor-pointer group"
-                                                >
-                                                    <span className="text-blue-500 font-normal group-hover:underline">{item.name}</span>
-                                                    <span className="text-blue-400 font-normal text-[12px]">{item.number}</span>
-                                                </div>
-                                            </td>
-                                            <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>{item.type}</td>
-                                            <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>
-                                                {new Date(item.dateTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <span className={`${item.status === 'Hot' ? 'bg-[#ef4444]' : item.status === 'Warm' ? 'bg-[#f97316]' : 'bg-[#3b82f6]'} text-white px-2.5 py-1 rounded-md text-[11px] font-bold`}>
-                                                    {item.status}
-                                                </span>
-                                            </td>
-                                            <td className={`px-5 py-4 text-[12px] font-normal max-w-md ${isDarkMode ? 'text-gray-400' : 'text-black'}`}>
-                                                {item.comment}
-                                            </td>
-                                            <td className="px-5 py-4 text-right">
-                                                <div className="relative inline-block" ref={(el) => menuRefs.current[idx] = el}>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveMenu(activeMenu === idx ? null : idx);
-                                                        }}
-                                                        className={`p-1 rounded transition-colors ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-white/5' : 'text-gray-400 hover:text-black hover:bg-gray-100'}`}
-                                                    >
-                                                        <MoreVertical size={18} />
-                                                    </button>
-
-                                                    {/* Three Dot Menu */}
-                                                    {activeMenu === idx && (
-                                                        <div
-                                                            className={`absolute right-0 ${idx >= (followUpsData.length - 2) ? 'bottom-full mb-2' : 'top-full mt-1'} w-48 rounded-lg shadow-xl border z-[999] py-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
-                                                                }`}
-                                                        >
-                                                            <div
-                                                                onClick={() => {
-                                                                    setSelectedFollowUp(item);
-                                                                    setIsFollowUpModalOpen(true);
-                                                                    setActiveMenu(null);
-                                                                }}
-                                                                className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
-                                                                    }`}
-                                                            >
-                                                                Followup Response
-                                                            </div>
-                                                            <div
-                                                                onClick={() => {
-                                                                    setIsDoneModalOpen(true);
-                                                                    setActiveMenu(null);
-                                                                }}
-                                                                className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
-                                                                    }`}
-                                                            >
-                                                                Done
-                                                            </div>
+                                                <div className="flex items-center gap-3">
+                                                    {member.photo ? (
+                                                        <img src={member.photo} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                                            {member.firstName?.[0]}
                                                         </div>
                                                     )}
+                                                    <div className="flex flex-col">
+                                                        <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{member.firstName} {member.lastName}</span>
+                                                        <span className="text-[11px] text-gray-500">{member.memberId}</span>
+                                                    </div>
                                                 </div>
+                                            </td>
+                                            <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>{member.mobile}</td>
+                                            <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>{member.packageName}</td>
+                                            <td className={`px-5 py-4 font-bold ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>₹{member.dueAmount}</td>
+                                            <td className={`px-5 py-4 font-normal ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>
+                                                {member.commitmentDate ? new Date(member.commitmentDate).toLocaleDateString('en-GB') : (
+                                                    <span className="text-gray-500 italic">Not Set</span>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-4 text-center">
+                                                <span className={`px-2 py-1 rounded text-[11px] font-bold ${!member.commitmentDate ? 'bg-blue-500/10 text-blue-500' :
+                                                    member.daysLeft < 0 ? 'bg-red-500/10 text-red-500' :
+                                                        member.daysLeft === 0 ? 'bg-blue-500/10 text-blue-500' :
+                                                            member.daysLeft <= 3 ? 'bg-orange-500/10 text-orange-500' :
+                                                                'bg-emerald-500/10 text-emerald-500'
+                                                    }`}>
+                                                    {!member.commitmentDate ? 'PENDING' :
+                                                        member.daysLeft < 0 ? 'OVERDUE' :
+                                                            member.daysLeft === 0 ? 'DUE TODAY' :
+                                                                `${member.daysLeft} Days Left`}
+                                                </span>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" className="px-5 py-10 text-center text-gray-500">No pending follow-ups</td>
+                                        <td colSpan="6" className="px-5 py-10 text-center text-gray-500">No payment commitments in {commitmentDaysFilter} days</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -352,23 +352,12 @@ const Dashboard = () => {
                             >
                                 « Previous
                             </button>
-
-                            {Array.from({ length: Math.ceil(followUpsData.length / rowsPerPage) }, (_, i) => i + 1).map(page => (
-                                <button
-                                    key={page}
-                                    onClick={() => setCurrentPage(page)}
-                                    className={`w-8 h-8 rounded-md text-[12px] font-bold transition-colors ${currentPage === page
-                                        ? 'bg-[#f97316] text-white'
-                                        : (isDarkMode ? 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10' : 'bg-white border border-gray-300 text-black hover:bg-gray-50')
-                                        }`}
-                                >
-                                    {page}
-                                </button>
-                            ))}
-
+                            <span className={`text-[12px] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                Page {currentPage} of {Math.max(1, Math.ceil(commitmentDuesData.length / rowsPerPage))}
+                            </span>
                             <button
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(followUpsData.length / rowsPerPage)))}
-                                disabled={currentPage === Math.ceil(followUpsData.length / rowsPerPage) || followUpsData.length === 0}
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(commitmentDuesData.length / rowsPerPage)))}
+                                disabled={currentPage >= Math.ceil(commitmentDuesData.length / rowsPerPage)}
                                 className={`px-3 py-1.5 border rounded-md text-[12px] font-normal disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'}`}
                             >
                                 Next »
@@ -412,49 +401,59 @@ const Dashboard = () => {
                         </div>
                     </div>
                 </div>
-            </section>
+            </section >
 
             {/* Overview Section */}
-            <section className="space-y-3">
+            < section className="space-y-3" >
                 <p className={`text-[13px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Overview</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Members Card */}
-                    <div
-                        onClick={() => handleCardClick('/admin/members/list')}
-                        className="bg-[#3b82f6] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                    >
+                    <div className="bg-[#3b82f6] rounded-lg overflow-hidden shadow-lg">
                         <div className="px-4 py-2 border-b border-white/10">
-                            <span className="text-[12px] font-bold text-white">Members</span>
+                            <span className="text-[12px] font-bold text-white uppercase tracking-wider">Members Overview</span>
                         </div>
-                        <div className="grid grid-cols-2">
-                            <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.members?.active || 0}</h3>
-                                <p className="text-[11px] font-normal text-white/80 mt-1">Active</p>
+                        <div className="grid grid-cols-3">
+                            <div
+                                onClick={() => handleCardClick('/admin/members/list')}
+                                className="p-4 border-r border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                                <h3 className="text-[28px] font-bold text-white leading-none">{stats?.members?.active || 0}</h3>
+                                <p className="text-[10px] font-normal text-white/80 mt-1">Active</p>
                             </div>
-                            <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.members?.upcoming || 0}</h3>
-                                <p className="text-[11px] font-normal text-white/80 mt-1">Upcoming</p>
+                            <div
+                                onClick={() => handleCardClick('/admin/enquiries')}
+                                className="p-4 border-r border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                                <h3 className="text-[28px] font-bold text-white leading-none">{stats?.members?.upcoming || 0}</h3>
+                                <p className="text-[10px] font-normal text-white/80 mt-1">Upcoming</p>
+                            </div>
+                            <div
+                                onClick={() => handleCardClick('/admin/members/list')}
+                                className="p-4 bg-white/5 cursor-pointer hover:bg-white/20 transition-colors"
+                            >
+                                <h3 className="text-[28px] font-bold text-white leading-none">{stats?.members?.expired || 0}</h3>
+                                <p className="text-[10px] font-normal text-white/80 mt-1">Expired</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Follow Ups Overview Card */}
+                    {/* Commitment Dues Card */}
                     <div
-                        onClick={() => handleCardClick('/admin/follow-ups')}
-                        className="bg-[#f97316] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => handleCardClick('/admin/reports/balance-due')}
+                        className="bg-[#ef4444] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
                     >
                         <div className="px-4 py-2 border-b border-white/10">
-                            <span className="text-[12px] font-bold text-white">Follow Ups Overview</span>
+                            <span className="text-[12px] font-bold text-white">Commitment Dues</span>
                         </div>
                         <div className="grid grid-cols-2">
                             <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.followUps?.total || 0}</h3>
-                                <p className="text-[11px] font-normal text-white/80 mt-1">Total</p>
+                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.commitmentDues?.today || 0}</h3>
+                                <p className="text-[11px] font-normal text-white/80 mt-1">Today</p>
                             </div>
                             <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.followUps?.done || 0}</h3>
-                                <p className="text-[11px] font-normal text-white/80 mt-1">Done</p>
+                                <h3 className="text-[32px] font-bold text-white leading-none">{stats?.commitmentDues?.upcoming || 0}</h3>
+                                <p className="text-[11px] font-normal text-white/80 mt-1">Upcoming</p>
                             </div>
                         </div>
                     </div>
@@ -480,21 +479,33 @@ const Dashboard = () => {
                     </div>
 
                     {/* Attendance Card */}
-                    <div className="bg-[#f59e0b] rounded-lg overflow-hidden">
+                    <div
+                        onClick={() => handleCardClick('/admin/reports/attendance')}
+                        className="bg-[#f59e0b] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    >
                         <div className="grid grid-cols-2 h-full">
                             <div className="p-4 border-r border-white/10 flex flex-col">
-                                <p className="text-[11px] font-bold text-white/80">Attendance</p>
+                                <p className="text-[11px] font-bold text-white/80 uppercase">Attendance</p>
                                 <div className="mt-3">
                                     <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.present || 0}</h3>
-                                    <p className="text-[10px] font-normal text-white/70 mt-0.5">Attendance</p>
+                                    <p className="text-[10px] font-normal text-white/70 mt-0.5">Present</p>
                                 </div>
                                 <div className="mt-3">
                                     <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.absent || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Absent</p>
                                 </div>
+                                {stats?.attendance?.activeTrainers > 0 && (
+                                    <div className="mt-3 pt-3 border-t border-white/10">
+                                        <h3 className="text-[20px] font-black text-white leading-none flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                                            {stats?.attendance?.activeTrainers}
+                                        </h3>
+                                        <p className="text-[9px] font-bold text-white/70 uppercase mt-0.5">Trainers Active</p>
+                                    </div>
+                                )}
                             </div>
                             <div className="p-4 bg-white/10 flex flex-col">
-                                <p className="text-[11px] font-bold text-white/80">Date</p>
+                                <p className="text-[11px] font-bold text-white/80 uppercase">Events</p>
                                 <div className="mt-3">
                                     <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.birthday || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Birthday</p>
@@ -639,29 +650,7 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* Sales Card */}
-                    <div
-                        onClick={() => handleCardClick('/admin/reports/sales')}
-                        className="bg-[#f97316] rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                    >
-                        <div className="px-4 py-2 border-b border-white/10">
-                            <span className="text-[12px] font-bold text-white">Sales</span>
-                        </div>
-                        <div className="grid grid-cols-2">
-                            <div className="p-4 border-r border-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">
-                                    {stats?.sales?.upgrade?.number || 0}/{stats?.sales?.upgrade?.amount || 0}
-                                </h3>
-                                <p className="text-[11px] font-normal text-white/80 mt-1">Upgrade</p>
-                            </div>
-                            <div className="p-4 bg-white/10">
-                                <h3 className="text-[32px] font-bold text-white leading-none">
-                                    {stats?.sales?.transfer?.number || 0}/{stats?.sales?.transfer?.amount || 0}
-                                </h3>
-                                <p className="text-[11px] font-normal text-white/80 mt-1">Transfer</p>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
             </section>
 
@@ -669,38 +658,11 @@ const Dashboard = () => {
             <section className="space-y-3">
                 <p className={`text-[13px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Members Overview</p>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Lead Types Donut */}
+                    {/* Membership Package Donut */}
                     <div className={`p-6 rounded-lg border ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'}`}>
                         <div className="flex justify-between items-center mb-6">
-                            <span className={`font-bold text-[14px] ${isDarkMode ? 'text-white' : 'text-black'}`}>Lead Types</span>
+                            <span className={`font-bold text-[14px] ${isDarkMode ? 'text-white' : 'text-black'}`}>Membership Package</span>
                             <div className="relative" ref={yearFilterRef}>
-                                <div
-                                    onClick={() => setShowYearFilter(!showYearFilter)}
-                                    className={`flex items-center gap-2 px-3 py-1.5 border rounded-md cursor-pointer ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-[#f97316] text-[#f97316]'
-                                        }`}
-                                >
-                                    <span className="text-[13px] font-normal">This year</span>
-                                    <ChevronDown size={14} className="text-[#f97316]" />
-                                </div>
-
-                                {/* Year Filter Dropdown */}
-                                {showYearFilter && (
-                                    <div className={`absolute right-0 top-full mt-1 w-40 rounded-lg shadow-xl border z-50 py-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
-                                        }`}>
-                                        {['Today', 'Yesterday', 'This month'].map((option, idx) => (
-                                            <div
-                                                key={idx}
-                                                onClick={() => {
-                                                    setShowYearFilter(false);
-                                                }}
-                                                className={`px-4 py-2.5 text-[14px] font-normal cursor-pointer ${isDarkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-black'
-                                                    }`}
-                                            >
-                                                {option}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         </div>
                         <div className="flex flex-col md:flex-row items-center gap-8">
@@ -708,28 +670,36 @@ const Dashboard = () => {
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
-                                            data={leadTypes}
+                                            data={packageData}
                                             innerRadius={70}
                                             outerRadius={100}
                                             paddingAngle={0}
                                             dataKey="value"
                                             stroke="none"
                                         >
-                                            {leadTypes.map((entry, index) => (
+                                            {packageData.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
                                         </Pie>
-                                        <Tooltip />
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: isDarkMode ? '#1a1a1a' : '#fff',
+                                                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e7eb',
+                                                borderRadius: '12px',
+                                                color: isDarkMode ? '#fff' : '#000'
+                                            }}
+                                            itemStyle={{ color: isDarkMode ? '#fff' : '#000' }}
+                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                     <span className={`text-[40px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                                        {leadTypes.reduce((acc, curr) => acc + curr.value, 0)}
+                                        {packageData.reduce((acc, curr) => acc + curr.value, 0)}
                                     </span>
                                 </div>
                             </div>
-                            <div className="space-y-4 w-full md:w-auto">
-                                {leadTypes.map((item, idx) => (
+                            <div className="space-y-4 w-full md:w-auto h-[250px] overflow-y-auto custom-scrollbar pr-2">
+                                {packageData.map((item, idx) => (
                                     <div key={idx} className="flex items-center justify-between gap-8">
                                         <div className="flex items-center gap-2">
                                             <div className="w-4 h-4 rounded" style={{ backgroundColor: item.color }} />
@@ -793,7 +763,7 @@ const Dashboard = () => {
                         {[
                             { color: '#10b981', label: 'Revenue' },
                             { color: '#ef4444', label: 'Expenses' },
-                            { color: '#f97316', label: 'Pending' },
+                            { color: '#f97316', label: 'Due Payment' },
                         ].map((indicator, idx) => (
                             <div key={idx} className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: indicator.color }} />
@@ -808,9 +778,9 @@ const Dashboard = () => {
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#999' }} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#999' }} />
                                 <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1a1a1a' : '#fff', borderColor: 'transparent', borderRadius: '8px' }} />
-                                <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={0.1} fill="#10b981" strokeWidth={2} />
-                                <Area type="monotone" dataKey="expenses" stroke="#ef4444" fillOpacity={0.1} fill="#ef4444" strokeWidth={2} />
-                                <Area type="monotone" dataKey="pending" stroke="#f97316" fillOpacity={0.1} fill="#f97316" strokeWidth={2} />
+                                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#10b981" fillOpacity={0.1} fill="#10b981" strokeWidth={2} />
+                                <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" fillOpacity={0.1} fill="#ef4444" strokeWidth={2} />
+                                <Area type="monotone" dataKey="pending" name="Due Payment" stroke="#f97316" fillOpacity={0.1} fill="#f97316" strokeWidth={2} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -827,7 +797,7 @@ const Dashboard = () => {
                         <div>
                             <div className="flex items-center gap-2 mb-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-                                <span className={`text-[12px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Pending Payment</span>
+                                <span className={`text-[12px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Due Payment</span>
                             </div>
                             <h2 className={`text-[28px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
                                 ₹{stats?.financial?.pendingPayment || 0}

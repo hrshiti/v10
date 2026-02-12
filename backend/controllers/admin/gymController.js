@@ -22,26 +22,28 @@ const getGymDetails = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/gym-details
 // @access  Private/Admin
 const updateGymDetails = asyncHandler(async (req, res) => {
-    const { contactNumber, address, gstNo } = req.body;
+    const { name, contactNumber, address, gstNo } = req.body;
     let gymDetail = await GymDetail.findOne();
 
     if (gymDetail) {
+        gymDetail.name = name || gymDetail.name;
         gymDetail.contactNumber = contactNumber || gymDetail.contactNumber;
         gymDetail.address = address || gymDetail.address;
         gymDetail.gstNo = gstNo !== undefined ? gstNo : gymDetail.gstNo;
 
         if (req.file) {
-            gymDetail.logo = req.file.filename;
+            gymDetail.logo = req.file.path;
         }
 
         const updatedGym = await gymDetail.save();
         res.json(updatedGym);
     } else {
         const newGym = await GymDetail.create({
+            name,
             contactNumber,
             address,
             gstNo,
-            logo: req.file ? req.file.filename : null
+            logo: req.file ? req.file.path : null
         });
         res.json(newGym);
     }

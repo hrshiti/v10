@@ -293,6 +293,22 @@ const EditDietPlanModal = ({ isOpen, onClose, isDarkMode, plan, onUpdate }) => {
 
       {/* Diet Cards Container */}
       <div className="px-6 py-6 space-y-4 max-w-7xl mx-auto">
+
+        {currentDayCards.length === 0 && (
+          <div className={`flex flex-col items-center justify-center py-12 rounded-xl border border-dashed ${isDarkMode ? 'border-white/10' : 'border-gray-300'}`}>
+            <p className={`text-[14px] font-medium mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              No meals added for {activeDay}.
+            </p>
+            <button
+              onClick={handleAddCard}
+              className="bg-[#f97316] text-white px-6 py-2.5 rounded-lg text-[13px] font-bold shadow-md hover:bg-orange-600 transition-colors flex items-center gap-2"
+            >
+              <Plus size={16} strokeWidth={3} />
+              Add First Meal
+            </button>
+          </div>
+        )}
+
         {currentDayCards.map((card, index) => {
           const isLastCard = index === currentDayCards.length - 1;
 

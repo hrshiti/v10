@@ -6,6 +6,14 @@ const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, is
     const [isMaximized, setIsMaximized] = useState(false);
     const [convertibility, setConvertibility] = useState('');
     const [remarks, setRemarks] = useState('');
+    const [adminName, setAdminName] = useState('');
+
+    useEffect(() => {
+        const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+        if (adminInfo) {
+            setAdminName(`${adminInfo.firstName} ${adminInfo.lastName}`);
+        }
+    }, []);
 
     useEffect(() => {
         if (isOpen) {
@@ -96,8 +104,8 @@ const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, is
                                         { label: 'Follow Up ID', value: '2108290' },
                                         { label: 'Follow Up On', value: rowData?.date || '02 Feb, 2026 11:50 PM', tag: rowData?.status || 'PENDING' },
                                         { label: 'Remarks/Summary', value: rowData?.comment || 'Birthday Wish' },
-                                        { label: 'Assign to', value: rowData?.allocate || 'Abdulla Pathan' },
-                                        { label: 'Schedule by', value: rowData?.scheduledBy || 'Abdulla Pathan' },
+                                        { label: 'Assign to', value: rowData?.allocate || adminName || 'Admin' },
+                                        { label: 'Schedule by', value: rowData?.scheduledBy || adminName || 'Admin' },
                                         { label: 'Follow Up Type', value: rowData?.type || 'Birthday', isTagLike: true },
                                         { label: 'Convertibility', value: rowData?.convertStatus || 'Hot', isTagChange: true },
                                     ].map((row, idx) => (
@@ -241,7 +249,7 @@ const FollowUpActionModal = ({ isOpen, onClose, initialTab = 'edit', rowData, is
                 {/* Footer */}
                 <div className={`px-6 py-4 border-t flex items-center justify-between ${isDarkMode ? 'border-white/10 bg-[#1a1a1a]' : 'border-gray-100 bg-white'}`}>
                     <div className="flex flex-col">
-                        <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{rowData?.allocate || 'Abdulla Pathan'}</span>
+                        <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{rowData?.allocate || adminName || 'Admin'}</span>
                         <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Enquiry Created by</span>
                     </div>
                     <button
