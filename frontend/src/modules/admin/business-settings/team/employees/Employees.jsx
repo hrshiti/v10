@@ -149,21 +149,37 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode }) => {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   const handleDateClick = (day) => {
-    const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dateString = `${String(day).padStart(2, '0')}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${currentDate.getFullYear()}`;
     onChange(dateString);
     setIsOpen(false);
   };
 
   return (
     <div className="relative" ref={pickerRef}>
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full pl-12 pr-4 py-3 border rounded-lg text-[14px] outline-none flex items-center cursor-pointer ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'
-          }`}
-      >
-        <span className={value ? '' : 'text-gray-400 font-medium'}>{value || 'dd-mm-yyyy'}</span>
+      <div className={`w-full pl-12 pr-4 py-3 border rounded-lg text-[14px] outline-none flex items-center gap-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-300'} ${isOpen ? 'border-[#f97316]' : ''}`}>
         <Calendar size={18} className="absolute left-4 top-3.5 text-gray-400" />
-        <ChevronDown size={16} className={`absolute right-4 top-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => {
+            const val = e.target.value;
+            onChange(val);
+            if (val.match(/^\d{2}-\d{2}-\d{4}$/)) {
+              const [d, m, y] = val.split('-');
+              if (y.length === 4) {
+                const dateObj = new Date(y, m - 1, d);
+                if (!isNaN(dateObj.getTime())) setCurrentDate(dateObj);
+              }
+            }
+          }}
+          placeholder={label || 'DD-MM-YYYY'}
+          className={`flex-1 bg-transparent border-none outline-none font-medium w-full ${isDarkMode ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-400'}`}
+        />
+        <ChevronDown
+          size={16}
+          className={`cursor-pointer ml-auto text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          onClick={() => setIsOpen(!isOpen)}
+        />
       </div>
 
       {isOpen && (
@@ -383,6 +399,24 @@ const DeleteEmployeeModal = ({ isOpen, onClose, onConfirm, isDarkMode, employees
   )
 }
 
+const formatISOToDDMMYYYY = (isoDate) => {
+  if (!isoDate) return '';
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) return '';
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const y = date.getFullYear();
+  return `${d}-${m}-${y}`;
+};
+
+const formatDDMMYYYYToISO = (dateStr) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const [d, m, y] = parts;
+  return `${y}-${m}-${d}`;
+};
+
 const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEmployee, initialData, isEditMode }) => {
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', mobile: '', email: '', gender: 'Male', maritalStatus: 'Single',
@@ -405,8 +439,8 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEm
         email: initialData.email || '',
         gender: initialData.gender || 'Male',
         maritalStatus: initialData.maritalStatus || 'Single',
-        birthDate: initialData.birthDate ? new Date(initialData.birthDate).toISOString().split('T')[0] : '',
-        anniversaryDate: initialData.anniversaryDate ? new Date(initialData.anniversaryDate).toISOString().split('T')[0] : '',
+        birthDate: initialData.birthDate ? formatISOToDDMMYYYY(initialData.birthDate) : '',
+        anniversaryDate: initialData.anniversaryDate ? formatISOToDDMMYYYY(initialData.anniversaryDate) : '',
         language: initialData.language || [],
         gymRole: initialData.gymRole || [],
         gymActivities: initialData.gymActivities || [],
@@ -456,10 +490,16 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEm
 
     const submissionData = new FormData();
     Object.keys(formData).forEach(key => {
-      if (Array.isArray(formData[key])) {
-        formData[key].forEach(val => submissionData.append(key, val));
+      let value = formData[key];
+      // Convert DD-MM-YYYY back to ISO for submission
+      if ((key === 'birthDate' || key === 'anniversaryDate') && value && typeof value === 'string' && value.match(/^\d{2}-\d{2}-\d{4}$/)) {
+        value = formatDDMMYYYYToISO(value);
+      }
+
+      if (Array.isArray(value)) {
+        value.forEach(val => submissionData.append(key, val));
       } else {
-        submissionData.append(key, formData[key]);
+        submissionData.append(key, value);
       }
     });
 
@@ -601,20 +641,20 @@ const AddEmployeeModal = ({ isOpen, onClose, isDarkMode, onAddEmployee, onEditEm
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Birth Date*</label>
-              <input
-                type="date"
-                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
+              <CustomDatePicker
+                label="Birth Date"
                 value={formData.birthDate}
-                onChange={(e) => handleChange('birthDate', e.target.value)}
+                onChange={(val) => handleChange('birthDate', val)}
+                isDarkMode={isDarkMode}
               />
             </div>
             <div>
               <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-[#333]'}`}>Anniversary Date</label>
-              <input
-                type="date"
-                className={`w-full px-4 py-3 border rounded-lg text-[14px] outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
+              <CustomDatePicker
+                label="Anniversary Date"
                 value={formData.anniversaryDate}
-                onChange={(e) => handleChange('anniversaryDate', e.target.value)}
+                onChange={(val) => handleChange('anniversaryDate', val)}
+                isDarkMode={isDarkMode}
               />
             </div>
             <div>

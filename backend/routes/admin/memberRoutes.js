@@ -19,7 +19,8 @@ const {
     bulkAssignTrainer,
     payDue,
     payDueMember,
-    unfreezeMembership
+    unfreezeMembership,
+    toggleBlockStatus
 } = require('../../controllers/admin/memberController');
 
 const {
@@ -44,6 +45,7 @@ router.put('/:id/extend', extendMembership);
 router.put('/:id/change-start-date', changeStartDate);
 router.post('/:id/freeze', freezeMembership);
 router.post('/:id/unfreeze', unfreezeMembership);
+router.put('/:id/block', toggleBlockStatus);
 router.post('/:id/upgrade', upgradeMembership);
 router.post('/:id/transfer', transferMembership);
 router.put('/subscriptions/:subscriptionId/pay-due', payDue);

@@ -1,11 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { ArrowLeft, Save, User, Mail, MapPin, Calendar, Camera, Briefcase } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { API_BASE_URL } from '../../../config/api';
+import SingleDatePicker from '../../admin/components/SingleDatePicker';
+
+const formatISOToDDMMYYYY = (isoDate) => {
+    if (!isoDate) return '';
+    const date = new Date(isoDate);
+    if (isNaN(date.getTime())) return '';
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    return `${d}-${m}-${y}`;
+};
+
+const formatDDMMYYYYToISO = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [d, m, y] = parts;
+    return `${y}-${m}-${d}`;
+};
 
 const TrainerEditProfile = () => {
     const navigate = useNavigate();
+    const context = useOutletContext();
+    const isDarkMode = context?.isDarkMode || false;
     const [loading, setLoading] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -27,7 +48,7 @@ const TrainerEditProfile = () => {
                 firstName: data.firstName || '',
                 lastName: data.lastName || '',
                 email: data.email || '',
-                birthDate: data.birthDate ? data.birthDate.split('T')[0] : '',
+                birthDate: data.birthDate ? formatISOToDDMMYYYY(data.birthDate) : '',
                 gender: data.gender || '',
                 address: data.address || '',
                 experience: data.experience || ''
@@ -57,7 +78,11 @@ const TrainerEditProfile = () => {
         try {
             const data = new FormData();
             Object.keys(formData).forEach(key => {
-                data.append(key, formData[key]);
+                let value = formData[key];
+                if (key === 'birthDate' && value && value.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                    value = formatDDMMYYYYToISO(value);
+                }
+                data.append(key, value);
             });
             if (selectedFile) {
                 data.append('photo', selectedFile);
@@ -164,13 +189,12 @@ const TrainerEditProfile = () => {
                         <div className="space-y-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Birth Date</label>
                             <div className="relative">
-                                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                <input
-                                    type="date"
-                                    name="birthDate"
+                                {/* <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} /> */}
+                                <SingleDatePicker
                                     value={formData.birthDate}
-                                    onChange={handleChange}
-                                    className="w-full p-4 pl-12 rounded-2xl bg-gray-50 dark:bg-[#121212] border-none focus:ring-2 focus:ring-emerald-500/50 text-sm font-bold"
+                                    onSelect={(val) => setFormData(prev => ({ ...prev, birthDate: val }))}
+                                    isDarkMode={isDarkMode}
+                                    placeholder="DD-MM-YYYY"
                                 />
                             </div>
                         </div>

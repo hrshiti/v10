@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
+import GenerateReportModal from '../../components/GenerateReportModal';
 
 // --- Reusable Components ---
 
@@ -41,40 +42,7 @@ const Toast = ({ message, onClose, isDarkMode }) => {
   );
 };
 
-const ReportModal = ({ isOpen, onClose, isDarkMode }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-none">
-      <div className={`w-[400px] rounded-lg shadow-2xl transition-all ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
-        <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-          <div className="flex items-center gap-2">
-            <Calendar size={20} className={isDarkMode ? 'text-white' : 'text-black'} />
-            <h3 className={`text-[16px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Generate Report</h3>
-          </div>
-          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500 hover:text-black'}>
-            <X size={20} />
-          </button>
-        </div>
-        <div className="p-6">
-          <label className={`block text-[13px] font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>OTP*</label>
-          <input
-            type="text"
-            placeholder="OTP"
-            className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none ${isDarkMode
-              ? 'bg-[#1a1a1a] border-white/10 text-white placeholder-gray-500'
-              : 'bg-white border-gray-300 text-black placeholder-gray-400'
-              }`}
-          />
-        </div>
-        <div className={`p-4 border-t flex justify-end ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
-          <button className="bg-[#f97316] hover:bg-orange-600 text-white px-6 py-2 rounded-lg text-[14px] font-bold shadow-md transition-none">
-            Validate
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+
 
 const CustomSelect = ({ options, value, onChange, placeholder, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -771,6 +739,7 @@ const ExpenseManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStaff, setSelectedStaff] = useState('');
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [exportData, setExportData] = useState([]);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
@@ -971,6 +940,21 @@ const ExpenseManagement = () => {
     setEditingExpense(null); // Clear editing state on close
   }
 
+  const handleExportData = () => {
+    const formatted = filteredExpenses.map((expense, index) => ({
+      '#': index + 1,
+      'Expense Type': expense.expenseType || 'N/A',
+      'Description': expense.description || '-',
+      'Expense Date': expense.date ? new Date(expense.date).toLocaleDateString() : 'N/A',
+      'Staff Name': expense.staffName || 'N/A',
+      'Amount': `₹${expense.amount || 0}`,
+      'Payment Mode': expense.paymentMode || 'N/A'
+    }));
+
+    setExportData(formatted);
+    setIsReportModalOpen(true);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (rowsDropdownRef.current && !rowsDropdownRef.current.contains(event.target)) {
@@ -1068,7 +1052,7 @@ const ExpenseManagement = () => {
 
         <div className="ml-auto">
           <button
-            onClick={() => setIsReportModalOpen(true)}
+            onClick={handleExportData}
             className={`flex items-center gap-2 px-6 py-2.5 border rounded-lg text-[14px] font-bold transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-[#f8f9fa] border-gray-200 shadow-sm text-gray-600'}`}
           >
             <Download size={20} className="text-gray-400" />
@@ -1210,12 +1194,6 @@ const ExpenseManagement = () => {
         </div>
       </div>
 
-      <ReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        isDarkMode={isDarkMode}
-      />
-
       <AddExpenseModal
         isOpen={isAddExpenseModalOpen}
         onClose={handleAddModalClose}
@@ -1241,6 +1219,17 @@ const ExpenseManagement = () => {
           isDarkMode={isDarkMode}
         />
       )}
+
+      <GenerateReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setExportData([]);
+        }}
+        data={exportData}
+        filename={`Expense_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}`}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

@@ -367,24 +367,24 @@ const getHomeStats = asyncHandler(async (req, res) => {
         const now = new Date().getTime();
         const diffMinutes = (now - checkInTime) / (1000 * 60);
 
-        if (diffMinutes <= 50) {
+        if (diffMinutes <= 60) {
             isSessionActive = true;
-            sessionTimeRemaining = Math.max(0, 50 - diffMinutes);
+            sessionTimeRemaining = Math.max(0, 60 - diffMinutes);
         }
     }
 
-    // Calculate total active members in gym right now (checked in within last 50 mins)
-    const fiftyMinutesAgo = new Date(Date.now() - 50 * 60 * 1000);
+    // Calculate total active members in gym right now (checked in within last 60 mins)
+    const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    // Active Members
+    // Active Members (Auto-timeout after 1 hour)
     const activeMembersCount = await MemberAttendance.countDocuments({
-        checkIn: { $gte: fiftyMinutesAgo },
-        checkOut: { $exists: false } // Only count if not checked out
+        checkIn: { $gte: sixtyMinutesAgo },
+        checkOut: { $exists: false }
     });
 
-    // Active Trainers/Employees (Only those with 'Trainer' role)
+    // Active Trainers/Employees (Stay active all day until checkout)
     const activeAttendance = await EmployeeAttendance.find({
-        inTime: { $gte: fiftyMinutesAgo },
+        date: { $gte: today }, // Any time today
         outTime: { $exists: false }
     }).populate({
         path: 'employeeId',
@@ -396,7 +396,8 @@ const getHomeStats = asyncHandler(async (req, res) => {
         return roles.some(role => typeof role === 'string' && role.toLowerCase().includes('trainer'));
     }).length;
 
-    const activeInGym = activeMembersCount + activeTrainersCount;
+    // "Active In Gym" for users should ONLY be member count, not including trainers
+    const activeInGym = activeMembersCount;
 
     res.json({
         totalMembers,

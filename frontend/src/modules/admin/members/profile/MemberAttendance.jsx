@@ -16,7 +16,6 @@ const MemberAttendance = () => {
         memberEmergencyNo
     } = context || {};
 
-    const [activeTab, setActiveTab] = useState('General'); // 'General' or 'Personal'
     const [month, setMonth] = useState(new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()));
     const [year, setYear] = useState(new Date().getFullYear().toString());
     const [attendanceLogs, setAttendanceLogs] = useState([]);
@@ -40,7 +39,7 @@ const MemberAttendance = () => {
                 const end = new Date(parseInt(year), monthIdx + 1, 0);
                 end.setHours(23, 59, 59, 999);
 
-                const res = await fetch(`${API_BASE_URL}/api/admin/members/attendance?memberId=${id}&startDate=${start.toISOString()}&endDate=${end.toISOString()}&trainingType=${activeTab}`, {
+                const res = await fetch(`${API_BASE_URL}/api/admin/members/attendance?memberId=${id}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
@@ -53,7 +52,7 @@ const MemberAttendance = () => {
         };
 
         fetchAttendance();
-    }, [id, month, year, activeTab]);
+    }, [id, month, year]);
 
     const daysInMonth = new Date(parseInt(year), monthIdx + 1, 0).getDate();
     const startDay = new Date(parseInt(year), monthIdx, 1).getDay();
@@ -148,75 +147,65 @@ const MemberAttendance = () => {
                     </div>
                 </div>
 
-                {/* Training Tabs */}
-                <div className="px-8 flex gap-10 border-b dark:border-white/5 border-gray-50">
-                    <button
-                        onClick={() => setActiveTab('General')}
-                        className={`pb-5 text-[12px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'General' ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                        <div className="flex items-center gap-2">
-                            <Dumbbell size={16} />
-                            General Training
-                        </div>
-                        {activeTab === 'General' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-orange-500 rounded-t-full shadow-[0_-4px_10px_rgba(249,115,22,0.4)]" />}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('Personal')}
-                        className={`pb-5 text-[12px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'Personal' ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                        <div className="flex items-center gap-2">
-                            <User size={16} />
-                            Personal Training
-                        </div>
-                        {activeTab === 'Personal' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-orange-500 rounded-t-full shadow-[0_-4px_10px_rgba(249,115,22,0.4)]" />}
-                    </button>
-                </div>
-
                 {/* Chips Summary */}
                 <div className="p-8 py-6 flex gap-4">
                     <div className="flex items-center gap-3 bg-emerald-500/10 px-5 py-2 rounded-full border border-emerald-500/20">
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                         <span className="text-[12px] font-black text-emerald-500 uppercase tracking-wider">Present Days ({presentCount})</span>
                     </div>
-                    <div className="flex items-center gap-3 bg-red-500/10 px-5 py-2 rounded-full border border-red-500/20">
-                        <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-                        <span className="text-[12px] font-black text-red-500 uppercase tracking-wider">Absent Days ({absentCount})</span>
-                    </div>
                 </div>
 
                 {/* Calendar Grid */}
                 <div className="px-8 pb-10">
                     <div className="grid grid-cols-7 gap-px dark:bg-white/5 bg-gray-100 rounded-xl overflow-hidden border dark:border-white/5 border-gray-100 shadow-inner">
-                        {['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'].map(day => (
-                            <div key={day} className={`py-4 text-center text-[11px] font-black text-gray-500 uppercase tracking-[2px] ${isDarkMode ? 'bg-[#181818]' : 'bg-gray-50'}`}>{day}</div>
+                        {['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'].map((day, i) => (
+                            <div key={`${day}-${i}`} className={`py-4 text-center text-[11px] font-black text-gray-500 uppercase tracking-[2px] ${isDarkMode ? 'bg-[#181818]' : 'bg-gray-50'}`}>{day}</div>
                         ))}
-                        {weeks.flatMap((week, widx) =>
+                        {weeks.map((week, widx) => (
                             week.map((day, didx) => {
                                 const present = day ? isPresent(day) : false;
+                                const isDayBeforeToday = day && new Date(parseInt(year), monthIdx, day) < new Date().setHours(0, 0, 0, 0);
+                                const isFuture = day && new Date(parseInt(year), monthIdx, day) > new Date();
+
+                                let bgColor = isDarkMode ? 'bg-[#121212]' : 'bg-white';
+                                let textColor = isDarkMode ? 'text-gray-300' : 'text-gray-800';
+
+                                if (day) {
+                                    if (present) {
+                                        bgColor = 'bg-emerald-500/10';
+                                        textColor = 'text-emerald-500';
+                                    } else if (isDayBeforeToday) {
+                                        bgColor = 'bg-red-500/10';
+                                        textColor = 'text-red-500';
+                                    }
+                                }
+
                                 return (
                                     <div
                                         key={`${widx}-${didx}`}
-                                        className={`h-24 sm:h-32 transition-all p-3 flex flex-col items-center justify-center relative ${isDarkMode ? 'bg-[#121212]' : 'bg-white'} ${day ? 'cursor-pointer hover:bg-orange-500/5' : ''}`}
+                                        className={`h-24 sm:h-32 transition-all p-3 flex flex-col items-center justify-center relative ${bgColor} ${day ? 'cursor-pointer hover:bg-opacity-80' : ''}`}
                                     >
-                                        {day && (
+                                        {day ? (
                                             <>
-                                                <span className={`text-2xl font-black ${present ? 'text-orange-500 scale-125' : (isDarkMode ? 'text-gray-300' : 'text-gray-800')}`}>
+                                                <span className={`text-2xl font-black ${textColor} ${present ? 'scale-125' : ''}`}>
                                                     {day}
                                                 </span>
                                                 {present && (
                                                     <div className="absolute top-2 right-2">
-                                                        <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.6)]" />
+                                                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
                                                     </div>
                                                 )}
-                                                {present && (
-                                                    <div className="mt-2 text-[10px] font-black text-orange-500/60 uppercase tracking-tighter">Attended</div>
-                                                )}
+                                                {present ? (
+                                                    <div className="mt-2 text-[10px] font-black text-emerald-500/80 uppercase tracking-tighter">Present</div>
+                                                ) : isDayBeforeToday ? (
+                                                    <div className="mt-2 text-[10px] font-black text-red-500/60 uppercase tracking-tighter">Absent</div>
+                                                ) : null}
                                             </>
-                                        )}
+                                        ) : null}
                                     </div>
                                 );
                             })
-                        )}
+                        ))}
                     </div>
                 </div>
             </div>

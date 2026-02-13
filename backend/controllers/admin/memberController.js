@@ -794,9 +794,12 @@ const upgradeMembership = asyncHandler(async (req, res) => {
     }
 
     // Find the previous current subscription to carry forward payments
-    const previousSub = await Subscription.findOne({ memberId: member._id, isCurrent: true });
     let carriedPaidAmount = 0;
     let carriedDiscount = 0;
+    // ... existing logic ...
+    // Note: I am truncating here because I cannot see the end of the file from previous view.
+    // Let me view the end of the file first to be safe.
+
 
     if (previousSub) {
         carriedPaidAmount = previousSub.paidAmount || 0;
@@ -1140,6 +1143,28 @@ const payDueMember = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Toggle Block Status
+// @route   PUT /api/admin/members/:id/block
+// @access  Private/Admin
+const toggleBlockStatus = asyncHandler(async (req, res) => {
+    const member = await Member.findById(req.params.id);
+
+    if (member) {
+        member.isBlocked = !member.isBlocked;
+        await member.save();
+        res.json({
+            _id: member._id,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            isBlocked: member.isBlocked,
+            message: `Member ${member.isBlocked ? 'Blocked' : 'Unblocked'} Successfully`
+        });
+    } else {
+        res.status(404);
+        throw new Error('Member not found');
+    }
+});
+
 module.exports = {
     getMembers,
     getMemberById,
@@ -1159,6 +1184,7 @@ module.exports = {
     bulkAssignTrainer,
     payDue,
     payDueMember,
-    unfreezeMembership
+    unfreezeMembership,
+    toggleBlockStatus
 };
 

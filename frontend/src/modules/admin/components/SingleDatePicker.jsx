@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronDown } from 'lucide-react';
 
-const SingleDatePicker = ({ isDarkMode, onSelect, value, placeholder = "dd-mm-yyyy" }) => {
+const SingleDatePicker = ({ isDarkMode, onSelect, value, placeholder = "dd-mm-yyyy", disabled }) => {
     const [isOpen, setIsOpen] = useState(false);
     const today = new Date();
     const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -86,25 +86,56 @@ const SingleDatePicker = ({ isDarkMode, onSelect, value, placeholder = "dd-mm-yy
     return (
         <div className="relative" ref={containerRef}>
             <div
-                onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-3 px-4 py-2.5 border rounded-lg min-w-[180px] cursor-pointer shadow-sm transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-700'}`}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg min-w-[180px] shadow-sm transition-all ${disabled
+                        ? (isDarkMode ? 'bg-white/5 border-white/5 cursor-not-allowed opacity-50' : 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-50')
+                        : (isDarkMode ? 'bg-[#1a1a1a] border-white/10 cursor-pointer' : 'bg-white border-gray-200 cursor-pointer')
+                    } ${isOpen && !disabled ? 'border-[#f97316]' : ''}`}
             >
-                <Calendar size={18} className="text-gray-400" />
-                <span className="text-[14px] font-bold">{value || placeholder}</span>
-                <ChevronDown size={14} className={`ml-auto text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <Calendar
+                    size={18}
+                    className="text-gray-400 shrink-0"
+                    onClick={() => !disabled && setIsOpen(!isOpen)}
+                />
+                <input
+                    type="text"
+                    value={value || ''}
+                    disabled={disabled}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        onSelect(val);
+                        if (val.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                            const [d, m, y] = val.split('-');
+                            if (y.length === 4) {
+                                const dateObj = new Date(y, m - 1, d);
+                                if (!isNaN(dateObj.getTime())) {
+                                    setViewMonth(m - 1);
+                                    setViewYear(parseInt(y));
+                                }
+                            }
+                        }
+                    }}
+                    placeholder={placeholder}
+                    className={`flex-1 bg-transparent border-none outline-none text-[14px] font-bold w-full ${isDarkMode ? 'text-white placeholder:text-gray-500' : 'text-gray-700 placeholder:text-gray-400'} ${disabled ? 'cursor-not-allowed' : ''}`}
+                />
+                <ChevronDown
+                    size={14}
+                    className={`ml-auto text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    onClick={() => !disabled && setIsOpen(!isOpen)}
+                />
             </div>
 
-            {isOpen && (
-                <div className={`absolute top-full left-0 mt-2 w-[320px] shadow-2xl rounded-xl border p-4 z-[999] ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}
-                >
-                    {/* Header with Custom Selects (Image 2 Style) */}
+            {isOpen && !disabled && (
+                <div className={`absolute top-full left-0 mt-2 w-[320px] shadow-2xl rounded-xl border p-4 z-[999] ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
+                    {/* Header with Custom Selects */}
                     <div className="flex items-center gap-2 mb-4">
                         <div className="relative flex-1" ref={monthRef}>
                             <div
                                 onClick={() => setIsMonthOpen(!isMonthOpen)}
                                 className={`px-4 py-2.5 border rounded-lg text-[14px] font-bold flex items-center justify-between cursor-pointer transition-all ${isDarkMode
                                     ? 'bg-[#1a1a1a] border-white/10 text-gray-400'
-                                    : 'bg-white border-gray-200 text-gray-400 hover:border-[#f97316]'}`}
+                                    : 'bg-white border-gray-200 text-gray-400 hover:border-[#f97316]'
+                                    }`}
                             >
                                 <span>{months[viewMonth]}</span>
                             </div>
@@ -128,7 +159,8 @@ const SingleDatePicker = ({ isDarkMode, onSelect, value, placeholder = "dd-mm-yy
                                 onClick={() => setIsYearOpen(!isYearOpen)}
                                 className={`px-4 py-2.5 border rounded-lg text-[14px] font-bold flex items-center justify-between cursor-pointer transition-all ${isDarkMode
                                     ? 'bg-[#1a1a1a] border-white/10 text-gray-400'
-                                    : 'bg-white border-gray-200 text-gray-400 hover:border-[#f97316]'}`}
+                                    : 'bg-white border-gray-200 text-gray-400 hover:border-[#f97316]'
+                                    }`}
                             >
                                 <span>{viewYear}</span>
                             </div>

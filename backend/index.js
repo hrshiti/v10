@@ -56,13 +56,14 @@ app.use('/v10_profiles', express.static(path.join(__dirname, 'v10_profiles')));
 
 
 
-// Rate Limiting
+// Rate Limiting - More permissive in development
 const limiter = rateLimit({
     windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000, // 15 minutes
-    max: process.env.RATE_LIMIT_MAX || 100, // Limit each IP to 100 requests per windowMs
+    max: process.env.NODE_ENV === 'production' ? (process.env.RATE_LIMIT_MAX || 100) : 10000, // 10000 requests in dev, 100 in production
     message: 'Too many requests from this IP, please try again later',
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    skip: (req) => process.env.NODE_ENV === 'development' && req.ip === '::1' || req.ip === '127.0.0.1', // Skip rate limiting for localhost in dev
 });
 
 app.use(limiter);

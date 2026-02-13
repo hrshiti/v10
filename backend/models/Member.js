@@ -43,6 +43,10 @@ const memberSchema = new mongoose.Schema({
         enum: ['Active', 'Expired', 'Frozen', 'Pending', 'Inactive'],
         default: 'Active'
     },
+    isBlocked: {
+        type: Boolean,
+        default: false
+    },
 
     // Financials
     totalAmount: { type: Number, required: true },

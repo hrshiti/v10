@@ -33,6 +33,11 @@ const sendOTP = asyncHandler(async (req, res) => {
         throw new Error('User not found with this mobile number. Please register or contact admin.');
     }
 
+    if (role === 'member' && user.isBlocked) {
+        res.status(403);
+        throw new Error('Your account has been blocked. Please contact admin.');
+    }
+
     // Generate 6 digit OTP or use default for specific number
     let otp;
     if (mobile === '6260491554') {
@@ -85,6 +90,11 @@ const verifyOTP = asyncHandler(async (req, res) => {
     if (!user) {
         res.status(404);
         throw new Error('User not found');
+    }
+
+    if (role === 'member' && user.isBlocked) {
+        res.status(403);
+        throw new Error('Your account has been blocked. Please contact admin.');
     }
 
     // Verify OTP

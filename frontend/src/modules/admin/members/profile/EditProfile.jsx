@@ -39,16 +39,42 @@ const CustomDatePicker = ({ value, onChange, placeholder, isDarkMode }) => {
         setIsOpen(false);
     };
 
+    const handleInputChange = (e) => {
+        const newVal = e.target.value;
+        onChange(newVal);
+
+        // Try to update calendar view if valid date
+        if (newVal && newVal.match(/^\d{2}-\d{2}-\d{4}$/)) {
+            const [d, m, y] = newVal.split('-').map(num => parseInt(num, 10));
+            if (d && m && y) {
+                const dateObj = new Date(y, m - 1, d);
+                if (!isNaN(dateObj.getTime())) {
+                    setCurrentDate(dateObj);
+                }
+            }
+        }
+    };
+
     return (
         <div className="relative w-full" ref={pickerRef}>
-            <div
-                onClick={() => setIsOpen(!isOpen)}
-                className={`w-full px-4 py-3 border rounded-lg text-[14px] flex items-center gap-3 cursor-pointer outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300 text-gray-700'
-                    }`}
-            >
-                <Calendar size={18} className="text-gray-400" />
-                <span className={value ? '' : 'text-gray-400'}>{value || placeholder || 'Select Date'}</span>
-                <ChevronDown size={14} className="ml-auto text-gray-400" />
+            <div className={`w-full px-4 py-3 border rounded-lg flex items-center gap-3 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-300'}`}>
+                <Calendar
+                    size={18}
+                    className="text-gray-400 cursor-pointer shrink-0"
+                    onClick={() => setIsOpen(!isOpen)}
+                />
+                <input
+                    type="text"
+                    value={value || ''}
+                    onChange={handleInputChange}
+                    placeholder={placeholder || 'DD-MM-YYYY'}
+                    className={`flex-1 bg-transparent border-none outline-none text-[14px] font-bold w-full ${isDarkMode ? 'text-white placeholder:text-gray-600' : 'text-gray-700 placeholder:text-gray-400'}`}
+                />
+                <ChevronDown
+                    size={14}
+                    className="text-gray-400 cursor-pointer ml-auto shrink-0"
+                    onClick={() => setIsOpen(!isOpen)}
+                />
             </div>
 
             {isOpen && (

@@ -2,6 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { User, Phone, Mail, MapPin, Calendar, Shield, Package, CreditCard, ChevronDown, CheckCircle, ArrowLeft, Receipt, DollarSign, Clock, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../../../../config/api';
+import SingleDatePicker from '../../components/SingleDatePicker';
+
+// Date Helpers
+const formatISOToDDMMYYYY = (isoDate) => {
+    if (!isoDate) return '';
+    const date = new Date(isoDate);
+    if (isNaN(date.getTime())) return '';
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    return `${d}-${m}-${y}`;
+};
+
+const formatDDMMYYYYToISO = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [d, m, y] = parts;
+    return `${y}-${m}-${d}`;
+};
+
+const parseDDMMYYYY = (dateStr) => {
+    const [d, m, y] = dateStr.split('-');
+    return new Date(y, m - 1, d);
+};
 
 const SectionHeader = ({ icon: Icon, title, isDarkMode }) => (
     <div className="flex items-center gap-3 mb-6 pb-2 border-b dark:border-white/10 border-gray-100">
@@ -54,7 +79,7 @@ const AddMember = () => {
         packageName: '',
         packageId: '',
         durationMonths: 1,
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: formatISOToDDMMYYYY(new Date()),
         endDate: '',
         totalAmount: 0,
         paidAmount: 0,
@@ -139,8 +164,8 @@ const AddMember = () => {
     const handleStartDateChange = (dateStr) => {
         setFormData(prev => {
             const newFormData = { ...prev, startDate: dateStr };
-            if (selectedPackage) {
-                const startDate = new Date(dateStr);
+            if (selectedPackage && dateStr && dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                const startDate = parseDDMMYYYY(dateStr);
                 const endDate = new Date(startDate);
                 if (selectedPackage.durationType === 'Months') {
                     endDate.setMonth(endDate.getMonth() + selectedPackage.durationValue);
@@ -223,6 +248,9 @@ const AddMember = () => {
 
         const payload = {
             ...formData,
+            dob: formatDDMMYYYYToISO(formData.dob),
+            startDate: formatDDMMYYYYToISO(formData.startDate),
+            commitmentDate: formatDDMMYYYYToISO(formData.commitmentDate),
             totalAmount: payableAmount,
             subTotal: amountBeforeTax,
             taxAmount: taxAmount
@@ -337,16 +365,19 @@ const AddMember = () => {
                                     ))}
                                 </div>
                             </div>
-                            <FormInput
-                                label="Date of Birth"
-                                icon={Calendar}
-                                type="date"
-                                isDarkMode={isDarkMode}
-                                value={formData.dob}
-                                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                                onFocus={(e) => e.target.showPicker && e.target.showPicker()}
-                                onClick={(e) => e.target.showPicker && e.target.showPicker()}
-                            />
+                            <div className="space-y-2">
+                                <label className={`text-[13px] font-black uppercase tracking-tight ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    Date of Birth
+                                </label>
+                                <div className="relative">
+                                    <SingleDatePicker
+                                        value={formData.dob}
+                                        onSelect={(val) => setFormData({ ...formData, dob: val })}
+                                        isDarkMode={isDarkMode}
+                                        placeholder="DD-MM-YYYY"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -424,13 +455,12 @@ const AddMember = () => {
                                                         {pkg.baseRate}
                                                     </td>
                                                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                                                        <input
-                                                            type="date"
-                                                            disabled={formData.packageId !== pkg._id}
-                                                            className={`bg-white dark:bg-transparent border dark:border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold outline-none transition-all disabled:opacity-30 ${isDarkMode ? 'text-white cursor-pointer select-none' : 'text-gray-800 border-gray-200 shadow-sm'}`}
+                                                        <SingleDatePicker
                                                             value={formData.packageId === pkg._id ? formData.startDate : ''}
-                                                            onChange={(e) => handleStartDateChange(e.target.value)}
-                                                            onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()}
+                                                            onSelect={(val) => handleStartDateChange(val)}
+                                                            isDarkMode={isDarkMode}
+                                                            disabled={formData.packageId !== pkg._id}
+                                                            placeholder="DD-MM-YYYY"
                                                         />
                                                     </td>
                                                 </tr>
@@ -571,13 +601,11 @@ const AddMember = () => {
                                 <div className="animate-in slide-in-from-top-2 duration-300 pt-2 space-y-2">
                                     <label className="text-[11px] font-black uppercase text-gray-400">Commitment Date*</label>
                                     <div className="relative">
-                                        <span className={`absolute left-4 top-3.5 text-gray-400`}><Calendar size={16} /></span>
-                                        <input
-                                            type="date"
-                                            required
+                                        <SingleDatePicker
                                             value={formData.commitmentDate}
-                                            onChange={(e) => setFormData({ ...formData, commitmentDate: e.target.value })}
-                                            className={`w-full pl-12 pr-4 py-3 rounded-xl border text-sm font-bold outline-none ${isDarkMode ? 'bg-black/20 border-white/10 text-white' : 'bg-gray-50 border-gray-200'}`}
+                                            onSelect={(val) => setFormData({ ...formData, commitmentDate: val })}
+                                            isDarkMode={isDarkMode}
+                                            placeholder="DD-MM-YYYY"
                                         />
                                     </div>
                                 </div>

@@ -141,12 +141,31 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode, withTime = false
     return (
         <div className="relative" ref={pickerRef}>
             <label className={labelClass}>{label}</label>
-            <div
-                onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center justify-between px-4 py-2.5 border rounded-lg cursor-pointer transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white shadow-none' : 'bg-white border-gray-300 text-gray-500 shadow-sm'}`}
-            >
-                <span className="text-[14px] font-bold">{value || 'dd-mm-yyyy'}</span>
-                <CalendarIcon size={16} className="text-gray-400" />
+            <div className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-300'} ${isOpen ? 'border-[#f97316]' : ''}`}>
+                <input
+                    type="text"
+                    value={value || ''}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        onChange(val);
+                        const datePart = val.split(' ')[0];
+                        if (datePart.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                            const [d, m, y] = datePart.split('-');
+                            // Standard year check
+                            if (y.length === 4) {
+                                const dateObj = new Date(y, m - 1, d);
+                                if (!isNaN(dateObj.getTime())) setCurrentDate(dateObj);
+                            }
+                        }
+                    }}
+                    placeholder={value || 'dd-mm-yyyy'}
+                    className={`flex-1 bg-transparent border-none outline-none text-[14px] font-bold w-full ${isDarkMode ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-500'}`}
+                />
+                <CalendarIcon
+                    size={16}
+                    className={`text-gray-400 cursor-pointer shrink-0 ml-auto ${isOpen ? 'text-[#f97316]' : ''}`}
+                    onClick={() => setIsOpen(!isOpen)}
+                />
             </div>
 
             {isOpen && (

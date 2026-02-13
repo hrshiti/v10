@@ -269,18 +269,42 @@ const CustomDatePicker = ({ label, value, onChange, isDarkMode, withTime = false
             <label className={`block text-[13px] font-bold mb-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 {label}
             </label>
-            <div
-                onClick={() => setIsOpen(!isOpen)}
-                className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none cursor-pointer flex items-center justify-between transition-none ${isDarkMode
-                    ? 'bg-[#1a1a1a] border-white/10 text-white'
-                    : `bg-white border-gray-300 ${value ? 'text-gray-900' : 'text-gray-500'}`
-                    } ${isOpen ? 'border-[#f97316]' : ''}`}
-            >
-                <div className="flex items-center gap-2">
-                    <CalendarIcon size={16} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
-                    <span className={isOpen ? 'text-[#f97316]' : ''}>{value || 'dd-mm-yyyy'}</span>
-                </div>
-                <ChevronDown size={16} className={isOpen ? 'text-[#f97316]' : 'text-gray-400'} />
+            <div className={`w-full px-4 py-2.5 border rounded-lg text-[14px] outline-none flex items-center gap-2 transition-none ${isDarkMode
+                ? 'bg-[#1a1a1a] border-white/10'
+                : 'bg-white border-gray-300'
+                } ${isOpen ? 'border-[#f97316]' : ''}`}>
+
+                <CalendarIcon
+                    size={16}
+                    className={`cursor-pointer shrink-0 ${isOpen ? 'text-[#f97316]' : 'text-gray-400'}`}
+                    onClick={() => setIsOpen(!isOpen)}
+                />
+
+                <input
+                    type="text"
+                    value={value || ''}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        onChange(val);
+                        const datePart = val.split(' ')[0];
+                        if (datePart.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                            const [d, m, y] = datePart.split('-');
+                            // Only update current date if we have a valid year (sanity check)
+                            if (y.length === 4) {
+                                const dateObj = new Date(y, m - 1, d);
+                                if (!isNaN(dateObj.getTime())) setCurrentDate(dateObj);
+                            }
+                        }
+                    }}
+                    placeholder={withTime ? "dd-mm-yyyy HH:mm" : "dd-mm-yyyy"}
+                    className={`flex-1 bg-transparent border-none outline-none font-semibold w-full ${isDarkMode ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'}`}
+                />
+
+                <ChevronDown
+                    size={16}
+                    className={`cursor-pointer shrink-0 ml-auto ${isOpen ? 'text-[#f97316]' : 'text-gray-400'}`}
+                    onClick={() => setIsOpen(!isOpen)}
+                />
             </div>
 
             {isOpen && (

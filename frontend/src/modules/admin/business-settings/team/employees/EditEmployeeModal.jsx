@@ -36,16 +36,35 @@ const CustomDatePicker = ({ value, onChange, isDarkMode, placeholder = 'dd-mm-yy
 
     return (
         <div className="relative" ref={pickerRef}>
-            <div
-                onClick={() => setIsOpen(!isOpen)}
-                className={`w-full px-4 py-3 border rounded-lg text-[14px] flex items-center cursor-pointer ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'
-                    }`}
-            >
-                <Calendar size={18} className="text-gray-400 mr-3" />
-                <span className={value ? (isDarkMode ? 'text-white' : 'text-gray-900') : 'text-gray-400'}>
-                    {value || placeholder}
-                </span>
-                <ChevronDown size={16} className={`ml-auto text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            <div className={`w-full px-4 py-3 border rounded-lg flex items-center gap-2 ${isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-300'}`}>
+                <Calendar
+                    size={18}
+                    className="text-gray-400 cursor-pointer shrink-0"
+                    onClick={() => setIsOpen(!isOpen)}
+                />
+                <input
+                    type="text"
+                    value={value || ''}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        onChange(val);
+                        if (val.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                            const [d, m, y] = val.split('-');
+                            // Standard year check
+                            if (y.length === 4) {
+                                const dateObj = new Date(y, m - 1, d);
+                                if (!isNaN(dateObj.getTime())) setCurrentDate(dateObj);
+                            }
+                        }
+                    }}
+                    placeholder={placeholder || 'DD-MM-YYYY'}
+                    className={`flex-1 bg-transparent border-none outline-none text-[14px] ${isDarkMode ? 'text-white placeholder:text-gray-600' : 'text-gray-900 placeholder:text-gray-400'}`}
+                />
+                <ChevronDown
+                    size={16}
+                    className={`text-gray-400 cursor-pointer ml-auto shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    onClick={() => setIsOpen(!isOpen)}
+                />
             </div>
 
             {isOpen && (
@@ -83,8 +102,8 @@ const CustomDatePicker = ({ value, onChange, isDarkMode, placeholder = 'dd-mm-yy
                                 key={d}
                                 onClick={() => handleDateClick(d)}
                                 className={`h-8 flex items-center justify-center text-sm rounded cursor-pointer font-medium ${isDarkMode
-                                        ? 'text-gray-300 hover:bg-[#f97316] hover:text-white'
-                                        : 'text-gray-700 hover:bg-[#f97316] hover:text-white'
+                                    ? 'text-gray-300 hover:bg-[#f97316] hover:text-white'
+                                    : 'text-gray-700 hover:bg-[#f97316] hover:text-white'
                                     }`}
                             >
                                 {d}
@@ -126,8 +145,8 @@ const CustomMultiSelect = ({ options, value = [], onChange, isDarkMode, placehol
             <div
                 onClick={() => setIsOpen(!isOpen)}
                 className={`w-full px-4 py-3 border rounded-lg text-[14px] flex justify-between items-center cursor-pointer transition-all ${isDarkMode
-                        ? 'bg-[#1a1a1a] border-white/10 text-white'
-                        : isOpen ? 'bg-white border-[#f97316]' : 'bg-white border-gray-300'
+                    ? 'bg-[#1a1a1a] border-white/10 text-white'
+                    : isOpen ? 'bg-white border-[#f97316]' : 'bg-white border-gray-300'
                     }`}
             >
                 <span className={`font-medium truncate ${value.length > 0 ? (isDarkMode ? 'text-white' : 'text-[#f97316]') : 'text-gray-400'}`}>
@@ -144,8 +163,8 @@ const CustomMultiSelect = ({ options, value = [], onChange, isDarkMode, placehol
                             key={option}
                             onClick={() => handleSelect(option)}
                             className={`px-4 py-2.5 text-[14px] font-medium cursor-pointer flex items-center gap-3 transition-colors ${isDarkMode
-                                    ? 'text-gray-300 hover:bg-white/5'
-                                    : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                                ? 'text-gray-300 hover:bg-white/5'
+                                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                                 }`}
                         >
                             <div className={`w-4 h-4 rounded border flex items-center justify-center ${value.includes(option) ? 'bg-[#f97316] border-[#f97316]' : 'border-gray-300'
@@ -185,8 +204,8 @@ const CustomSelect = ({ options, value, onChange, isDarkMode, placeholder = "Sel
             <div
                 onClick={() => setIsOpen(!isOpen)}
                 className={`w-full px-4 py-3 border rounded-lg text-[14px] flex justify-between items-center cursor-pointer transition-all ${isDarkMode
-                        ? 'bg-[#1a1a1a] border-white/10 text-white'
-                        : isOpen ? 'bg-white border-[#f97316]' : 'bg-white border-gray-300'
+                    ? 'bg-[#1a1a1a] border-white/10 text-white'
+                    : isOpen ? 'bg-white border-[#f97316]' : 'bg-white border-gray-300'
                     }`}
             >
                 <span className={`font-medium truncate ${value ? (isDarkMode ? 'text-white' : 'text-[#f97316]') : 'text-gray-400'}`}>
@@ -206,8 +225,8 @@ const CustomSelect = ({ options, value, onChange, isDarkMode, placeholder = "Sel
                                 setIsOpen(false);
                             }}
                             className={`px-4 py-2.5 text-[14px] font-medium cursor-pointer transition-colors ${isDarkMode
-                                    ? 'text-gray-300 hover:bg-white/5'
-                                    : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                                ? 'text-gray-300 hover:bg-white/5'
+                                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                                 }`}
                         >
                             {option}

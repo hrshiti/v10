@@ -404,10 +404,10 @@ const Dashboard = () => {
             </section >
 
             {/* Overview Section */}
-            < section className="space-y-3" >
+            <section className="space-y-3">
                 <p className={`text-[13px] font-normal ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Overview</p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     {/* Members Card */}
                     <div className="bg-[#3b82f6] rounded-lg overflow-hidden shadow-lg">
                         <div className="px-4 py-2 border-b border-white/10">
@@ -520,7 +520,7 @@ const Dashboard = () => {
                 </div>
 
                 {/* Second Row of Overview Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     {/* Total Sales Card */}
                     <div
                         onClick={() => handleCardClick('/admin/reports/sales')}
@@ -625,7 +625,7 @@ const Dashboard = () => {
                 </div>
 
                 {/* Third Row - Total PT Sales & Sales */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     {/* Total PT Sales Card */}
                     <div
                         onClick={() => handleCardClick('/admin/reports/sales')}

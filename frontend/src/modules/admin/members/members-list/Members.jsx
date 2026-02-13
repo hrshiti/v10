@@ -799,6 +799,37 @@ const Members = () => {
     }
   };
 
+  const handleToggleBlock = async (memberId, currentBlockStatus) => {
+    if (!window.confirm(`Are you sure you want to ${currentBlockStatus ? 'unblock' : 'block'} this member?`)) return;
+
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${memberId}/block`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(prev => prev.map(m => m._id === memberId ? { ...m, isBlocked: data.isBlocked } : m));
+        setSuccessMessage(data.message);
+        setShowSuccessNotification(true);
+        setTimeout(() => setShowSuccessNotification(false), 3000);
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to update block status');
+      }
+    } catch (error) {
+      console.error('Error updating block status:', error);
+    }
+  };
+
   const handleBulkAssignTrainer = async (trainerId) => {
     try {
       const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
@@ -1047,9 +1078,12 @@ const Members = () => {
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
               {members.length > 0 ? (
                 members.map((row, idx) => (
-                  <tr key={idx} className={`border-b transition-none ${isDarkMode
-                    ? (selectedMembers.includes(row._id) ? 'bg-[#f97316]/10 border-white/5' : 'border-white/5 hover:bg-white/5')
-                    : (selectedMembers.includes(row._id) ? 'bg-orange-50 border-orange-100' : 'border-gray-50 hover:bg-gray-50/50')
+                  <tr key={idx} className={`border-b transition-none ${row.isBlocked
+                      ? (isDarkMode ? 'bg-red-900/20 border-red-900/30' : 'bg-red-50 border-red-100')
+                      : (isDarkMode
+                        ? (selectedMembers.includes(row._id) ? 'bg-[#f97316]/10 border-white/5' : 'border-white/5 hover:bg-white/5')
+                        : (selectedMembers.includes(row._id) ? 'bg-orange-50 border-orange-100' : 'border-gray-50 hover:bg-gray-50/50')
+                      )
                     }`}>
                     <td className="px-4 py-6">
                       <input
@@ -1059,32 +1093,52 @@ const Members = () => {
                         onChange={() => toggleSelectMember(row._id)}
                       />
                     </td>
-                    <td className="px-4 py-6">{row.memberId}</td>
+                    <td className="px-4 py-6 text-red-500">{row.memberId}</td>
                     <td className="px-4 py-6">
                       <div
                         className="flex flex-col transition-none cursor-pointer"
                         onClick={() => navigate(`/admin/members/profile/${row._id}/edit`, { state: { member: row } })}
                       >
-                        <span className="text-[#3b82f6] text-[14px] font-black hover:underline uppercase">{row.firstName} {row.lastName}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[#3b82f6] text-[14px] font-black hover:underline uppercase">{row.firstName} {row.lastName}</span>
+                          {row.isBlocked && (
+                            <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded border border-red-200">
+                              BLOCKED
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[#3b82f6] text-[12px] mt-0.5 font-bold">{row.mobile}</span>
                       </div>
                     </td>
                     <td className="px-4 py-6 text-center">{row.gender}</td>
                     <td className="px-4 py-6 text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <div
-                          className={`w-10 h-5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${row.status === 'Active' ? 'bg-[#10b981]' : (row.status === 'Expired' ? 'bg-red-500' : 'bg-gray-300')}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleStatus(row._id, row.status);
-                          }}
-                        >
-                          <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${row.status === 'Active' ? 'translate-x-5' : ''}`}></div>
-                        </div>
-                        <span className={`text-[10px] font-bold uppercase ${row.status === 'Active' ? 'text-[#10b981]' : (row.status === 'Expired' ? 'text-red-500' : 'text-gray-400')}`}>
-                          {row.status}
-                        </span>
-                      </div>
+                      {(() => {
+                        const isExpiredByDate = new Date(row.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
+                        const displayStatus = isExpiredByDate ? 'Expired' : row.status;
+                        const isActive = displayStatus === 'Active';
+                        const isExpired = displayStatus === 'Expired';
+
+                        return (
+                          <div className="flex flex-col items-center gap-1">
+                            <div
+                              className={`w-10 h-5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${isActive ? 'bg-[#10b981]' : (isExpired ? 'bg-red-500' : 'bg-gray-300')}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isExpiredByDate) {
+                                  alert("Cannot activate an expired membership. Please renew or extend first.");
+                                  return;
+                                }
+                                toggleStatus(row._id, row.status);
+                              }}
+                            >
+                              <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${isActive ? 'translate-x-5' : ''}`}></div>
+                            </div>
+                            <span className={`text-[10px] font-bold uppercase ${isActive ? 'text-[#10b981]' : (isExpired ? 'text-red-500' : 'text-gray-400')}`}>
+                              {displayStatus}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-6">{row.packageId?.name || row.packageName}</td>
                     <td className="px-4 py-6 text-center">
@@ -1114,6 +1168,7 @@ const Members = () => {
                               'Vaccination',
                               'Schedule Followup',
                               row.status === 'Frozen' ? 'Unfreeze' : null,
+                              row.isBlocked ? 'Unblock' : 'Block',
                               'Delete'
                             ].filter(Boolean).map((action, i) => (
                               <div key={i}>
@@ -1160,6 +1215,16 @@ const Members = () => {
                                   >
                                     {action}
                                   </div>
+                                ) : (action === 'Block' || action === 'Unblock') ? (
+                                  <div
+                                    onClick={() => {
+                                      setActiveActionRow(null);
+                                      handleToggleBlock(row._id, row.isBlocked);
+                                    }}
+                                    className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all ${action === 'Block' ? 'text-red-500 hover:bg-red-50' : 'text-emerald-500 hover:bg-emerald-50'} dark:hover:bg-white/5 ${isDarkMode ? 'border-white/5' : 'border-gray-50'}`}
+                                  >
+                                    {action}
+                                  </div>
                                 ) : action === 'Delete' ? (
                                   <div
                                     onClick={() => {
@@ -1167,6 +1232,7 @@ const Members = () => {
                                       handleDeleteMember(row._id);
                                     }}
                                     className={`px-5 py-4 text-[15px] font-black border-b last:border-0 cursor-pointer hover:pl-8 transition-all text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 ${isDarkMode ? 'border-white/5' : 'border-gray-50'}`}
+
                                   >
                                     {action}
                                   </div>
