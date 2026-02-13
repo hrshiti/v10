@@ -20,7 +20,11 @@ const employeeSchema = new mongoose.Schema({
     city: { type: String },
     employeeType: { type: String, enum: ['Full Time', 'Shift Time'], default: 'Full Time' },
     experience: { type: Number, default: 0 }, // Years of experience
-    active: { type: Boolean, default: true }
+    active: { type: Boolean, default: true },
+    fcmTokens: {
+        web: { type: String },
+        app: { type: String }
+    }
 }, { timestamps: true });
 
 // Auto-generate Employee ID

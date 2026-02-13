@@ -14,6 +14,10 @@ console.log('JWT_SECRET Status:', process.env.JWT_SECRET ? 'Loaded' : 'MISSING')
 // Connect to database
 connectDB();
 
+// Initialize scheduled tasks
+const { initNotificationTasks } = require('./services/notificationTask');
+initNotificationTasks();
+
 const app = express();
 
 // Middleware

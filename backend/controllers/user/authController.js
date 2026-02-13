@@ -132,7 +132,48 @@ const verifyOTP = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Save FCM Token
+// @route   PUT /api/user/auth/fcm-token
+// @access  Private
+const saveFCMToken = asyncHandler(async (req, res) => {
+    const { token, platform } = req.body;
+    console.log(`Backend User FCM: Request received for platform ${platform}`);
+
+    if (!token) {
+        console.error('Backend User FCM: Token missing in request body');
+        res.status(400);
+        throw new Error('Token is required');
+    }
+
+    let user = await Member.findById(req.user._id);
+
+    // If not member, check if employee (Trainer)
+    if (!user) {
+        user = await Employee.findById(req.user._id);
+    }
+
+    if (user) {
+        console.log(`Backend User FCM: Found user ${user.firstName} ${user.lastName}`);
+        if (!user.fcmTokens) user.fcmTokens = {};
+
+        if (platform === 'app' || platform === 'mobile') {
+            user.fcmTokens.app = token;
+        } else {
+            user.fcmTokens.web = token;
+        }
+
+        await user.save();
+        console.log(`Backend User FCM: ✅ Token saved successfully`);
+        res.json({ success: true, message: 'FCM Token saved successfully' });
+    } else {
+        console.error('Backend User FCM: User not found in database');
+        res.status(404);
+        throw new Error('User not found');
+    }
+});
+
 module.exports = {
     sendOTP,
-    verifyOTP
+    verifyOTP,
+    saveFCMToken
 };

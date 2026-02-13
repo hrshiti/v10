@@ -1,5 +1,9 @@
 const asyncHandler = require('express-async-handler');
 const Feedback = require('../../models/Feedback');
+const Member = require('../../models/Member');
+const Admin = require('../../models/Admin');
+const GymDetail = require('../../models/GymDetail');
+const { sendPushNotification, sendMulticastNotification } = require('../../utils/pushNotification');
 
 // @desc    Create Feedback (User Side)
 // @route   POST /api/user/feedback
@@ -22,6 +26,27 @@ const createFeedback = async (req, res) => {
         });
 
         console.log('Feedback Created Successfully:', feedback.feedbackId);
+
+        // Notify Admins
+        try {
+            const gym = await GymDetail.findOne();
+            const logoIcon = gym?.logo || 'https://res.cloudinary.com/db776v7px/image/upload/v1738745269/gym_logo_v10.png';
+
+            const admins = await Admin.find({ fcmTokens: { $exists: true } });
+            const tokens = admins.flatMap(a => [a.fcmTokens?.web, a.fcmTokens?.app]).filter(t => t);
+
+            if (tokens.length > 0) {
+                await sendMulticastNotification(
+                    tokens,
+                    'New Feedback Received',
+                    `${userName || 'A member'} has sent a new ${type.toLowerCase()}.: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`,
+                    { click_action: '/admin/feedback', icon: logoIcon }
+                );
+            }
+        } catch (err) {
+            console.error('Error notifying admins about feedback:', err);
+        }
+
         return res.status(201).json(feedback);
 
     } catch (error) {
@@ -61,7 +86,26 @@ const replyToFeedback = asyncHandler(async (req, res) => {
 
         const updatedFeedback = await feedback.save();
 
-        // TODO: Here you would integrate Socket.io or Push Notification to notify the user
+        // Notify User
+        try {
+            const gym = await GymDetail.findOne();
+            const logoIcon = gym?.logo || 'https://res.cloudinary.com/db776v7px/image/upload/v1738745269/gym_logo_v10.png';
+
+            const member = await Member.findById(feedback.userId);
+            if (member && member.fcmTokens) {
+                const tokens = [member.fcmTokens.web, member.fcmTokens.app].filter(t => t);
+                if (tokens.length > 0) {
+                    await sendMulticastNotification(
+                        tokens,
+                        'Reply to your feedback',
+                        `The admin has replied to your feedback: "${replyMessage.substring(0, 50)}${replyMessage.length > 50 ? '...' : ''}"`,
+                        { click_action: '/profile', icon: logoIcon }
+                    );
+                }
+            }
+        } catch (err) {
+            console.error('Error notifying user about reply:', err);
+        }
 
         res.json(updatedFeedback);
     } else {

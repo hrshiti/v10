@@ -69,7 +69,11 @@ const memberSchema = new mongoose.Schema({
     // Reporting Fields
     assignedTrainer: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
     closedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
-    commitmentDate: { type: Date }
+    commitmentDate: { type: Date },
+    fcmTokens: {
+        web: { type: String },
+        app: { type: String }
+    }
 }, {
     timestamps: true,
     toJSON: { virtuals: true },

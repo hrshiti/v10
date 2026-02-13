@@ -14,6 +14,10 @@ const adminSchema = new mongoose.Schema({
     },
     password: { type: String, required: true },
     role: { type: String, default: 'admin' },
+    fcmTokens: {
+        web: { type: String },
+        app: { type: String }
+    }
 }, { timestamps: true });
 
 // Match user entered password to hashed password in database

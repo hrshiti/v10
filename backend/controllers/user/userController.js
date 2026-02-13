@@ -309,6 +309,30 @@ const submitFeedback = asyncHandler(async (req, res) => {
         rating
     });
 
+    // Notify Admins
+    try {
+        const { sendMulticastNotification } = require('../../utils/pushNotification');
+        const Admin = require('../../models/Admin');
+        const GymDetail = require('../../models/GymDetail');
+
+        const gym = await GymDetail.findOne();
+        const logoIcon = gym?.logo || 'https://res.cloudinary.com/db776v7px/image/upload/v1738745269/gym_logo_v10.png';
+
+        const admins = await Admin.find({ fcmTokens: { $exists: true } });
+        const tokens = admins.flatMap(a => [a.fcmTokens?.web, a.fcmTokens?.app]).filter(t => t);
+
+        if (tokens.length > 0) {
+            await sendMulticastNotification(
+                tokens,
+                'New Feedback Received',
+                `${member.firstName} has sent a new ${type.toLowerCase()}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`,
+                { click_action: '/admin/feedback', icon: logoIcon }
+            );
+        }
+    } catch (err) {
+        console.error('Error notifying admins about feedback:', err);
+    }
+
     res.status(201).json(feedback);
 });
 

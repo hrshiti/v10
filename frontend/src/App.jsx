@@ -26,11 +26,15 @@ import AttendanceCalendar from './modules/user/pages/AttendanceCalendar';
 
 import ProtectedRoute from './modules/user/components/ProtectedRoute';
 import TrainerRoutes from './modules/trainer/routes/TrainerRoutes';
+import FCMHandler from './components/FCMHandler';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <div className="App">
       <ThemeProvider>
+        <Toaster position="top-center" reverseOrder={false} />
+        <FCMHandler />
         <Routes>
           {/* Admin Routes */}
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />

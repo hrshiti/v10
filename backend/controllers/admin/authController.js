@@ -91,8 +91,43 @@ const forgotPassword = asyncHandler(async (req, res) => {
     res.json({ message: `Password reset link sent to ${email}` });
 });
 
+// @desc    Save FCM Token
+// @route   PUT /api/admin/auth/fcm-token
+// @access  Private
+const saveFCMToken = asyncHandler(async (req, res) => {
+    const { token, platform } = req.body; // platform: 'web' or 'app'
+    console.log(`Backend Admin FCM: Request received for platform ${platform}`);
+
+    if (!token) {
+        console.error('Backend Admin FCM: Token missing in request body');
+        res.status(400);
+        throw new Error('Token is required');
+    }
+
+    const admin = await Admin.findById(req.admin._id);
+
+    if (admin) {
+        if (!admin.fcmTokens) admin.fcmTokens = {};
+
+        if (platform === 'app' || platform === 'mobile') {
+            admin.fcmTokens.app = token;
+        } else {
+            admin.fcmTokens.web = token;
+        }
+
+        await admin.save();
+        console.log(`Backend Admin FCM: ✅ Token saved for ${admin.email}`);
+        res.json({ success: true, message: 'FCM Token saved successfully' });
+    } else {
+        console.error('Backend Admin FCM: Admin not found');
+        res.status(404);
+        throw new Error('Admin not found');
+    }
+});
+
 module.exports = {
     authAdmin,
     registerAdmin,
-    forgotPassword
+    forgotPassword,
+    saveFCMToken
 };
