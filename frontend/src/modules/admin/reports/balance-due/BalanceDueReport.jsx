@@ -214,14 +214,15 @@ const BalanceDueReport = () => {
                 <th className="px-6 py-5">Total Amount</th>
                 <th className="px-6 py-5">Paid Amount</th>
                 <th className="px-6 py-5">Due Amount</th>
+                <th className="px-6 py-5">Commitment Date</th>
                 <th className="px-6 py-5 text-center">Action</th>
               </tr>
             </thead>
             <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
               {isLoading ? (
-                <tr><td colSpan="6" className="text-center py-10">Loading...</td></tr>
+                <tr><td colSpan="7" className="text-center py-10">Loading...</td></tr>
               ) : dueMembers.length === 0 ? (
-                <tr><td colSpan="6" className="text-center py-10">No members with balance due found</td></tr>
+                <tr><td colSpan="7" className="text-center py-10">No members with balance due found</td></tr>
               ) : (
                 dueMembers.map((member, idx) => (
                   <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
@@ -239,6 +240,16 @@ const BalanceDueReport = () => {
                     <td className="px-6 py-8 font-black">₹{member.totalAmount?.toFixed(2)}</td>
                     <td className="px-6 py-8 font-black">₹{member.paidAmount?.toFixed(2)}</td>
                     <td className="px-6 py-8 font-black text-red-600">₹{member.dueAmount?.toFixed(2)}</td>
+                    <td className="px-6 py-8">
+                      {member.commitmentDate ? (
+                        <div className="flex flex-col">
+                          <span className="text-orange-500 font-black">{new Date(member.commitmentDate).toLocaleDateString('en-GB')}</span>
+                          <span className="text-[10px] text-gray-500 uppercase">Target Date</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 font-bold italic">Not Set</span>
+                      )}
+                    </td>
                     <td className="px-6 py-8">
                       <div className="flex justify-center">
                         <button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useOutletContext, useNavigate, useLocation } from 'react-router-dom';
 import { User, Phone, Mail, MapPin, Calendar, Shield, Package, CreditCard, ChevronDown, CheckCircle, ArrowLeft, Receipt, DollarSign, Clock, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../../../../config/api';
 import SingleDatePicker from '../../components/SingleDatePicker';
@@ -60,24 +60,30 @@ const FormInput = ({ label, icon: Icon, isDarkMode, ...props }) => (
 const AddMember = () => {
     const { isDarkMode } = useOutletContext();
     const navigate = useNavigate();
+    const location = useLocation();
+    const existingMember = location.state?.member;
+    const isExistingMember = !!existingMember;
 
     const [packages, setPackages] = useState([]);
     const [trainers, setTrainers] = useState([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedPackage, setSelectedPackage] = useState(null);
 
     const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
-        mobile: '',
-        email: '',
-        gender: 'Male',
-        dob: '',
-        address: '',
-        emergencyContactName: '',
-        emergencyContactNumber: '',
+        firstName: existingMember?.firstName || '',
+        lastName: existingMember?.lastName || '',
+        mobile: existingMember?.mobile || '',
+        email: existingMember?.email || '',
+        gender: existingMember?.gender || 'Male',
+        dob: existingMember?.dob ? formatISOToDDMMYYYY(existingMember.dob) : '',
+        address: existingMember?.address || '',
+        emergencyContactName: existingMember?.emergencyContact?.name || '',
+        emergencyContactNumber: existingMember?.emergencyContact?.number || '',
         packageName: '',
         packageId: '',
+        duration: 0,
+        durationType: 'Months',
         durationMonths: 1,
         startDate: formatISOToDDMMYYYY(new Date()),
         endDate: '',
@@ -98,8 +104,6 @@ const AddMember = () => {
 
     const netPayable = Number(formData.totalAmount) - Number(formData.discount);
     const dueBalance = netPayable - Number(formData.paidAmount);
-
-    const [selectedPackage, setSelectedPackage] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -137,7 +141,15 @@ const AddMember = () => {
         const pkg = packages.find(p => p._id === pkgId);
         if (pkg) {
             setSelectedPackage(pkg);
-            const startDate = new Date(formData.startDate);
+
+            // Parse startDate from DD-MM-YYYY format
+            let startDate;
+            if (formData.startDate && formData.startDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                startDate = parseDDMMYYYY(formData.startDate);
+            } else {
+                startDate = new Date();
+            }
+
             const endDate = new Date(startDate);
 
             if (pkg.durationType === 'Months') {
@@ -156,7 +168,7 @@ const AddMember = () => {
                 totalAmount: pkg.baseRate,
                 paidAmount: pkg.baseRate,
                 discount: 0,
-                endDate: endDate.toISOString().split('T')[0]
+                endDate: endDate && !isNaN(endDate.getTime()) ? endDate.toISOString().split('T')[0] : ''
             }));
         }
     };
@@ -172,7 +184,10 @@ const AddMember = () => {
                 } else {
                     endDate.setDate(endDate.getDate() + selectedPackage.durationValue);
                 }
-                newFormData.endDate = endDate.toISOString().split('T')[0];
+                // Validate endDate before calling toISOString
+                if (endDate && !isNaN(endDate.getTime())) {
+                    newFormData.endDate = endDate.toISOString().split('T')[0];
+                }
             }
             return newFormData;
         });
@@ -246,24 +261,64 @@ const AddMember = () => {
             return;
         }
 
-        const payload = {
-            ...formData,
-            dob: formatDDMMYYYYToISO(formData.dob),
-            startDate: formatDDMMYYYYToISO(formData.startDate),
-            commitmentDate: formatDDMMYYYYToISO(formData.commitmentDate),
-            totalAmount: payableAmount,
-            subTotal: amountBeforeTax,
-            taxAmount: taxAmount
-        };
-
         setIsSubmitting(true);
         try {
             const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
             const token = adminInfo?.token;
-            if (!token) return;
+            if (!token) throw new Error('Authentication required');
 
-            const res = await fetch(`${API_BASE_URL}/api/admin/members`, {
-                method: 'POST',
+            let url = `${API_BASE_URL}/api/admin/members`;
+            let method = 'POST';
+            let payload;
+
+            if (isExistingMember) {
+                // Existing Member -> Create Fresh Sale
+                url = `${API_BASE_URL}/api/admin/members/sale`;
+                payload = {
+                    memberId: existingMember._id,
+                    selectedPlans: [
+                        {
+                            packageId: formData.packageId,
+                            name: formData.packageName,
+                            membershipType: formData.membershipType,
+                            durationValue: formData.duration,
+                            durationType: formData.durationType,
+                            cost: totalAmount, // Original plan cost
+                            trainerId: formData.assignedTrainer || null,
+                            startDate: formatDDMMYYYYToISO(formData.startDate)
+                        }
+                    ],
+                    totalAmount: payableAmount,
+                    subTotal: amountBeforeTax,
+                    taxAmount: taxAmount,
+                    paidAmount: Number(formData.paidAmount),
+                    discount: Number(formData.discount),
+                    paymentMethod: formData.paymentMode,
+                    commitmentDate: formatDDMMYYYYToISO(formData.commitmentDate),
+                    comment: formData.comment || `Resale: ${formData.packageName}`,
+                    closedBy: formData.closedBy || adminInfo?._id,
+                    splitPayment: formData.paymentMode === 'Split' ? formData.splitPayment : { cash: 0, online: 0 }
+                };
+            } else {
+                // New Member -> Create Member
+                payload = {
+                    ...formData,
+                    dob: formatDDMMYYYYToISO(formData.dob),
+                    startDate: formatDDMMYYYYToISO(formData.startDate),
+                    commitmentDate: formatDDMMYYYYToISO(formData.commitmentDate),
+                    totalAmount: payableAmount,
+                    subTotal: amountBeforeTax,
+                    taxAmount: taxAmount
+                };
+
+                // Remove assignedTrainer if empty to prevent ObjectId cast error
+                if (!payload.assignedTrainer || payload.assignedTrainer === '') {
+                    delete payload.assignedTrainer;
+                }
+            }
+
+            const res = await fetch(url, {
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
@@ -273,10 +328,10 @@ const AddMember = () => {
 
             const data = await res.json();
             if (res.ok) {
-                alert('Member created successfully!');
-                navigate('/admin/members/list');
+                alert(isExistingMember ? 'Sale processed successfully!' : 'Member created successfully!');
+                navigate(isExistingMember ? `/admin/members/profile/${existingMember._id}` : '/admin/members/list');
             } else {
-                alert(data.message || 'Error creating member');
+                alert(data.message || 'Error processing request');
             }
         } catch (error) {
             console.error('Error submitting form:', error);
@@ -285,6 +340,19 @@ const AddMember = () => {
             setIsSubmitting(false);
         }
     };
+
+    if (isLoadingData) {
+        return (
+            <div className="max-w-[1400px] mx-auto space-y-8 pb-20 flex items-center justify-center min-h-[60vh]">
+                <div className="text-center space-y-4">
+                    <Loader2 size={48} className="animate-spin text-orange-500 mx-auto" />
+                    <p className={`text-[15px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Loading member registration form...
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-5 duration-500">
@@ -298,8 +366,8 @@ const AddMember = () => {
                     <span className="font-bold">Back</span>
                 </button>
                 <div className="text-right">
-                    <h1 className="text-[28px] font-black tracking-tight">NEW MEMBER ENTRY</h1>
-                    <p className="text-orange-500 text-xs font-black uppercase tracking-[2px]">Registration Portal</p>
+                    <h1 className="text-[28px] font-black tracking-tight">{isExistingMember ? 'ADD NEW SALE' : 'NEW MEMBER ENTRY'}</h1>
+                    <p className="text-orange-500 text-xs font-black uppercase tracking-[2px]">{isExistingMember ? `FOR ${existingMember.firstName} ${existingMember.lastName}` : 'Registration Portal'}</p>
                 </div>
             </div>
 
@@ -313,6 +381,7 @@ const AddMember = () => {
                                 label="First Name*"
                                 placeholder="First Name"
                                 required
+                                readOnly={isExistingMember}
                                 isDarkMode={isDarkMode}
                                 value={formData.firstName}
                                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -321,6 +390,7 @@ const AddMember = () => {
                                 label="Last Name*"
                                 placeholder="Last Name"
                                 required
+                                readOnly={isExistingMember}
                                 isDarkMode={isDarkMode}
                                 value={formData.lastName}
                                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -330,6 +400,7 @@ const AddMember = () => {
                                 icon={Phone}
                                 placeholder="Mobile No."
                                 required
+                                readOnly={isExistingMember}
                                 isDarkMode={isDarkMode}
                                 value={formData.mobile}
                                 onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
@@ -339,6 +410,7 @@ const AddMember = () => {
                                 icon={Mail}
                                 type="email"
                                 placeholder="Email"
+                                readOnly={isExistingMember}
                                 isDarkMode={isDarkMode}
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -622,7 +694,7 @@ const AddMember = () => {
                                     ) : (
                                         <>
                                             <CheckCircle size={20} />
-                                            Save & Create Profile
+                                            {isExistingMember ? 'Complete Purchase' : 'Save & Create Profile'}
                                         </>
                                     )}
                                 </button>

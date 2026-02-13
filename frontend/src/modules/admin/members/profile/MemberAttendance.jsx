@@ -33,6 +33,13 @@ const MemberAttendance = () => {
                 const token = adminInfo?.token;
                 if (!token) return;
 
+                // Validate monthIdx to prevent invalid dates
+                if (monthIdx === -1 || isNaN(parseInt(year))) {
+                    console.error('Invalid month or year');
+                    setIsLoading(false);
+                    return;
+                }
+
                 const start = new Date(parseInt(year), monthIdx, 1);
                 start.setHours(0, 0, 0, 0);
 
@@ -52,7 +59,7 @@ const MemberAttendance = () => {
         };
 
         fetchAttendance();
-    }, [id, month, year]);
+    }, [id, month, year, monthIdx]);
 
     const daysInMonth = new Date(parseInt(year), monthIdx + 1, 0).getDate();
     const startDay = new Date(parseInt(year), monthIdx, 1).getDay();

@@ -79,6 +79,14 @@ const PayDueModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) => {
                             <p className={`text-2xl font-black ${isDarkMode ? 'text-white' : 'text-blue-700'}`}>₹{member.dueAmount?.toFixed(2)}</p>
                         </div>
                         <div className="text-right">
+                            {member.commitmentDate && (
+                                <div className="mb-1">
+                                    <p className="text-[10px] font-bold text-orange-500 uppercase">Commitment Date</p>
+                                    <p className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                                        {new Date(member.commitmentDate).toLocaleDateString('en-GB')}
+                                    </p>
+                                </div>
+                            )}
                             <p className="text-[10px] font-bold text-gray-400 uppercase">Package</p>
                             <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{member.packageName}</p>
                         </div>

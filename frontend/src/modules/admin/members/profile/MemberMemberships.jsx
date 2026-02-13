@@ -269,6 +269,7 @@ const AddOnDaysModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) 
 const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => {
     const [amount, setAmount] = useState('');
     const [paymentMode, setPaymentMode] = useState('Cash');
+    const [splitPayment, setSplitPayment] = useState({ cash: 0, online: 0 });
     const [commitmentDate, setCommitmentDate] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -277,6 +278,16 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
             setAmount(membership.dueAmount || '');
         }
     }, [membership, isOpen]);
+
+    // Auto-sync split payment when amount changes
+    useEffect(() => {
+        if (paymentMode === 'Split') {
+            const currentTotal = Number(splitPayment.cash) + Number(splitPayment.online);
+            if (currentTotal !== Number(amount)) {
+                setSplitPayment({ cash: Number(amount), online: 0 });
+            }
+        }
+    }, [amount, paymentMode]);
 
     if (!isOpen || !membership) return null;
 
@@ -302,6 +313,7 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
                 body: JSON.stringify({
                     amount: Number(amount),
                     paymentMode,
+                    splitPayment: paymentMode === 'Split' ? splitPayment : { cash: 0, online: 0 },
                     closedBy: adminInfo?._id,
                     commitmentDate: remainingAfterPay ? commitmentDate : null
                 })
@@ -359,9 +371,10 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
                         <div className="space-y-1.5">
                             <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Payment Mode</label>
                             <div className="grid grid-cols-2 gap-2">
-                                {['Cash', 'UPI / Online', 'Debit / Credit Card', 'Cheque'].map(mode => (
+                                {['Cash', 'UPI / Online', 'Debit / Credit Card', 'Cheque', 'Split'].map(mode => (
                                     <button
                                         key={mode}
+                                        type="button"
                                         onClick={() => setPaymentMode(mode)}
                                         className={`py-2.5 rounded-lg text-[11px] font-black uppercase tracking-wider border transition-all ${paymentMode === mode
                                             ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
@@ -373,6 +386,37 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
                                 ))}
                             </div>
                         </div>
+
+                        {paymentMode === 'Split' && (
+                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 p-4 rounded-xl bg-orange-500/5 border border-dashed border-orange-500/20">
+                                <div className="space-y-1.5">
+                                    <label className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Cash Part (₹)</label>
+                                    <input
+                                        type="number"
+                                        value={splitPayment.cash}
+                                        onChange={(e) => {
+                                            const cash = Number(e.target.value) || 0;
+                                            const online = Math.max(0, Number(amount) - cash);
+                                            setSplitPayment({ cash, online });
+                                        }}
+                                        className={`w-full px-3 py-2 rounded-lg border text-sm font-bold outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white focus:border-red-500' : 'bg-white border-gray-200 focus:border-red-500'}`}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className={`text-[12px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Online Part (₹)</label>
+                                    <input
+                                        type="number"
+                                        value={splitPayment.online}
+                                        onChange={(e) => {
+                                            const online = Number(e.target.value) || 0;
+                                            const cash = Math.max(0, Number(amount) - online);
+                                            setSplitPayment({ cash, online });
+                                        }}
+                                        className={`w-full px-3 py-2 rounded-lg border text-sm font-bold outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white focus:border-red-500' : 'bg-white border-gray-200 focus:border-red-500'}`}
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         {remainingAfterPay && (
                             <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-300">

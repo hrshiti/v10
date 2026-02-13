@@ -35,6 +35,7 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
     const [amount, setAmount] = useState('');
     const [paymentMode, setPaymentMode] = useState('Cash');
     const [splitPayment, setSplitPayment] = useState({ cash: 0, online: 0 });
+    const [commitmentDate, setCommitmentDate] = useState('');
     const [comment, setComment] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,8 +57,17 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
 
     if (!isOpen || !member) return null;
 
+    const remainingDueVal = Math.max(0, member.dueAmount - Number(amount));
+    const hasRemainingBalance = remainingDueVal > 0;
+
     const handleSubmit = async () => {
         if (!amount || amount <= 0) return;
+
+        if (hasRemainingBalance && !commitmentDate) {
+            alert('Please select a new commitment date for the remaining balance');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
@@ -73,7 +83,8 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
                     paymentMode,
                     splitPayment: paymentMode === 'Split' ? splitPayment : { cash: 0, online: 0 },
                     closedBy: adminInfo?._id,
-                    comment
+                    comment,
+                    commitmentDate: hasRemainingBalance ? commitmentDate : null
                 })
             });
             if (res.ok) {
@@ -113,6 +124,14 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
                             <p className="text-2xl font-black text-red-600">₹{member.dueAmount}</p>
                         </div>
                         <div className="text-right">
+                            {member.commitmentDate && (
+                                <div className="mb-1">
+                                    <p className="text-[10px] font-black uppercase text-orange-500 tracking-wider">Commitment Date</p>
+                                    <p className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                                        {new Date(member.commitmentDate).toLocaleDateString('en-GB')}
+                                    </p>
+                                </div>
+                            )}
                             <p className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Member</p>
                             <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{member.firstName} {member.lastName}</p>
                         </div>
@@ -184,6 +203,23 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
                             </div>
                         )}
 
+                        {/* Commitment Date (Only for partial payment) */}
+                        {hasRemainingBalance && (
+                            <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+                                <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>New Commitment Date*</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={commitmentDate}
+                                    onChange={(e) => setCommitmentDate(e.target.value)}
+                                    // Use showPicker if supported
+                                    onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()}
+                                    className={`w-full px-4 py-3 rounded-xl border text-sm font-bold outline-none transition-all ${isDarkMode ? 'bg-transparent border-white/10 text-white focus:border-red-500/50' : 'bg-white border-gray-300 focus:border-red-500'}`}
+                                />
+                                <p className="text-[10px] font-bold text-red-500 uppercase tracking-tight">Required for partial payment</p>
+                            </div>
+                        )}
+
                         {/* Remarks */}
                         <div className="space-y-1.5">
                             <label className={`text-[13px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>Remarks (Optional)</label>
@@ -199,7 +235,7 @@ const PayDueMemberModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) =
                         {amount > 0 && (
                             <div className={`p-4 rounded-lg flex justify-between items-center ${isDarkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
                                 <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Remaining Balance After Payment</p>
-                                <p className="text-sm font-black text-orange-500">₹{Math.max(0, member.dueAmount - Number(amount))}</p>
+                                <p className="text-sm font-black text-orange-500">₹{remainingDueVal}</p>
                             </div>
                         )}
                     </div>
@@ -364,7 +400,7 @@ const ProfileLayout = () => {
 
                     {/* Add Sale Button */}
                     <button
-                        onClick={() => navigate(`/admin/members/profile/${id}/sale/fresh`, { state: { member: memberData } })}
+                        onClick={() => navigate('/admin/members/add')}
                         className="w-full bg-[#f97316] hover:bg-orange-600 text-white font-black py-4 rounded-xl shadow-lg shadow-orange-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 text-[13px] uppercase tracking-wider"
                     >
                         <Plus size={18} />

@@ -12,9 +12,9 @@ const importData = async () => {
         await Admin.deleteMany();
 
         const adminUser = {
-            name: 'Mayur Chadokar',
-            email: 'admin@example.com',
-            password: 'password123', // Will be hashed by pre-save hook
+            name: 'Abdulla Pathan',
+            email: 'pathanabdulla19997@gmail.com',
+            password: 'Abdulla123', // Will be hashed by pre-save hook
             role: 'admin',
         };
 
