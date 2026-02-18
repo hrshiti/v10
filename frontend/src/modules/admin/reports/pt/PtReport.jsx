@@ -13,16 +13,14 @@ import { API_BASE_URL } from '../../../../config/api';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
+import Pagination from '../../../../components/Pagination';
 
 const PtReport = () => {
   const { isDarkMode } = useOutletContext();
   const navigate = useNavigate();
   const tableContainerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [fromDate, setFromDate] = useState(() => {
-    const d = new Date();
-    return `01-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
-  });
+  const [fromDate, setFromDate] = useState('01-01-2024'); // Set to early 2024 to catch migrated data
   const [toDate, setToDate] = useState(() => {
     const d = new Date();
     const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
@@ -63,6 +61,7 @@ const PtReport = () => {
   const [isExportLoading, setIsExportLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
 
   const fetchPtData = async () => {
     setIsLoading(true);
@@ -94,9 +93,11 @@ const PtReport = () => {
         const data = await res.json();
         const transformed = (data.sales || []).map(sale => ({
           id: sale.memberId?._id,
-          trainerName: sale.trainerId ? `${sale.trainerId.firstName} ${sale.trainerId.lastName}` : 'N/A',
+          trainerName: sale.trainerId ? `${sale.trainerId.firstName} ${sale.trainerId.lastName}` : (sale.memberId?.assignedTrainer ? `${sale.memberId.assignedTrainer.firstName} ${sale.memberId.assignedTrainer.lastName}` : 'N/A'),
           customerName: sale.memberId ? `${sale.memberId.firstName} ${sale.memberId.lastName}` : 'N/A',
           customerNumber: sale.memberId ? sale.memberId.mobile : 'N/A',
+          packageName: sale.packageName || sale.packageId?.name || sale.memberId?.packageName || 'PT-Plan',
+          sessions: sale.packageId?.sessions || sale.memberId?.packageId?.sessions || '-',
           startDate: sale.memberId?.startDate ? new Date(sale.memberId.startDate).toLocaleDateString() : 'N/A',
           endDate: sale.memberId?.endDate ? new Date(sale.memberId.endDate).toLocaleDateString() : 'N/A',
           amount: sale.amount,
@@ -104,6 +105,7 @@ const PtReport = () => {
         }));
         setPtData(transformed);
         setTotalPages(data.pages || 1);
+        setTotalResults(data.total || 0);
       }
     } catch (error) {
       console.error("Error fetching PT data:", error);
@@ -142,7 +144,9 @@ const PtReport = () => {
       if (res.ok) {
         const data = await res.json();
         const formatted = (data.sales || []).map(sale => ({
-          'Trainer Name': sale.trainerId ? `${sale.trainerId.firstName} ${sale.trainerId.lastName}` : 'N/A',
+          'Trainer Name': sale.trainerId ? `${sale.trainerId.firstName} ${sale.trainerId.lastName}` : (sale.memberId?.assignedTrainer ? `${sale.memberId.assignedTrainer.firstName} ${sale.memberId.assignedTrainer.lastName}` : 'N/A'),
+          'Plan Name': sale.packageName || sale.packageId?.name || sale.memberId?.packageName || 'PT-Plan',
+          'Sessions': sale.packageId?.sessions || sale.memberId?.packageId?.sessions || '-',
           'Customer Name': sale.memberId ? `${sale.memberId.firstName} ${sale.memberId.lastName}` : 'N/A',
           'Customer Number': sale.memberId ? sale.memberId.mobile : 'N/A',
           'Start Date': sale.memberId?.startDate ? new Date(sale.memberId.startDate).toLocaleDateString() : 'N/A',
@@ -171,7 +175,7 @@ const PtReport = () => {
   const handleClear = () => {
     setSearchQuery('');
     const d = new Date();
-    const firstDay = `01-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
+    const firstDay = '01-01-2024';
     const lastDayNum = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
     const lastDay = `${lastDayNum}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
 
@@ -185,7 +189,7 @@ const PtReport = () => {
   // Filtering is now handled on backend via fetchPtData
 
   const stats = [
-    { label: 'Total PT', value: ptData.length.toString(), icon: User, theme: 'blue' },
+    { label: 'Total PT Records', value: totalResults.toString(), icon: User, theme: 'blue' },
   ];
 
   const themeConfig = {
@@ -334,6 +338,8 @@ const PtReport = () => {
             <thead>
               <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-white border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
                 <th className="px-6 py-5">Trainer Name</th>
+                <th className="px-6 py-5">Plan Name</th>
+                <th className="px-6 py-5 text-center">Sessions</th>
                 <th className="px-6 py-5">Customer Name & Number</th>
                 <th className="px-6 py-5">Start Date</th>
                 <th className="px-6 py-5">Expiry Date</th>
@@ -351,6 +357,12 @@ const PtReport = () => {
                 filteredData.map((row, idx) => (
                   <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
                     <td className="px-6 py-8">{row.trainerName}</td>
+                    <td className="px-6 py-8">
+                      <span className="px-3 py-1 bg-orange-50 border border-orange-200 rounded-lg text-orange-600 font-black">
+                        {row.packageName}
+                      </span>
+                    </td>
+                    <td className="px-6 py-8 text-center font-black">{row.sessions}</td>
                     <td className="px-6 py-8">
                       <div
                         onClick={() => navigate(`/admin/members/profile/${row.id}/memberships`)}
@@ -389,23 +401,13 @@ const PtReport = () => {
 
         {/* Pagination */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-          <div className="flex flex-wrap items-center gap-2 transition-none">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 shadow-sm text-gray-700'}`}
-            >
-              « Previous
-            </button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-100 shadow-sm text-gray-700'}`}
-            >
-              Next »
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+            size="small"
+          />
 
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-black text-gray-500 uppercase tracking-tight">Rows per page</span>

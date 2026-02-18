@@ -12,6 +12,7 @@ import { API_BASE_URL } from '../../../../config/api';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import GenerateReportModal from '../../components/GenerateReportModal';
+import Pagination from '../../../../components/Pagination';
 
 const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, onSelect, activeVal }) => {
   const dropdownRef = useRef(null);
@@ -397,17 +398,13 @@ const DueMembershipReport = () => {
 
         {/* Pagination Section */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-          <div className="flex flex-wrap items-center gap-2 transition-none">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>« Previous</button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
-            <button
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'}`}>Next »</button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+            size="small"
+          />
 
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-black text-gray-500 uppercase tracking-tight">Rows per page</span>

@@ -11,10 +11,11 @@ const getMembers = asyncHandler(async (req, res) => {
     const pageSize = Number(req.query.pageSize) || 10;
     const page = Number(req.query.pageNumber) || 1;
 
-    let queryObj = {};
+    let matchQuery = {};
 
+    // 1. Initial Match (Member fields)
     if (req.query.keyword) {
-        queryObj.$or = [
+        matchQuery.$or = [
             { firstName: { $regex: req.query.keyword, $options: 'i' } },
             { lastName: { $regex: req.query.keyword, $options: 'i' } },
             { mobile: { $regex: req.query.keyword, $options: 'i' } },
@@ -23,42 +24,132 @@ const getMembers = asyncHandler(async (req, res) => {
     }
 
     if (req.query.gender && req.query.gender !== 'Gender' && req.query.gender !== 'All') {
-        queryObj.gender = req.query.gender;
+        matchQuery.gender = req.query.gender;
     }
 
-    // Filter by status if provided (e.g. ?status=Active)
-    if (req.query.status) {
-        if (req.query.status === 'expiringSoon') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const nextWeek = new Date();
-            nextWeek.setDate(nextWeek.getDate() + 7);
-            nextWeek.setHours(23, 59, 59, 999);
+    // 2. Build Pipeline
+    const pipeline = [
+        { $match: matchQuery },
+        // Join with current subscription (isCurrent: true)
+        {
+            $lookup: {
+                from: 'subscriptions',
+                localField: '_id',
+                foreignField: 'memberId',
+                as: 'currentSubscription',
+                pipeline: [
+                    { $match: { isCurrent: true } }
+                ]
+            }
+        },
+        // Unwind currentSubscription array to an object
+        { $unwind: { path: '$currentSubscription', preserveNullAndEmptyArrays: true } }
+    ];
 
-            queryObj.status = 'Active';
-            queryObj.endDate = { $gte: today, $lte: nextWeek };
+    // 3. Status Filtering (Post-Lookup using Subscription as truth)
+    if (req.query.status && req.query.status !== 'All') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (req.query.status === 'expiringSoon') {
+            const nextMonth = new Date();
+            nextMonth.setDate(nextMonth.getDate() + 30);
+            nextMonth.setHours(23, 59, 59, 999);
+
+            pipeline.push({
+                $match: {
+                    'currentSubscription.status': 'Active',
+                    'currentSubscription.endDate': { $gte: today, $lte: nextMonth }
+                }
+            });
         } else if (req.query.status === 'expired') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            queryObj.$or = [
-                { status: 'Expired' },
-                { endDate: { $lt: today } }
-            ];
-        } else if (req.query.status !== 'All') {
-            queryObj.status = req.query.status;
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { 'currentSubscription.status': 'Expired' },
+                        { 'currentSubscription.endDate': { $lt: today } }
+                    ]
+                }
+            });
+        } else {
+            pipeline.push({
+                $match: { 'currentSubscription.status': req.query.status }
+            });
         }
     }
 
-    const count = await Member.countDocuments(queryObj);
-    const members = await Member.find(queryObj)
-        .populate('assignedTrainer', 'firstName lastName employeeId')
-        .populate('closedBy', 'firstName lastName employeeId')
-        .populate('packageId', 'name')
-        .limit(pageSize)
-        .skip(pageSize * (page - 1))
-        .sort({ createdAt: -1 });
+    // 4. Sorting
+    pipeline.push({ $sort: { createdAt: -1 } });
 
-    res.json({ members, page, pages: Math.ceil(count / pageSize), total: count });
+    // 5. Pagination using Facet for efficiency
+    pipeline.push({
+        $facet: {
+            metadata: [{ $count: "total" }],
+            data: [
+                { $skip: (page - 1) * pageSize },
+                { $limit: pageSize },
+                // Populate Employee details
+                {
+                    $lookup: {
+                        from: 'employees',
+                        localField: 'assignedTrainer',
+                        foreignField: '_id',
+                        as: 'assignedTrainer'
+                    }
+                },
+                { $unwind: { path: '$assignedTrainer', preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: 'employees',
+                        localField: 'closedBy',
+                        foreignField: '_id',
+                        as: 'closedBy'
+                    }
+                },
+                { $unwind: { path: '$closedBy', preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: 'packages',
+                        localField: 'packageId',
+                        foreignField: '_id',
+                        as: 'packageId'
+                    }
+                },
+                { $unwind: { path: '$packageId', preserveNullAndEmptyArrays: true } },
+                // Sync top-level fields from currentSubscription for backward compatibility and migration support
+                {
+                    $addFields: {
+                        packageName: { $ifNull: ["$currentSubscription.packageName", "$packageName"] },
+                        duration: { $ifNull: ["$currentSubscription.duration", "$duration"] },
+                        durationType: { $ifNull: ["$currentSubscription.durationType", "$durationType"] },
+                        startDate: { $ifNull: ["$currentSubscription.startDate", "$startDate"] },
+                        endDate: { $ifNull: ["$currentSubscription.endDate", "$endDate"] },
+                        status: { $ifNull: ["$currentSubscription.status", "$status"] },
+                    }
+                },
+                // Final clean-up of projection
+                {
+                    $project: {
+                        'assignedTrainer.password': 0,
+                        'closedBy.password': 0,
+                    }
+                }
+            ]
+        }
+    });
+
+    const results = await Member.aggregate(pipeline);
+
+    // Result handling
+    const data = results[0]?.data || [];
+    const total = results[0]?.metadata[0]?.total || 0;
+
+    res.json({
+        members: data,
+        page,
+        pages: Math.ceil(total / pageSize),
+        total
+    });
 });
 
 // @desc    Get member by ID
@@ -249,21 +340,24 @@ const getMemberStats = asyncHandler(async (req, res) => {
     const expired = await Member.countDocuments({
         $or: [
             { status: 'Expired' },
-            { endDate: { $lt: todayForStats } }
+            {
+                status: 'Active',
+                endDate: { $lt: todayForStats }
+            }
         ]
     });
     const total = await Member.countDocuments({});
 
-    // Upcoming expiries in next 7 days
+    // Upcoming expiries in next 30 days
     const todayForExpiring = new Date();
     todayForExpiring.setHours(0, 0, 0, 0);
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    nextWeek.setHours(23, 59, 59, 999);
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    nextMonth.setHours(23, 59, 59, 999);
 
     const expiringSoon = await Member.countDocuments({
         status: 'Active',
-        endDate: { $gte: todayForExpiring, $lte: nextWeek }
+        endDate: { $gte: todayForExpiring, $lte: nextMonth }
     });
 
     // Today's Attendance
@@ -343,6 +437,10 @@ const renewMembership = asyncHandler(async (req, res) => {
         const currentExpiry = new Date(activeSub.endDate);
         // If current plan hasn't expired, and the new start date is earlier than or equal to current expiry
         // we shift the new start date to be the day after current expiry
+        // if fail this u should update the 
+        // new Date() <= currentExpiry && finalStartDate <=currentExpiry 
+
+        // update the new  
         if (new Date() <= currentExpiry && finalStartDate <= currentExpiry) {
             finalStartDate = new Date(currentExpiry);
             finalStartDate.setDate(finalStartDate.getDate() + 1);
@@ -1145,7 +1243,7 @@ const payDueMember = asyncHandler(async (req, res) => {
 
 // @desc    Toggle Block Status
 // @route   PUT /api/admin/members/:id/block
-// @access  Private/Admin
+// @access  Private/Admin 
 const toggleBlockStatus = asyncHandler(async (req, res) => {
     const member = await Member.findById(req.params.id);
 

@@ -19,6 +19,7 @@ import {
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
 import GenerateReportModal from '../../components/GenerateReportModal';
+import Pagination from '../../../../components/Pagination';
 
 // --- Reusable Components ---
 
@@ -573,31 +574,12 @@ const Memberships = () => {
         </div>
 
         <div className={`p-8 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              className={`px-6 py-2.5 border rounded-xl text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'} ${currentPage === 1 ? 'opacity-50' : ''}`}
-            >
-              « Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button
-                key={p}
-                onClick={() => setCurrentPage(p)}
-                className={`w-11 h-11 border rounded-xl text-[13px] font-bold transition-none ${currentPage === p ? 'bg-[#f97316] text-white shadow-lg' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm')}`}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              className={`px-6 py-2.5 border rounded-xl text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'} ${currentPage === totalPages ? 'opacity-50' : ''}`}
-            >
-              Next »
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+          />
 
           <div className="flex items-center gap-5 transition-none">
             <span className="text-[15px] font-black text-gray-500 tracking-tight uppercase">Rows per page</span>

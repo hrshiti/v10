@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
+import Pagination from '../../../components/Pagination';
 
 const RowsPerPageDropdown = ({ rowsPerPage, setRowsPerPage, isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -445,31 +446,13 @@ const FeedbackManagement = () => {
 
         {/* Pagination */}
         <div className={`p-8 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-100'}`}>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className={`px-6 py-2 border rounded-xl text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-600 hover:bg-gray-50'} ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              « Previous
-            </button>
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i + 1}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`w-10 h-10 border rounded-xl text-[13px] font-black transition-none ${currentPage === i + 1 ? 'bg-[#f4a261] text-white shadow-md' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50')}`}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages || totalPages === 0}
-              className={`px-6 py-2 border rounded-xl text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-600 hover:bg-gray-50'} ${currentPage === totalPages || totalPages === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              Next »
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+            size="small"
+          />
 
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-bold text-gray-500 uppercase tracking-tight">Rows per page</span>

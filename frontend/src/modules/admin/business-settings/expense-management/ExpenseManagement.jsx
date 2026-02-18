@@ -15,6 +15,7 @@ import {
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
 import GenerateReportModal from '../../components/GenerateReportModal';
+import Pagination from '../../../../components/Pagination';
 
 // --- Reusable Components ---
 
@@ -1133,33 +1134,13 @@ const ExpenseManagement = () => {
 
         {/* Pagination */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'} ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              « Previous
-            </button>
-            {Array.from({ length: Math.ceil(expenses.length / rowsPerPage) || 1 }, (_, i) => i + 1).map(p => (
-              <button
-                key={p}
-                onClick={() => setCurrentPage(p)}
-                className={`w-10 h-10 border rounded-lg text-[13px] font-bold transition-none ${currentPage === p
-                  ? 'bg-[#f97316] text-white shadow-md'
-                  : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm')}`}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(expenses.length / rowsPerPage) || 1, prev + 1))}
-              disabled={currentPage === (Math.ceil(expenses.length / rowsPerPage) || 1)}
-              className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'} ${currentPage === (Math.ceil(expenses.length / rowsPerPage) || 1) ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              Next »
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(expenses.length / rowsPerPage) || 1}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+            size="small"
+          />
 
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-bold text-gray-500">Rows per page</span>

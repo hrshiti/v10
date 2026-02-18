@@ -29,6 +29,7 @@ import AddFollowUpModal from './AddFollowUpModal';
 import DateRangeFilter from '../components/DateRangeFilter';
 import GenerateReportModal from '../components/GenerateReportModal';
 import Toast from '../components/Toast';
+import Pagination from '../../../components/Pagination';
 
 const CustomFilterDropdown = ({ options, label, isDarkMode, isOpen, onToggle, onSelect, activeVal }) => {
   const dropdownRef = useRef(null);
@@ -800,31 +801,13 @@ const Enquiries = () => {
 
         {/* Pagination */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 disabled:opacity-50'}`}
-            >
-              « Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
-              <button
-                key={num}
-                onClick={() => setCurrentPage(num)}
-                className={`w-10 h-10 rounded-lg text-[13px] font-bold transition-none ${num === currentPage ? 'bg-[#f97316] text-white shadow-md' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-gray-600')}`}
-              >
-                {num}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className={`px-4 py-2 border rounded-lg text-[13px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 disabled:opacity-50'}`}
-            >
-              Next »
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+            size="small"
+          />
 
           <div className="flex items-center gap-3 transition-none">
             <span className="text-[14px] font-bold text-gray-500">Rows per page</span>

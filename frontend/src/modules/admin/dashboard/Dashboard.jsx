@@ -26,6 +26,7 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import DateRangeFilter from '../components/DateRangeFilter';
 import MemberSearch from '../components/MemberSearch';
 import { API_BASE_URL } from '../../../config/api';
+import Pagination from '../../../components/Pagination';
 
 const Dashboard = () => {
     const { isDarkMode } = useOutletContext();
@@ -342,27 +343,14 @@ const Dashboard = () => {
                         </table>
                     </div>
 
-                    {/* Pagination */}
                     <div className={`px-5 py-3 border-t flex justify-between items-center ${isDarkMode ? 'border-white/5 bg-white/5' : 'border-gray-100 bg-white'}`}>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-1.5 border rounded-md text-[12px] font-normal disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'}`}
-                            >
-                                « Previous
-                            </button>
-                            <span className={`text-[12px] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                Page {currentPage} of {Math.max(1, Math.ceil(commitmentDuesData.length / rowsPerPage))}
-                            </span>
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(commitmentDuesData.length / rowsPerPage)))}
-                                disabled={currentPage >= Math.ceil(commitmentDuesData.length / rowsPerPage)}
-                                className={`px-3 py-1.5 border rounded-md text-[12px] font-normal disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 text-black'}`}
-                            >
-                                Next »
-                            </button>
-                        </div>
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={Math.max(1, Math.ceil(commitmentDuesData.length / rowsPerPage))}
+                            onPageChange={setCurrentPage}
+                            isDarkMode={isDarkMode}
+                            size="small"
+                        />
 
                         {/* Rows Per Page Dropdown */}
                         <div className="flex items-center gap-2">

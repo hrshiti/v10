@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
+import Pagination from '../../../../components/Pagination';
 
 // --- Reusable Components ---
 
@@ -1079,11 +1080,11 @@ const Members = () => {
               {members.length > 0 ? (
                 members.map((row, idx) => (
                   <tr key={idx} className={`border-b transition-none ${row.isBlocked
-                      ? (isDarkMode ? 'bg-red-900/20 border-red-900/30' : 'bg-red-50 border-red-100')
-                      : (isDarkMode
-                        ? (selectedMembers.includes(row._id) ? 'bg-[#f97316]/10 border-white/5' : 'border-white/5 hover:bg-white/5')
-                        : (selectedMembers.includes(row._id) ? 'bg-orange-50 border-orange-100' : 'border-gray-50 hover:bg-gray-50/50')
-                      )
+                    ? (isDarkMode ? 'bg-red-900/20 border-red-900/30' : 'bg-red-50 border-red-100')
+                    : (isDarkMode
+                      ? (selectedMembers.includes(row._id) ? 'bg-[#f97316]/10 border-white/5' : 'border-white/5 hover:bg-white/5')
+                      : (selectedMembers.includes(row._id) ? 'bg-orange-50 border-orange-100' : 'border-gray-50 hover:bg-gray-50/50')
+                    )
                     }`}>
                     <td className="px-4 py-6">
                       <input
@@ -1266,31 +1267,12 @@ const Members = () => {
 
         {/* Pagination */}
         <div className={`p-8 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-[#f9f9f9]/30'}`}>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50`}
-            >
-              « Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
-              <button
-                key={num}
-                onClick={() => setCurrentPage(num)}
-                className={`w-11 h-11 border rounded-xl text-[13px] font-black transition-none ${currentPage === num ? 'bg-[#f97316] text-white shadow-lg' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-              >
-                {num}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className={`px-6 py-2.5 border rounded-xl text-[13px] font-black transition-none border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50`}
-            >
-              Next »
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+          />
 
           <div className="flex items-center gap-5 transition-none">
             <span className="text-[15px] font-black text-gray-500 uppercase tracking-tight">Rows per page</span>

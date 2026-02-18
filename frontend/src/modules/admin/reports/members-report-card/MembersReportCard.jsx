@@ -11,6 +11,7 @@ import {
 import { useOutletContext } from 'react-router-dom';
 import SingleDatePicker from '../../components/SingleDatePicker';
 import { API_BASE_URL } from '../../../../config/api';
+import Pagination from '../../../../components/Pagination';
 
 const AddReportCardModal = ({ isOpen, onClose, isDarkMode, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -500,23 +501,13 @@ const MemberReportCard = () => {
 
         {/* Pagination Section */}
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-          <div className="flex flex-wrap items-center gap-2 transition-none">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'} ${currentPage === 1 ? 'opacity-50' : ''}`}
-            >
-              « Previous
-            </button>
-            <button className="w-10 h-10 border rounded-lg text-[13px] font-black bg-[#f97316] text-white shadow-lg transition-none">{currentPage}</button>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className={`px-5 py-2.5 border rounded-lg text-[13px] font-black transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 shadow-sm text-gray-700'} ${currentPage === totalPages ? 'opacity-50' : ''}`}
-            >
-              Next »
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+            size="small"
+          />
 
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-black text-gray-500 uppercase tracking-tight">Rows per page</span>

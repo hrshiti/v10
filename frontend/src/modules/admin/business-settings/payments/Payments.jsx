@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
+import Pagination from '../../../../components/Pagination';
 
 // --- Reusable Components (AdvancedDateRangePicker) ---
 
@@ -367,13 +368,13 @@ const Payments = () => {
           </table>
         </div>
         <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100'}`}>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="px-4 py-2 border rounded-lg text-xs font-bold disabled:opacity-50">« Previous</button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button key={i + 1} onClick={() => setCurrentPage(i + 1)} className={`w-8 h-8 rounded-lg text-xs font-bold ${currentPage === i + 1 ? 'bg-[#f4a261] text-white' : 'border'}`}>{i + 1}</button>
-            ))}
-            <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="px-4 py-2 border rounded-lg text-xs font-bold disabled:opacity-50">Next »</button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+            size="small"
+          />
           <div className="flex items-center gap-4">
             <span className="text-sm font-bold text-gray-500">Rows per page</span>
             <div className="relative" ref={rowsDropdownRef}>

@@ -40,7 +40,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const expiredMembersCount = await Member.countDocuments({
         $or: [
             { status: 'Expired' },
-            { endDate: { $lt: startOfDay } }
+            {
+                status: 'Active',
+                endDate: { $lt: startOfDay }
+            }
         ]
     });
 
@@ -158,13 +161,17 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         }
     });
 
-    // 5. Payment Stats (Paid vs Due)
+    // 5. Payment Stats (Paid vs Due) - Focus on Active/Pending members for dashboard context
+    const financialQuery = { status: { $in: ['Active', 'Pending', 'Frozen'] } };
+
     const paidAgg = await Member.aggregate([
+        { $match: financialQuery },
         { $group: { _id: null, totalPaid: { $sum: "$paidAmount" } } }
     ]);
     const paidAmount = paidAgg.length > 0 ? paidAgg[0].totalPaid : 0;
 
     const dueAgg = await Member.aggregate([
+        { $match: financialQuery },
         { $group: { _id: null, totalDue: { $sum: "$dueAmount" } } }
     ]);
     const pendingPayment = dueAgg.length > 0 ? dueAgg[0].totalDue : 0;

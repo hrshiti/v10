@@ -17,6 +17,7 @@ import DateRangeFilter from '../components/DateRangeFilter';
 import FollowUpActionModal from './FollowUpActionModal';
 import FollowUpDoneModal from './FollowUpDoneModal';
 import Toast from '../components/Toast';
+import Pagination from '../../../components/Pagination';
 
 
 
@@ -763,54 +764,13 @@ const FollowUps = () => {
 
         {/* Pagination - Matching Image 3 exactly */}
         <div className={`px-6 py-5 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className={`px-5 py-2.5 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400 disabled:opacity-50 cursor-not-allowed' : 'bg-white border-gray-300 text-gray-600 disabled:opacity-50 cursor-not-allowed'}`}
-            >
-              « Previous
-            </button>
-
-            {(() => {
-              const pages = [];
-              if (totalPages <= 7) {
-                for (let i = 1; i <= totalPages; i++) pages.push(i);
-              } else {
-                if (currentPage <= 4) {
-                  pages.push(1, 2, 3, 4, 5, '...', totalPages);
-                } else if (currentPage >= totalPages - 3) {
-                  pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-                } else {
-                  pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
-                }
-              }
-
-              if (totalPages === 0) return null;
-
-              return pages.map((page, idx) => (
-                page === '...' ? (
-                  <span key={idx} className="px-1 text-gray-400">...</span>
-                ) : (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-10 h-10 rounded-lg text-[12px] font-bold transition-none ${page === currentPage ? 'bg-[#f4a261] text-white' : (isDarkMode ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50')}`}
-                  >
-                    {page}
-                  </button>
-                )
-              ));
-            })()}
-
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages || totalPages === 0}
-              className={`px-5 py-2.5 border rounded-lg text-[12px] font-bold transition-none ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400 disabled:opacity-50 cursor-not-allowed' : 'bg-white border-gray-300 text-gray-600 disabled:opacity-50 cursor-not-allowed'}`}
-            >
-              Next »
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isDarkMode={isDarkMode}
+            size="small"
+          />
 
           <div className="flex items-center gap-4 transition-none">
             <span className="text-[14px] font-bold text-gray-500">Rows per page</span>

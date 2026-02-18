@@ -12,6 +12,7 @@ import {
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import Toast from './Toast';
 import { API_BASE_URL } from '../../../../../config/api';
+import Pagination from '../../../../../components/Pagination';
 
 // --- Reusable Components ---
 
@@ -628,31 +629,13 @@ const EmployeeAttendance = () => {
           </div>
 
           <div className={`p-6 border-t flex flex-col md:flex-row justify-between items-center gap-6 transition-none ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100 bg-gray-50/20'}`}>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
-              >
-                « Previous
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setCurrentPage(p)}
-                  className={`w-10 h-10 border rounded-lg text-[12px] font-bold transition-none ${p === currentPage ? 'bg-[#f97316] text-white' : (isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-300')}`}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className={`px-4 py-2 border rounded-lg text-[12px] font-bold transition-none disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-300 shadow-sm'}`}
-              >
-                Next »
-              </button>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              isDarkMode={isDarkMode}
+              size="small"
+            />
             <div className="flex items-center gap-4 transition-none">
               <span className="text-[14px] font-bold text-gray-500">Rows per page</span>
               <RowsPerPageDropdown rowsPerPage={rowsPerPage} setRowsPerPage={setRowsPerPage} isDarkMode={isDarkMode} />

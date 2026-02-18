@@ -68,10 +68,14 @@ const getSalesReport = asyncHandler(async (req, res) => {
     const sales = await Sale.find(query)
         .populate({
             path: 'memberId',
-            select: 'firstName lastName mobile memberId packageName startDate endDate durationMonths duration durationType packageId',
-            populate: { path: 'packageId', select: 'name' }
+            select: 'firstName lastName mobile memberId packageName startDate endDate durationMonths duration durationType packageId assignedTrainer',
+            populate: [
+                { path: 'packageId', select: 'name sessions' },
+                { path: 'assignedTrainer', select: 'firstName lastName' }
+            ]
         })
         .populate('trainerId', 'firstName lastName')
+        .populate('packageId', 'name sessions')
         .populate('closedBy', 'firstName lastName')
         .sort({ date: -1 })
         .limit(pageSize)

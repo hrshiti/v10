@@ -22,30 +22,44 @@ const getGymDetails = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/gym-details
 // @access  Private/Admin
 const updateGymDetails = asyncHandler(async (req, res) => {
-    const { name, contactNumber, address, gstNo } = req.body;
-    let gymDetail = await GymDetail.findOne();
+    try {
+        console.log('--- Gym Update Request ---');
+        console.log('Body:', req.body);
+        console.log('File:', req.file ? req.file.path : 'No file');
 
-    if (gymDetail) {
-        gymDetail.name = name || gymDetail.name;
-        gymDetail.contactNumber = contactNumber || gymDetail.contactNumber;
-        gymDetail.address = address || gymDetail.address;
-        gymDetail.gstNo = gstNo !== undefined ? gstNo : gymDetail.gstNo;
+        const { name, contactNumber, address, gstNo } = req.body;
+        let gymDetail = await GymDetail.findOne();
 
-        if (req.file) {
-            gymDetail.logo = req.file.path;
+        if (gymDetail) {
+            console.log('Updating existing gym record:', gymDetail._id);
+            gymDetail.name = name || gymDetail.name;
+            gymDetail.contactNumber = contactNumber || gymDetail.contactNumber;
+            gymDetail.address = address || gymDetail.address;
+            gymDetail.gstNo = gstNo !== undefined ? gstNo : gymDetail.gstNo;
+
+            if (req.file) {
+                gymDetail.logo = req.file.path;
+            }
+
+            const updatedGym = await gymDetail.save();
+            console.log('✅ Gym details updated successfully');
+            res.json(updatedGym);
+        } else {
+            console.log('Creating new gym record');
+            const newGym = await GymDetail.create({
+                name,
+                contactNumber,
+                address,
+                gstNo,
+                logo: req.file ? req.file.path : null
+            });
+            console.log('✅ New gym record created');
+            res.json(newGym);
         }
-
-        const updatedGym = await gymDetail.save();
-        res.json(updatedGym);
-    } else {
-        const newGym = await GymDetail.create({
-            name,
-            contactNumber,
-            address,
-            gstNo,
-            logo: req.file ? req.file.path : null
-        });
-        res.json(newGym);
+    } catch (error) {
+        console.error('❌ ERROR in updateGymDetails:', error);
+        res.status(500);
+        throw new Error(error.message || 'Error updating gym details');
     }
 });
 

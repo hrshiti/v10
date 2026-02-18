@@ -43,3 +43,5 @@ temp/
 
 # Uploads (if using cloud storage)
 uploads/
+
+config/*.json
