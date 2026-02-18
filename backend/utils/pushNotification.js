@@ -1,16 +1,25 @@
 const admin = require('firebase-admin');
 const path = require('path');
 
+const fs = require('fs');
+
 // Initialize Firebase Admin with credentials from env or file
-let serviceAccount;
+let serviceAccount = null;
 
 try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
         // Option 1: Load from environment variable string
         serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+        console.log('Firebase: 🛡️ Loading credentials from Environment Variable');
     } else {
         // Option 2: Fallback to local JSON file
-        serviceAccount = require('../config/v10-fitness-lab-firebase-adminsdk-fbsvc-a3f986a929.json');
+        const configPath = path.join(__dirname, '../config/v10-fitness-lab-firebase-adminsdk-fbsvc-a3f986a929.json');
+        if (fs.existsSync(configPath)) {
+            serviceAccount = require(configPath);
+            console.log('Firebase: 📁 Loading credentials from local JSON file');
+        } else {
+            console.warn('Firebase: ⚠️ No credentials found in ENV or local FILE. Push notifications will be disabled.');
+        }
     }
 } catch (error) {
     console.error('Firebase: ❌ Error loading service account:', error.message);
@@ -20,7 +29,7 @@ if (serviceAccount && !admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
     });
-    console.log('Firebase: ✅ Admin SDK initialized');
+    console.log('Firebase: ✅ Admin SDK initialized successfully');
 }
 
 /**
