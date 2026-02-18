@@ -11,7 +11,7 @@ const Dashboard = () => {
         `p-3 rounded-2xl transition-all duration-300 ${isActive ? 'bg-black text-white dark:bg-white dark:text-black shadow-lg scale-110' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`;
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#121212] font-sans w-full max-w-md mx-auto relative shadow-2xl overflow-hidden ring-1 ring-gray-200 dark:ring-gray-800 transition-colors duration-300">
+        <div className="min-h-screen bg-white dark:bg-[#121212] font-sans w-full md:max-w-md md:mx-auto relative md:shadow-2xl overflow-hidden md:ring-1 md:ring-gray-200 md:dark:ring-gray-800 md:my-4 md:rounded-[3rem] transition-colors duration-300">
 
             {/* Main Content Area */}
             <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide pb-24">
@@ -20,7 +20,7 @@ const Dashboard = () => {
 
 
             {/* Bottom Sticky Navigation */}
-            <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-6 pb-6 pt-4 bg-white/90 dark:bg-black/80 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800/50 flex justify-between items-center z-50 transition-colors duration-300">
+            <div className="fixed bottom-0 left-0 right-0 md:max-w-md mx-auto px-6 pb-8 pt-4 bg-white/95 dark:bg-black/85 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800/50 flex justify-between items-center z-50 transition-colors duration-300 safe-area-inset-bottom">
 
                 <NavLink to="/" className={({ isActive }) => getLinkClasses(isActive)}>
                     {({ isActive }) => (

@@ -1,13 +1,26 @@
 const admin = require('firebase-admin');
 const path = require('path');
 
-// Initialize Firebase Admin with the provided service account
-const serviceAccount = require('../config/v10-fitness-lab-firebase-adminsdk-fbsvc-a3f986a929.json');
+// Initialize Firebase Admin with credentials from env or file
+let serviceAccount;
 
-if (!admin.apps.length) {
+try {
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+        // Option 1: Load from environment variable string
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    } else {
+        // Option 2: Fallback to local JSON file
+        serviceAccount = require('../config/v10-fitness-lab-firebase-adminsdk-fbsvc-a3f986a929.json');
+    }
+} catch (error) {
+    console.error('Firebase: ❌ Error loading service account:', error.message);
+}
+
+if (serviceAccount && !admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
     });
+    console.log('Firebase: ✅ Admin SDK initialized');
 }
 
 /**
