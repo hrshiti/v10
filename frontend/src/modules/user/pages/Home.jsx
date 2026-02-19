@@ -26,19 +26,43 @@ const Home = () => {
     });
     const [stories, setStories] = useState([]);
     const [loadingStories, setLoadingStories] = useState(true);
+    const [userData, setUserData] = useState(() => {
+        const saved = localStorage.getItem('userData');
+        return saved ? JSON.parse(saved) : null;
+    });
 
-    // Get user data from localStorage
-    const userDataStr = localStorage.getItem('userData');
-    const userData = userDataStr ? JSON.parse(userDataStr) : null;
     const userName = userData ? `${userData.firstName} ${userData.lastName}` : 'Guest';
 
     // Check if profile is incomplete
-    const isProfileIncomplete = userData && (!userData.weight || !userData.height || !userData.age);
+    const isProfileIncomplete = userData && (
+        !userData.weight || userData.weight === '0' || userData.weight === 0 ||
+        !userData.height || userData.height === '0' || userData.height === 0 ||
+        !userData.age || userData.age === '0' || userData.age === 0
+    );
 
     useEffect(() => {
         fetchStats();
         fetchStories();
+        fetchProfile();
     }, []);
+
+    const fetchProfile = async () => {
+        try {
+            const token = localStorage.getItem('userToken');
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setUserData(data);
+                localStorage.setItem('userData', JSON.stringify(data));
+            }
+        } catch (error) {
+            console.error('Error fetching profile in home:', error);
+        }
+    };
 
     const fetchStats = async () => {
         try {
@@ -74,29 +98,8 @@ const Home = () => {
         }
     };
 
-    const recommendations = [
-        {
-            title: 'Pull Up',
-            duration: '15 minutes',
-            level: 'Beginner',
-            tag: 'Cardio',
-            tagColor: '#10B981', // green-500
-            tagBg: '#D1FAE5', // emerald-100
-            image: 'https://images.unsplash.com/photo-1598971639058-211a74a9468d?auto=format&fit=crop&q=80&w=200&h=200'
-        },
-        {
-            title: 'Sit Up',
-            duration: '30 minutes',
-            level: 'Middle',
-            tag: 'Muscle',
-            tagColor: '#F59E0B', // amber-500
-            tagBg: '#FEF3C7', // amber-100
-            image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&q=80&w=200&h=200'
-        }
-    ];
-
     return (
-        <div className="flex flex-col pb-24">
+        <div className="flex flex-col">
             {/* Profile Incomplete Notification */}
             {isProfileIncomplete && (
                 <div className="mx-4 mt-4 mb-2 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/50 rounded-2xl p-4 flex items-start gap-3 animate-in slide-in-from-top-4 fade-in">
@@ -180,43 +183,32 @@ const Home = () => {
             </div>
 
             {/* Transformation Highlights (Social Style) */}
-            <div className="px-5 mt-6 mb-8">
-                <div className="flex items-center justify-between mb-5 px-1">
-                    <h2 className="text-xl font-black text-gray-900 dark:text-white transition-colors duration-300 flex items-center gap-2">
-                        <Trophy size={20} className="text-amber-500" />
-                        Transformation Lab
-                    </h2>
-                    {stories.length > 0 && (
+            {stories.length > 0 && (
+                <div className="px-5 mt-6 mb-8">
+                    <div className="flex items-center justify-between mb-5 px-1">
+                        <h2 className="text-xl font-black text-gray-900 dark:text-white transition-colors duration-300 flex items-center gap-2">
+                            <Trophy size={20} className="text-amber-500" />
+                            Transformation Lab
+                        </h2>
                         <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                             <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                                 Live News
                             </span>
                         </div>
-                    )}
-                </div>
+                    </div>
 
-                <div className="flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide snap-x snap-mandatory">
-                    {stories.length > 0 ? (
-                        stories.map((story) => (
+                    <div className="flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide snap-x snap-mandatory">
+                        {stories.map((story) => (
                             <div key={story._id} className="w-[88%] flex-shrink-0 snap-center">
                                 <SuccessStoryCard
                                     story={story}
                                 />
                             </div>
-                        ))
-                    ) : (
-                        <div className="w-full flex flex-col gap-4">
-                            {recommendations.map((item, index) => (
-                                <RecommendationCard
-                                    key={index}
-                                    {...item}
-                                />
-                            ))}
-                        </div>
-                    )}
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Diet Plan Section */}
             <div className="px-5">

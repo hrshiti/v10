@@ -160,7 +160,7 @@ const Profile = () => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-[#121212] min-h-screen transition-colors duration-300">
+        <div className="flex flex-col h-full bg-gray-50 dark:bg-[#121212] transition-colors duration-300">
             {/* White Header for clean look */}
             <div className="bg-white dark:bg-[#1A1F2B] pt-6 px-6 pb-4 shadow-sm text-center relative rounded-b-[2rem] transition-colors duration-300">
                 <div className="relative w-20 h-20 mx-auto mb-2">

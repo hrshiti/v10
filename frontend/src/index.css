@@ -15,6 +15,15 @@ html {
     height: 100%;
     -webkit-text-size-adjust: 100%;
     touch-action: manipulation;
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
+}
+
+html::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
 }
 
 body {
@@ -25,8 +34,13 @@ body {
     margin: 0;
     padding: 0;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: none;
     padding-bottom: env(safe-area-inset-bottom);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+body::-webkit-scrollbar {
+    display: none;
 }
 
 
@@ -38,7 +52,7 @@ body {
 }
 
 /* Utilities */
-@layer h-utility {
+@layer utilities {
     .scrollbar-hide::-webkit-scrollbar {
         display: none;
     }

@@ -68,7 +68,7 @@ const getSalesReport = asyncHandler(async (req, res) => {
     const sales = await Sale.find(query)
         .populate({
             path: 'memberId',
-            select: 'firstName lastName mobile memberId packageName startDate endDate durationMonths duration durationType packageId assignedTrainer',
+            select: 'firstName lastName mobile memberId packageNameStatic startDate endDate durationMonths duration durationType packageId assignedTrainer',
             populate: [
                 { path: 'packageId', select: 'name sessions' },
                 { path: 'assignedTrainer', select: 'firstName lastName' }
@@ -162,6 +162,7 @@ const getBalanceDueReport = asyncHandler(async (req, res) => {
 
     const count = await Member.countDocuments(query);
     const members = await Member.find(query)
+        .populate('packageId', 'name')
         .sort({ dueAmount: -1 }) // Highest values first
         .limit(pageSize)
         .skip(pageSize * (page - 1));
@@ -352,7 +353,11 @@ const getSubscriptionAnalytics = asyncHandler(async (req, res) => {
     const expiringMembers = await Member.find({
         status: 'Active',
         endDate: { $gte: today, $lte: next7Days }
-    }).select('firstName lastName mobile endDate packageName memberId').sort({ endDate: 1 }).limit(50);
+    })
+        .populate('packageId', 'name')
+        .select('firstName lastName mobile endDate packageId packageNameStatic memberId')
+        .sort({ endDate: 1 })
+        .limit(50);
 
     res.json({
         packagePerformance: salesAgg,
@@ -419,7 +424,8 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
         const logs = await MemberAttendance.find(query)
             .populate({
                 path: 'memberId',
-                select: 'firstName lastName mobile packageName endDate assignedTrainer membershipType',
+                select: 'firstName lastName mobile packageNameStatic packageId endDate assignedTrainer membershipType',
+                populate: { path: 'packageId', select: 'name' },
                 match: membershipType && membershipType !== 'Membership Type' ? { membershipType } : {}
             })
             .sort({ date: -1 })
@@ -494,6 +500,15 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
                 }
             },
             {
+                $lookup: {
+                    from: "packages",
+                    localField: "memberInfo.packageId",
+                    foreignField: "_id",
+                    as: "packageInfo"
+                }
+            },
+            { $unwind: { path: "$packageInfo", preserveNullAndEmptyArrays: true } },
+            {
                 $facet: {
                     metadata: [{ $count: "total" }],
                     data: [{ $skip: pageSize * (page - 1) }, { $limit: pageSize }]
@@ -509,7 +524,7 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
             firstName: item.memberInfo.firstName,
             lastName: item.memberInfo.lastName,
             mobile: item.memberInfo.mobile,
-            packageName: item.memberInfo.packageName,
+            packageName: item.memberInfo.packageName || item.packageInfo?.name || item.memberInfo.packageNameStatic || 'N/A',
             endDate: item.memberInfo.endDate,
             trainerName: item.trainerInfo ? `${item.trainerInfo.firstName} ${item.trainerInfo.lastName}` : 'N/A',
             lastMarked: item.lastMarked,
@@ -616,6 +631,7 @@ const getDueMembershipReport = asyncHandler(async (req, res) => {
     const members = await Member.find(query)
         .populate('assignedTrainer', 'firstName lastName')
         .populate('closedBy', 'firstName lastName')
+        .populate('packageId', 'name')
         .sort({ endDate: 1 }) // Sort by end date ascending (soonest first)
         .limit(pageSize)
         .skip(pageSize * (page - 1));

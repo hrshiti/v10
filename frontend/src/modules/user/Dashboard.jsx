@@ -11,10 +11,10 @@ const Dashboard = () => {
         `p-3 rounded-2xl transition-all duration-300 ${isActive ? 'bg-black text-white dark:bg-white dark:text-black shadow-lg scale-110' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`;
 
     return (
-        <div className="min-h-screen bg-white dark:bg-[#121212] font-sans w-full md:max-w-md md:mx-auto relative md:shadow-2xl overflow-hidden md:ring-1 md:ring-gray-200 md:dark:ring-gray-800 md:my-4 md:rounded-[3rem] transition-colors duration-300">
+        <div className="h-screen h-[100dvh] bg-white dark:bg-[#121212] font-sans w-full md:max-w-md md:mx-auto relative md:shadow-2xl overflow-hidden md:ring-1 md:ring-gray-200 md:dark:ring-gray-800 md:my-4 md:h-[calc(100vh-2rem)] md:rounded-[3rem] transition-colors duration-300 flex flex-col">
 
             {/* Main Content Area */}
-            <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide pb-24">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide pb-24">
                 <Outlet />
             </div>
 

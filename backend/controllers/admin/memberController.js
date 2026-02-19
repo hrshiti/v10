@@ -119,7 +119,14 @@ const getMembers = asyncHandler(async (req, res) => {
                 // Sync top-level fields from currentSubscription for backward compatibility and migration support
                 {
                     $addFields: {
-                        packageName: { $ifNull: ["$currentSubscription.packageName", "$packageName"] },
+                        packageName: {
+                            $ifNull: [
+                                "$currentSubscription.packageName",
+                                "$packageId.name",
+                                "$packageNameStatic",
+                                "N/A"
+                            ]
+                        },
                         duration: { $ifNull: ["$currentSubscription.duration", "$duration"] },
                         durationType: { $ifNull: ["$currentSubscription.durationType", "$durationType"] },
                         startDate: { $ifNull: ["$currentSubscription.startDate", "$startDate"] },
@@ -376,7 +383,7 @@ const getMemberStats = asyncHandler(async (req, res) => {
     // Group by packageName and count
     const packageStats = await Member.aggregate([
         { $match: { status: 'Active' } },
-        { $group: { _id: "$packageName", count: { $sum: 1 } } }
+        { $group: { _id: { $ifNull: ["$packageName", "$packageNameStatic"] }, count: { $sum: 1 } } }
     ]);
 
     res.json({

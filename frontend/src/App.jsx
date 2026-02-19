@@ -31,7 +31,7 @@ import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
-    <div className="App min-h-screen">
+    <div className="App h-screen overflow-hidden">
       <ThemeProvider>
         <Toaster position="top-center" reverseOrder={false} />
         <FCMHandler />

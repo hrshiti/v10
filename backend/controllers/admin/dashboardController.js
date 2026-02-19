@@ -282,7 +282,8 @@ const getCommitmentDues = asyncHandler(async (req, res) => {
             { commitmentDate: null }
         ]
     })
-        .select('firstName lastName memberId photo mobile packageName commitmentDate dueAmount')
+        .select('firstName lastName memberId photo mobile packageId packageNameStatic commitmentDate dueAmount')
+        .populate('packageId', 'name')
         .sort({ commitmentDate: 1 })
         .limit(50);
 
@@ -314,7 +315,7 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     // 1. Membership Distribution (By Package Name)
     const membershipStats = await Member.aggregate([
         { $match: { status: 'Active' } },
-        { $group: { _id: "$packageName", count: { $sum: 1 } } },
+        { $group: { _id: { $ifNull: ["$packageName", "$packageNameStatic"] }, count: { $sum: 1 } } },
         { $sort: { count: -1 } }
     ]);
 

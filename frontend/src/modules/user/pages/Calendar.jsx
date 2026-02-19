@@ -95,7 +95,7 @@ const Calendar = () => {
     );
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-[#121212] min-h-screen pb-24 transition-colors duration-300">
+        <div className="flex flex-col bg-gray-50 dark:bg-[#121212] transition-colors duration-300">
             <div className="bg-[#1A1F2B] dark:bg-[#0D1117] text-white pt-8 px-6 pb-6 rounded-b-[2rem] shadow-md transition-colors duration-300">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Schedule</h1>
@@ -116,7 +116,7 @@ const Calendar = () => {
                 </div>
 
                 {/* Sliding Date Strip */}
-                <div className="flex justify-between overflow-hidden">
+                <div className="flex justify-between overflow-x-auto scrollbar-hide gap-3 pb-2">
                     {weekDates.map((dateObj, idx) => {
                         const dayNum = dateObj.getDate();
                         const dayName = daysOfWeek[dateObj.getDay()];
