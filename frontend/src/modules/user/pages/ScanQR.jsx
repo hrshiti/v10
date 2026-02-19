@@ -118,9 +118,12 @@ const ScanQR = () => {
         reader.readAsDataURL(file);
     };
 
+    const isScanningRef = useRef(false);
+
     // Success Handler
     const handleScanSuccess = async (data) => {
-        if (isProcessing) return;
+        if (isProcessing || isScanningRef.current) return;
+        isScanningRef.current = true;
         setIsProcessing(true);
 
         // Haptic Feedback
@@ -142,8 +145,6 @@ const ScanQR = () => {
             if (response.ok && result.success) {
                 setScannedData(data); // Lock the scanner
 
-                // Audio feedback (Beep) logic could go here if sound file exists
-
                 // Short delay before showing success screen for premium feel
                 setTimeout(() => {
                     navigate('/success', { state: { message: result.message, type: result.type } });
@@ -151,7 +152,6 @@ const ScanQR = () => {
             } else {
                 // Check if subscription expired
                 if (result.type === 'expired') {
-                    // Show a more prominent error for expired subscription
                     toast.error(
                         <div className="flex flex-col gap-2">
                             <p className="font-bold text-base">⚠️ Subscription Expired</p>
@@ -170,12 +170,14 @@ const ScanQR = () => {
                 } else {
                     toast.error(result.message || 'Error marking attendance');
                 }
-                setIsProcessing(false); // Unlock to try again
+                setIsProcessing(false);
+                isScanningRef.current = false;
                 setScannedData(null);
             }
         } catch (err) {
             toast.error('Connection error. Please try again.');
             setIsProcessing(false);
+            isScanningRef.current = false;
             setScannedData(null);
         }
     };

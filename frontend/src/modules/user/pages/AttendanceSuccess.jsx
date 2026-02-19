@@ -157,10 +157,10 @@ const AttendanceSuccess = () => {
                         className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-4 rounded-2xl"
                     >
                         <div className="flex items-center gap-2 mb-2">
-                            <User size={12} className="text-blue-400" />
-                            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Total Members</span>
+                            <Clock size={12} className="text-blue-400" />
+                            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Active in Gym</span>
                         </div>
-                        <p className="text-2xl font-black text-white">{stats.totalMembers}</p>
+                        <p className="text-2xl font-black text-white">{stats.activeInGym || 0}</p>
                     </motion.div>
                 </div>
 

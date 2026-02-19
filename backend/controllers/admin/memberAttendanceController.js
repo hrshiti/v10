@@ -58,6 +58,16 @@ const scanQRCode = asyncHandler(async (req, res) => {
     if (existingAttendance) {
         // If already checked in, maybe check out?
         if (!existingAttendance.checkOut) {
+            // Add a safety buffer to prevent double-scan check-out (e.g., 5 minutes)
+            const checkInTime = new Date(existingAttendance.checkIn).getTime();
+            const now = new Date().getTime();
+            const diffMinutes = (now - checkInTime) / (1000 * 60);
+
+            if (diffMinutes < 5) {
+                res.status(400);
+                throw new Error(`Member checked in only ${Math.round(diffMinutes)} mins ago. Please wait before marking check-out.`);
+            }
+
             existingAttendance.checkOut = new Date();
             await existingAttendance.save();
             return res.status(200).json({

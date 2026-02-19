@@ -133,15 +133,18 @@ const TrainerHome = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white/5 px-4 py-3 rounded-2xl border border-white/5">
-                            <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">Live Members</p>
+                            <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">Active In Gym</p>
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                                <span className="text-white text-lg font-black">{stats?.activeMembersCount || '0'}</span>
+                                <span className="text-white text-lg font-black">{stats?.membersInGym || '0'}</span>
                             </div>
                         </div>
                         <div className="bg-white/5 px-4 py-3 rounded-2xl border border-white/5">
-                            <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">Shift Hours</p>
-                            <span className="text-white text-lg font-black">Active</span>
+                            <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">Frozen Members</p>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                <span className="text-white text-lg font-black">{stats?.frozenMembersCount || '0'}</span>
+                            </div>
                         </div>
                     </div>
                 </div>

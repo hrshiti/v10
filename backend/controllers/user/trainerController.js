@@ -194,6 +194,9 @@ const deleteSuccessStory = asyncHandler(async (req, res) => {
     res.json({ message: 'Story removed' });
 });
 
+const Member = require('../../models/Member');
+const MemberAttendance = require('../../models/MemberAttendance');
+
 // @desc    Get Trainer Dashboard Stats
 // @route   GET /api/user/trainer/stats
 // @access  Private/Trainer
@@ -213,6 +216,16 @@ const getTrainerStats = asyncHandler(async (req, res) => {
 
     const storyCount = await SuccessStory.countDocuments({ trainerId: req.user._id });
 
+    // Count members currently in the gym (Auto-timeout after 60 mins)
+    const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const membersInGym = await MemberAttendance.countDocuments({
+        checkIn: { $gte: sixtyMinutesAgo },
+        checkOut: { $exists: false }
+    });
+
+    const frozenMembersCount = await Member.countDocuments({ status: 'Frozen' });
+    const totalActiveMembers = await Member.countDocuments({ status: 'Active' });
+
     res.json({
         user: {
             firstName: employee.firstName,
@@ -220,6 +233,9 @@ const getTrainerStats = asyncHandler(async (req, res) => {
             photo: employee.photo,
         },
         storyCount,
+        membersInGym,
+        frozenMembersCount,
+        totalActiveMembers,
         userStatus: {
             isPresent: !!attendance,
             type: attendance ? (attendance.outTime ? 'checkout' : 'checkin') : null

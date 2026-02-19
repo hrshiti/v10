@@ -62,6 +62,18 @@ const userScanQR = asyncHandler(async (req, res) => {
 
     if (existingAttendance) {
         if (!existingAttendance.checkOut) {
+            // Add a safety buffer to prevent double-scan check-out (e.g., 5 minutes)
+            const checkInTime = new Date(existingAttendance.checkIn).getTime();
+            const now = new Date().getTime();
+            const diffMinutes = (now - checkInTime) / (1000 * 60);
+
+            if (diffMinutes < 5) {
+                return res.json({
+                    success: false,
+                    message: `You just checked in ${Math.round(diffMinutes)} mins ago. Please wait a few minutes before checking out.`
+                });
+            }
+
             existingAttendance.checkOut = new Date();
             await existingAttendance.save();
             return res.json({
@@ -364,7 +376,8 @@ const getHomeStats = asyncHandler(async (req, res) => {
         date: {
             $gte: today,
             $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
-        }
+        },
+        status: 'Present'
     });
 
     // Check current user's attendance status
@@ -382,25 +395,21 @@ const getHomeStats = asyncHandler(async (req, res) => {
     // But wait, Trainers have their own dashboard. `getHomeStats` is for `Home.jsx` (User Dashboard).
     // So `req.user` here is assumed to be a Member.
 
-    // Logic: Active Session if checked in < 50 mins ago AND not checked out
+    // Logic: Active Session if checked in today AND not checked out
     let isSessionActive = false;
     let sessionTimeRemaining = 0;
 
     if (userAttendance && userAttendance.checkIn && !userAttendance.checkOut) {
+        isSessionActive = true;
+        // Optional: Keep sessionTimeRemaining if you want to show a progress bar (defaulting to 60 min session)
         const checkInTime = new Date(userAttendance.checkIn).getTime();
         const now = new Date().getTime();
         const diffMinutes = (now - checkInTime) / (1000 * 60);
-
-        if (diffMinutes <= 60) {
-            isSessionActive = true;
-            sessionTimeRemaining = Math.max(0, 60 - diffMinutes);
-        }
+        sessionTimeRemaining = Math.max(0, 60 - diffMinutes);
     }
 
-    // Calculate total active members in gym right now (checked in within last 60 mins)
+    // Calculate total active members in gym right now (Auto-timeout after 60 mins)
     const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000);
-
-    // Active Members (Auto-timeout after 1 hour)
     const activeMembersCount = await MemberAttendance.countDocuments({
         checkIn: { $gte: sixtyMinutesAgo },
         checkOut: { $exists: false }
@@ -408,7 +417,7 @@ const getHomeStats = asyncHandler(async (req, res) => {
 
     // Active Trainers/Employees (Stay active all day until checkout)
     const activeAttendance = await EmployeeAttendance.find({
-        date: { $gte: today }, // Any time today
+        date: { $gte: today },
         outTime: { $exists: false }
     }).populate({
         path: 'employeeId',
@@ -416,19 +425,20 @@ const getHomeStats = asyncHandler(async (req, res) => {
     });
 
     const activeTrainersCount = activeAttendance.filter(record => {
-        const roles = record.employeeId?.gymRole || [];
+        if (!record.employeeId) return false;
+        const roles = record.employeeId.gymRole || [];
         return roles.some(role => typeof role === 'string' && role.toLowerCase().includes('trainer'));
     }).length;
 
-    // "Active In Gym" for users should ONLY be member count, not including trainers
+    // "Active In Gym" for users reflects current member count
     const activeInGym = activeMembersCount;
 
     res.json({
         totalMembers,
         activeMembers,
         todayAttendance,
-        activeInGym, // Count of members + trainers currently in the gym
-        activeTrainers: activeTrainersCount, // New field
+        activeInGym,
+        activeTrainers: activeTrainersCount,
         userStatus: {
             isPresent: !!userAttendance,
             type: userAttendance ? (userAttendance.checkOut ? 'checkout' : 'checkin') : null,

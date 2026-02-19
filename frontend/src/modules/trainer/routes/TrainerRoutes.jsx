@@ -14,7 +14,7 @@ const TrainerDashboardLayout = () => {
         `flex flex-col items-center gap-1 group transition-all duration-300 ${isActive ? 'text-emerald-500' : 'text-gray-400'}`;
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#121212] font-sans w-full max-w-md mx-auto relative shadow-2xl overflow-hidden ring-1 ring-gray-200 dark:ring-gray-800 transition-colors duration-300 flex flex-col">
+        <div className="h-screen bg-gray-50 dark:bg-[#121212] font-sans w-full max-w-md mx-auto relative overflow-hidden ring-1 ring-gray-200 dark:ring-gray-800 transition-colors duration-300 flex flex-col">
             <Toaster position="top-center" reverseOrder={false} />
 
             {/* Top Notification Bar */}

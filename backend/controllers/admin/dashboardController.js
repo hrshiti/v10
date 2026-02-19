@@ -406,9 +406,10 @@ const getLiveGymStatus = asyncHandler(async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 1. Members in Gym
+    // 1. Members in Gym (Auto-timeout after 60 mins)
+    const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000);
     const activeMembers = await MemberAttendance.find({
-        date: { $gte: today },
+        checkIn: { $gte: sixtyMinutesAgo },
         checkOut: { $exists: false }
     }).populate('memberId', 'firstName lastName memberId photo mobile');
 
