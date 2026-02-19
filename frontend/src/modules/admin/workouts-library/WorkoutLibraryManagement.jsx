@@ -13,9 +13,6 @@ const WorkoutLibraryManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingWorkout, setEditingWorkout] = useState(null);
-    const [previews, setPreviews] = useState([]);
-    const [files, setFiles] = useState([]);
-
     const [formData, setFormData] = useState({
         title: '',
         category: 'Strength',
@@ -49,17 +46,20 @@ const WorkoutLibraryManagement = () => {
         }
     };
 
+    const [imageList, setImageList] = useState([]);
+
     const handleFileChange = (e) => {
         const selectedFiles = Array.from(e.target.files);
-        setFiles(prev => [...prev, ...selectedFiles]);
-
-        const newPreviews = selectedFiles.map(file => URL.createObjectURL(file));
-        setPreviews(prev => [...prev, ...newPreviews]);
+        const newImages = selectedFiles.map(file => ({
+            type: 'new',
+            file: file,
+            preview: URL.createObjectURL(file)
+        }));
+        setImageList(prev => [...prev, ...newImages]);
     };
 
-    const removePreview = (index) => {
-        setPreviews(prev => prev.filter((_, i) => i !== index));
-        setFiles(prev => prev.filter((_, i) => i !== index));
+    const removeImage = (index) => {
+        setImageList(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async (e) => {
@@ -86,8 +86,17 @@ const WorkoutLibraryManagement = () => {
                 }
             });
 
-            files.forEach(file => {
-                data.append('images', file);
+            // Separate existing images from new files
+            const existingImages = imageList
+                .filter(img => img.type === 'existing')
+                .map(img => img.path);
+
+            data.append('existingImages', JSON.stringify(existingImages));
+
+            imageList.forEach(img => {
+                if (img.type === 'new') {
+                    data.append('images', img.file);
+                }
             });
 
             const url = editingWorkout
@@ -151,13 +160,18 @@ const WorkoutLibraryManagement = () => {
             description: workout.description,
             tags: workout.tags || []
         });
-        // Load existing images into previews
+
+        // Load existing images
         if (workout.images && workout.images.length > 0) {
-            setPreviews(workout.images.map(img => getImageUrl(img)));
+            const existing = workout.images.map(img => ({
+                type: 'existing',
+                path: img,
+                preview: getImageUrl(img)
+            }));
+            setImageList(existing);
         } else {
-            setPreviews([]);
+            setImageList([]);
         }
-        setFiles([]);
         setShowModal(true);
     };
 
@@ -176,8 +190,7 @@ const WorkoutLibraryManagement = () => {
             description: '',
             tags: []
         });
-        setFiles([]);
-        setPreviews([]);
+        setImageList([]);
     };
 
     const getImageUrl = (path) => {
@@ -435,19 +448,19 @@ const WorkoutLibraryManagement = () => {
                             <div className="space-y-5">
                                 <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 ml-1">Workout Images (Up to 5)</label>
                                 <div className="flex flex-wrap gap-4">
-                                    {previews.map((url, i) => (
+                                    {imageList.map((img, i) => (
                                         <div key={i} className="relative w-32 h-32 rounded-3xl overflow-hidden border-2 border-blue-500 shadow-xl group">
-                                            <img src={url} className="w-full h-full object-cover" alt="Preview" />
+                                            <img src={img.preview} className="w-full h-full object-cover" alt="Preview" />
                                             <button
                                                 type="button"
-                                                onClick={() => removePreview(i)}
+                                                onClick={() => removeImage(i)}
                                                 className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-xl opacity-0 group-hover:opacity-100 transition-all"
                                             >
                                                 <X size={14} />
                                             </button>
                                         </div>
                                     ))}
-                                    {previews.length < 5 && (
+                                    {imageList.length < 5 && (
                                         <label className="w-32 h-32 rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-500/50 hover:bg-blue-50/50 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all">
                                             <Upload size={24} className="text-gray-400" />
                                             <span className="text-[8px] font-black uppercase text-gray-400">Add Pic</span>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ChevronLeft, X, Play, Clock, Zap, Target,
@@ -13,6 +13,7 @@ const WorkoutDetails = () => {
     const [loading, setLoading] = useState(true);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
+    const touchStartX = useRef(null);
 
     useEffect(() => {
         const fetchWorkout = async () => {
@@ -79,34 +80,92 @@ const WorkoutDetails = () => {
                 </button>
             </div>
 
-            {/* Visual Area */}
-            <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4">
+            {/* Visual Area - Carousel */}
+            <div className="relative w-full bg-gray-100 dark:bg-gray-900 aspect-[4/3] group">
                 {workout.images?.length > 0 ? (
-                    <img
-                        src={getImageUrl(workout.images[currentImageIndex])}
-                        alt={workout.title}
-                        className="max-w-full max-h-full object-contain rounded-2xl shadow-sm"
-                    />
+                    <div
+                        className="w-full h-full relative overflow-hidden"
+                        onTouchStart={(e) => {
+                            touchStartX.current = e.touches[0].clientX;
+                        }}
+                        onTouchEnd={(e) => {
+                            if (!touchStartX.current) return;
+                            const diff = touchStartX.current - e.changedTouches[0].clientX;
+                            if (Math.abs(diff) > 50) {
+                                if (diff > 0) {
+                                    setCurrentImageIndex((prev) => (prev + 1) % workout.images.length);
+                                } else {
+                                    setCurrentImageIndex((prev) => (prev - 1 + workout.images.length) % workout.images.length);
+                                }
+                            }
+                            touchStartX.current = null;
+                        }}
+                    >
+                        <img
+                            src={getImageUrl(workout.images[currentImageIndex])}
+                            alt={workout.title}
+                            className="w-full h-full object-contain transition-opacity duration-300"
+                        />
+
+                        {/* Navigation Arrows (Desktop/Tablet) */}
+                        {workout.images.length > 1 && (
+                            <>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCurrentImageIndex((prev) => (prev - 1 + workout.images.length) % workout.images.length);
+                                    }}
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
+                                >
+                                    <ChevronLeft size={24} />
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCurrentImageIndex((prev) => (prev + 1) % workout.images.length);
+                                    }}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
+                                >
+                                    <ChevronLeft size={24} className="rotate-180" />
+                                </button>
+                            </>
+                        )}
+
+                        {/* Slide Counter Badge */}
+                        <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+                            <span className="text-[10px] font-black text-white tracking-widest">
+                                {currentImageIndex + 1} / {workout.images.length}
+                            </span>
+                        </div>
+                    </div>
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300">
                         <Zap size={64} />
                     </div>
                 )}
-
-                {/* Dots */}
-                {workout.images?.length > 1 && (
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5">
-                        {workout.images.map((_, i) => (
-                            <div
-                                key={i}
-                                onClick={() => setCurrentImageIndex(i)}
-                                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${i === currentImageIndex ? 'w-6 bg-emerald-400' : 'w-1.5 bg-white/50 hover:bg-white'
-                                    }`}
-                            />
-                        ))}
-                    </div>
-                )}
             </div>
+
+            {/* Thumbnail Listing */}
+            {workout.images?.length > 1 && (
+                <div className="flex gap-3 overflow-x-auto px-6 py-4 bg-white dark:bg-[#121212] z-20 sticky top-[aspect-ratio] scrollbar-hide">
+                    {workout.images.map((img, idx) => (
+                        <div
+                            key={idx}
+                            onClick={() => setCurrentImageIndex(idx)}
+                            className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ${currentImageIndex === idx
+                                ? 'ring-2 ring-emerald-500 scale-105 opacity-100'
+                                : 'opacity-50 hover:opacity-100'
+                                }`}
+                        >
+                            <img
+                                src={getImageUrl(img)}
+                                alt={`Thumb ${idx}`}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Content Body */}
             <div className="flex-1 bg-white dark:bg-[#121212] rounded-t-[3rem] -mt-10 relative z-10 px-8 pt-10 pb-32 shadow-[0_-20px_40px_rgba(0,0,0,0.05)]">

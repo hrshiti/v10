@@ -14,7 +14,7 @@ const documentStorage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
         folder: 'gym-members-documents',
-        allowed_formats: ['jpg', 'jpeg', 'png', 'pdf'],
+        allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'webp', 'gif'],
         resource_type: 'auto'
     }
 });

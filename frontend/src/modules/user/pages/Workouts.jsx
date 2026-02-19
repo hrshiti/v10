@@ -1,7 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, PlayCircle, Clock, Zap, Dumbbell } from 'lucide-react';
 import { API_BASE_URL } from '../../../config/api';
+
+// Auto-sliding image carousel for workout cards
+// Swipe-only image carousel for workout cards (no auto-slide)
+const ImageCarousel = ({ images, alt, getImageUrl }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const touchStartX = useRef(0);
+
+    const finalImages = images && images.length > 0
+        ? images
+        : ['https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&auto=format&fit=crop'];
+
+    const handleTouchStart = (e) => {
+        touchStartX.current = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = (e) => {
+        const diff = touchStartX.current - e.changedTouches[0].clientX;
+        if (finalImages.length > 1) {
+            if (diff > 40) {
+                setCurrentIndex(prev => (prev + 1) % finalImages.length);
+            } else if (diff < -40) {
+                setCurrentIndex(prev => (prev - 1 + finalImages.length) % finalImages.length);
+            }
+        }
+    };
+
+    return (
+        <div
+            className="relative w-full h-full"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+        >
+            {finalImages.map((img, i) => (
+                <img
+                    key={i}
+                    src={img.startsWith('http') ? img : getImageUrl(img)}
+                    alt={`${alt} ${i + 1}`}
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${i === currentIndex ? 'opacity-100' : 'opacity-0'}`}
+                />
+            ))}
+            {finalImages.length > 1 && (
+                <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                    {finalImages.map((_, i) => (
+                        <div
+                            key={i}
+                            onClick={(e) => { e.stopPropagation(); setCurrentIndex(i); }}
+                            className={`rounded-full transition-all duration-300 cursor-pointer ${i === currentIndex ? 'w-3 h-1 bg-white' : 'w-1 h-1 bg-white/50'}`}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const Workouts = () => {
     const navigate = useNavigate();
@@ -135,14 +189,14 @@ const Workouts = () => {
                                 className="bg-white dark:bg-[#1A1F2B] p-2.5 rounded-[1.8rem] shadow-sm border border-gray-100 dark:border-gray-800/50 relative group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
                             >
                                 <div className="bg-gray-100 dark:bg-gray-800 h-32 rounded-3xl mb-3 relative overflow-hidden shrink-0">
-                                    <img src={workout.images?.[0] ? getImageUrl(workout.images[0]) : 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&auto=format&fit=crop'} alt={workout.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                    <ImageCarousel images={workout.images} alt={workout.title} getImageUrl={getImageUrl} />
                                     {/* Overlay */}
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
                                         <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30">
                                             <PlayCircle className="text-white fill-white" size={20} />
                                         </div>
                                     </div>
-                                    <div className="absolute top-2 left-2">
+                                    <div className="absolute top-2 left-2 z-20">
                                         <span className="bg-black/40 backdrop-blur-md text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-white/10 tracking-widest">
                                             {workout.category}
                                         </span>

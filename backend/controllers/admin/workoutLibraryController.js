@@ -63,9 +63,16 @@ const updateWorkoutLibraryItem = asyncHandler(async (req, res) => {
         workout.tags = req.body.tags ? (typeof req.body.tags === 'string' ? JSON.parse(req.body.tags) : req.body.tags) : workout.tags;
         workout.active = req.body.active !== undefined ? req.body.active : workout.active;
 
+        if (req.body.existingImages) {
+            const existing = typeof req.body.existingImages === 'string'
+                ? JSON.parse(req.body.existingImages)
+                : req.body.existingImages;
+            workout.images = Array.isArray(existing) ? existing : [];
+        }
+
         if (req.files && req.files.length > 0) {
             const newImages = req.files.map(file => file.path);
-            workout.images = [...workout.images, ...newImages];
+            workout.images = [...(workout.images || []), ...newImages];
         }
 
         const updatedWorkout = await workout.save();

@@ -38,10 +38,10 @@ const AdminLayout = () => {
     };
 
     return (
-        <div className={`min-h-screen flex ${isDarkMode ? 'bg-[#121212]' : 'bg-gray-50'}`}>
+        <div className={`h-screen flex overflow-hidden ${isDarkMode ? 'bg-[#121212]' : 'bg-gray-50'}`}>
             <Sidebar isOpen={sidebarOpen} isDarkMode={isDarkMode} />
 
-            <div className={`flex-1 flex flex-col min-h-screen transition-none min-w-0 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
+            <div className={`flex-1 flex flex-col h-full pt-16 transition-none min-w-0 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
                 <Navbar
                     toggleSidebar={toggleSidebar}
                     sidebarOpen={sidebarOpen}
@@ -50,7 +50,7 @@ const AdminLayout = () => {
                     toggleTheme={toggleTheme}
                 />
 
-                <main className={`p-8 mt-16 flex-1 min-w-0 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                <main className={`flex-1 overflow-y-auto p-8 min-w-0 custom-scrollbar ${isDarkMode ? 'text-white' : 'text-black'}`}>
                     <Outlet context={{ isDarkMode, setSidebarOpen }} />
                 </main>
             </div>
