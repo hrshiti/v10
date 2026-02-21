@@ -447,6 +447,8 @@ const AddMember = () => {
                                         onSelect={(val) => setFormData({ ...formData, dob: val })}
                                         isDarkMode={isDarkMode}
                                         placeholder="DD-MM-YYYY"
+                                        minYear={1950}
+                                        maxYear={new Date().getFullYear()}
                                     />
                                 </div>
                             </div>
@@ -490,10 +492,11 @@ const AddMember = () => {
                                     <tbody className="divide-y dark:divide-white/5 divide-gray-50">
                                         {packages
                                             .filter(pkg => {
-                                                if (formData.membershipType === 'General Training') return pkg.type === 'general';
+                                                if (formData.membershipType === 'General Training') return pkg.type === 'general' && pkg.activity === 'gym';
                                                 if (formData.membershipType === 'Personal Training') return pkg.type === 'pt';
-                                                // Handle other categories if needed, for now use name match or default
-                                                return pkg.type === 'general';
+                                                if (formData.membershipType === 'Complete Fitness') return pkg.type === 'general' && ['yoga', 'zumba', 'crossfit'].includes(pkg.activity);
+                                                if (formData.membershipType === 'Group EX') return ['zumba', 'yoga', 'crossfit'].includes(pkg.activity);
+                                                return false;
                                             })
                                             .map(pkg => (
                                                 <tr

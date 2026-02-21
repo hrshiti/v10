@@ -17,7 +17,7 @@ const getBackendUrl = () => {
     hostname === "0.0.0.0";
 
   if (isLocalhost) {
-    return "http://localhost:5000";
+    return "http://localhost:5000"; 
   }
 
   // 3️⃣ Safety fallback (no prod URL leaked)

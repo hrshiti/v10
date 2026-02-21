@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 
-const SingleDatePicker = ({ isDarkMode, onSelect, value, placeholder = "dd-mm-yyyy", disabled }) => {
+const SingleDatePicker = ({ isDarkMode, onSelect, value, placeholder = "dd-mm-yyyy", disabled, minYear, maxYear }) => {
     const [isOpen, setIsOpen] = useState(false);
     const today = new Date();
     const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -88,8 +88,8 @@ const SingleDatePicker = ({ isDarkMode, onSelect, value, placeholder = "dd-mm-yy
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg min-w-[180px] shadow-sm transition-all ${disabled
-                        ? (isDarkMode ? 'bg-white/5 border-white/5 cursor-not-allowed opacity-50' : 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-50')
-                        : (isDarkMode ? 'bg-[#1a1a1a] border-white/10 cursor-pointer' : 'bg-white border-gray-200 cursor-pointer')
+                    ? (isDarkMode ? 'bg-white/5 border-white/5 cursor-not-allowed opacity-50' : 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-50')
+                    : (isDarkMode ? 'bg-[#1a1a1a] border-white/10 cursor-pointer' : 'bg-white border-gray-200 cursor-pointer')
                     } ${isOpen && !disabled ? 'border-[#f97316]' : ''}`}
             >
                 <Calendar
@@ -166,7 +166,10 @@ const SingleDatePicker = ({ isDarkMode, onSelect, value, placeholder = "dd-mm-yy
                             </div>
                             {isYearOpen && (
                                 <div className={`absolute top-full left-0 w-full mt-1 max-h-[220px] overflow-y-auto rounded-lg shadow-2xl border z-[1001] custom-scrollbar ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-100'}`}>
-                                    {Array.from({ length: 31 }, (_, i) => today.getFullYear() - 15 + i).map(y => (
+                                    {Array.from(
+                                        { length: (maxYear ?? today.getFullYear() + 15) - (minYear ?? today.getFullYear() - 15) + 1 },
+                                        (_, i) => (minYear ?? today.getFullYear() - 15) + i
+                                    ).map(y => (
                                         <div
                                             key={y}
                                             onClick={() => { setViewYear(y); setIsYearOpen(false); }}

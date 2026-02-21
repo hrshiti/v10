@@ -110,9 +110,13 @@ const RenewPlan = () => {
         if (searchQuery && !pkg.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
 
         const tabLower = activeTab.toLowerCase();
-        if (tabLower.includes('general')) return pkg.type === 'general' || pkg.activity === 'gym';
+        // General Training: type=general AND gym activity (excludes PT packages which also have gym activity)
+        if (tabLower.includes('general')) return pkg.type === 'general' && pkg.activity === 'gym';
+        // Personal Training: type=pt only
         if (tabLower.includes('personal')) return pkg.type === 'pt';
-        if (tabLower.includes('complete')) return pkg.type === 'general';
+        // Complete Fitness: general type with non-gym activities (yoga, zumba, crossfit)
+        if (tabLower.includes('complete')) return pkg.type === 'general' && ['yoga', 'zumba', 'crossfit'].includes(pkg.activity);
+        // Group EX: any package with group activity types
         if (tabLower.includes('group')) return ['zumba', 'yoga', 'crossfit'].includes(pkg.activity);
         return false;
     });

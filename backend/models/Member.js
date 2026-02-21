@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const memberSchema = new mongoose.Schema({
-    memberId: { type: String, unique: true },
+    memberId: { type: String, required: true, unique: true },
 
     // Personal Info
     firstName: { type: String, required: true },
@@ -96,22 +96,61 @@ memberSchema.virtual('name').get(function () {
 });
 
 // Auto-generate Member ID and handle financials
+
+// for the migration of the data we can 't use this hook i commented for that sometime us should u reply with some advance version 
+// mayur-chadokarr-Date 16-02-2026
+// memberSchema.pre('save', async function () {
+//     if (!this.memberId) {
+//         this.memberId = 'M' + Math.floor(10000 + Math.random() * 90000).toString();
+//     }
+
+//     // Calculate Due Amount
+//     const total = Number(this.totalAmount) || 0;
+//     const paid = Number(this.paidAmount) || 0;
+//     const disc = Number(this.discount || 0) || 0;
+//     this.dueAmount = Math.max(0, total - (paid + disc));
+
+//     // Auto Update Status
+//     const today = new Date();
+//     if (this.endDate < today) {
+//         this.status = 'Expired';
+//     }
+// });
+
+// new wla pre -hook we use this 
+
+
 memberSchema.pre('save', async function () {
+
+    // 1️⃣ Safe Member ID generation
     if (!this.memberId) {
-        this.memberId = 'M' + Math.floor(10000 + Math.random() * 90000).toString();
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.floor(100 + Math.random() * 900);
+        this.memberId = `M${timestamp}${random}`;
     }
 
-    // Calculate Due Amount
+    // 2️⃣ Calculate Due Amount properly
     const total = Number(this.totalAmount) || 0;
     const paid = Number(this.paidAmount) || 0;
-    const disc = Number(this.discount || 0) || 0;
+    const disc = Number(this.discount) || 0;
+
     this.dueAmount = Math.max(0, total - (paid + disc));
 
-    // Auto Update Status
-    const today = new Date();
-    if (this.endDate < today) {
-        this.status = 'Expired';
+    // 3️⃣ Safe Status Update
+    if (this.endDate) {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        const end = new Date(this.endDate);
+        end.setHours(0,0,0,0);
+
+        if (end < today) {
+            this.status = 'Expired';
+        } else {
+            this.status = 'Active';
+        }
     }
 });
+
 
 module.exports = mongoose.model('Member', memberSchema);
