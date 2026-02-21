@@ -219,7 +219,7 @@ const createMember = asyncHandler(async (req, res) => {
     const member = await Member.create({
         firstName, lastName, mobile, email, gender, dob, address,
         membershipType: membershipType || 'General Training',
-        packageName,
+        packageNameStatic: packageName,
         packageId,
         duration,
         durationType: durationType || 'Months',
@@ -467,7 +467,7 @@ const renewMembership = asyncHandler(async (req, res) => {
 
     // Update Member details with new subscription
     member.membershipType = membershipType || 'General Training';
-    member.packageName = packageName;
+    member.packageNameStatic = packageName;
     member.packageId = packageId;
     member.duration = duration || durationMonths;
     member.durationType = durationType || 'Months';
@@ -604,7 +604,7 @@ const createFreshSale = asyncHandler(async (req, res) => {
     const lastPlan = selectedPlans[selectedPlans.length - 1];
     if (lastPlan) {
         member.membershipType = lastPlan.membershipType || 'General Training';
-        member.packageName = lastPlan.name;
+        member.packageNameStatic = lastPlan.name;
         member.packageId = lastPlan.packageId;
         member.durationMonths = lastPlan.durationType === 'Months' ? lastPlan.durationValue : 0;
         member.startDate = lastPlan.startDate;
@@ -934,7 +934,7 @@ const upgradeMembership = asyncHandler(async (req, res) => {
 
     // Update Member master record
     member.membershipType = membershipType || member.membershipType || 'General Training';
-    member.packageName = packageName;
+    member.packageNameStatic = packageName;
     member.packageId = packageId;
     member.duration = duration || durationMonths;
     member.durationType = durationType || 'Months';
@@ -1032,7 +1032,7 @@ const transferMembership = asyncHandler(async (req, res) => {
     });
 
     // 4. Update target member details
-    targetMember.packageName = subscription.packageName;
+    targetMember.packageNameStatic = subscription.packageName;
     targetMember.startDate = newSubscription.startDate;
     targetMember.endDate = newSubscription.endDate;
     targetMember.status = 'Active';

@@ -86,8 +86,7 @@ const subscriptionSchema = new mongoose.Schema({
 
     packageId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Package',
-        required: true   // make this required instead
+        ref: 'Package'
     },
 
     // Snapshot (optional, not required)

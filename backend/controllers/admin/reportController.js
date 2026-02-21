@@ -239,7 +239,7 @@ const getMembershipExpiryReport = asyncHandler(async (req, res) => {
 
     // Advanced Filters
     if (membershipType && membershipType !== 'All' && !membershipType.includes('Select')) {
-        query.packageName = { $regex: membershipType, $options: 'i' };
+        query.packageNameStatic = { $regex: membershipType, $options: 'i' };
     }
 
     if (trainer && !trainer.includes('Select') && !trainer.includes('No Trainers')) {
@@ -594,7 +594,7 @@ const getDueMembershipReport = asyncHandler(async (req, res) => {
     // For now, we can filter by packageName pattern
     if (membershipType && membershipType !== 'All') {
         // Assuming packageName contains the type info
-        query.packageName = { $regex: membershipType, $options: 'i' };
+        query.packageNameStatic = { $regex: membershipType, $options: 'i' };
     }
 
     // Filter by assigned trainer

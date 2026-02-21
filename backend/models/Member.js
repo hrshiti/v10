@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const memberSchema = new mongoose.Schema({
-    memberId: { type: String, required: true, unique: true },
+    memberId: { type: String, unique: true },
 
     // Personal Info
     firstName: { type: String, required: true },
@@ -22,7 +22,7 @@ const memberSchema = new mongoose.Schema({
     },
 
     // Field for storage (old records or caching)
-    packageNameStatic: { type: String, alias: 'packageName' }, // Aliased to packageName for legacy data
+    packageNameStatic: { type: String }, // For legacy data or snapshot storage
     packageId: { type: mongoose.Schema.Types.ObjectId, ref: 'Package' },
     membershipType: {
         type: String,
@@ -122,27 +122,27 @@ memberSchema.virtual('name').get(function () {
 
 memberSchema.pre('save', async function () {
 
-    // 1️⃣ Safe Member ID generation
+    // 1️ Safe Member ID generation
     if (!this.memberId) {
         const timestamp = Date.now().toString().slice(-6);
         const random = Math.floor(100 + Math.random() * 900);
         this.memberId = `M${timestamp}${random}`;
     }
 
-    // 2️⃣ Calculate Due Amount properly
+    // 2️ Calculate Due Amount properly
     const total = Number(this.totalAmount) || 0;
     const paid = Number(this.paidAmount) || 0;
     const disc = Number(this.discount) || 0;
 
     this.dueAmount = Math.max(0, total - (paid + disc));
 
-    // 3️⃣ Safe Status Update
+    // 3️ Safe Status Update
     if (this.endDate) {
         const today = new Date();
-        today.setHours(0,0,0,0);
+        today.setHours(0, 0, 0, 0);
 
         const end = new Date(this.endDate);
-        end.setHours(0,0,0,0);
+        end.setHours(0, 0, 0, 0);
 
         if (end < today) {
             this.status = 'Expired';
