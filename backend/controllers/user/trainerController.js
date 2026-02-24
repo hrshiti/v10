@@ -36,6 +36,32 @@ const getPresentTrainers = asyncHandler(async (req, res) => {
 // @route   POST /api/user/trainer/scan
 // @access  Private/Trainer
 const trainerScanQR = asyncHandler(async (req, res) => {
+    const { gymId } = req.body; // Must match the gym's official gymCode
+
+    if (!gymId) {
+        return res.status(400).json({ success: false, message: 'Invalid QR Code. Please scan the gym\'s QR code.' });
+    }
+
+    // ✅ CORE VALIDATION: Verify against gym's official gymCode
+    const GymDetail = require('../../models/GymDetail');
+    const gymDetail = await GymDetail.findOne();
+
+    if (!gymDetail || !gymDetail.gymCode) {
+        return res.status(400).json({
+            success: false,
+            message: 'Gym QR not set up yet. Admin must go to Settings → Gym Information and print the QR first.',
+            type: 'not_configured'
+        });
+    }
+
+    if (gymId.trim() !== gymDetail.gymCode.trim()) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid QR Code! Please scan only the gym\'s official QR code.',
+            type: 'invalid_qr'
+        });
+    }
+
     const trainer = req.user;
     const today = new Date();
     today.setHours(0, 0, 0, 0);

@@ -24,9 +24,32 @@ const getUserProfile = asyncHandler(async (req, res) => {
 // @route   POST /api/user/attendance/scan
 // @access  Private/User
 const userScanQR = asyncHandler(async (req, res) => {
-    const { gymId } = req.body; // In a real scenario, the QR contains the gym's code or similar verification
+    const { gymId } = req.body; // This must match the gym's secret gymCode
 
-    // For this simple case, we assume scanning ANY valid QR from the gym works
+    if (!gymId) {
+        return res.status(400).json({ success: false, message: 'Invalid QR Code. Please scan the gym\'s QR code.' });
+    }
+
+    // ✅ CORE VALIDATION: Verify against gym's official gymCode
+    const GymDetail = require('../../models/GymDetail');
+    const gymDetail = await GymDetail.findOne();
+
+    if (!gymDetail || !gymDetail.gymCode) {
+        return res.status(400).json({
+            success: false,
+            message: 'Gym QR not set up yet. Admin must go to Settings → Gym Information and print the QR first.',
+            type: 'not_configured'
+        });
+    }
+
+    if (gymId.trim() !== gymDetail.gymCode.trim()) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid QR Code! Please scan only the gym\'s official QR code.',
+            type: 'invalid_qr'
+        });
+    }
+
     const member = req.user;
 
     // Check if subscription has expired
@@ -104,6 +127,7 @@ const userScanQR = asyncHandler(async (req, res) => {
         type: 'checkin'
     });
 });
+
 
 // @desc    Get user's attendance logs
 // @route   GET /api/user/attendance

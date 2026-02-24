@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Edit2, X, Loader2 } from 'lucide-react';
+import { Edit2, X, Loader2, QrCode, RefreshCw, Printer, Download } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
 import Toast from '../../components/Toast';
+import { QRCodeCanvas } from 'qrcode.react';
 
 const GymDetails = () => {
   const { isDarkMode } = useOutletContext();
@@ -10,6 +11,9 @@ const GymDetails = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [gymId, setGymId] = useState(null);
+  const [gymCode, setGymCode] = useState(null);
+  const [gymCodeLoading, setGymCodeLoading] = useState(true);
+  const [regenerating, setRegenerating] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
@@ -22,6 +26,7 @@ const GymDetails = () => {
     logoUrl: ''
   });
   const fileInputRef = useRef(null);
+  const qrCanvasRef = useRef(null);
 
   const fetchGymDetails = async () => {
     try {
@@ -50,8 +55,81 @@ const GymDetails = () => {
     }
   };
 
+  const fetchGymCode = async () => {
+    try {
+      setGymCodeLoading(true);
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const response = await fetch(`${API_BASE_URL}/api/admin/gym-details/qr-code`, {
+        headers: { 'Authorization': `Bearer ${adminInfo?.token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setGymCode(data.gymCode);
+      }
+    } catch (err) {
+      console.error('Error fetching gym QR code:', err);
+    } finally {
+      setGymCodeLoading(false);
+    }
+  };
+
+  const handleRegenerateQR = async () => {
+    if (!window.confirm('Regenerating the QR code will invalidate the old one. Members will need to scan the new QR code. Continue?')) return;
+    try {
+      setRegenerating(true);
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const response = await fetch(`${API_BASE_URL}/api/admin/gym-details/qr-code/regenerate`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminInfo?.token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setGymCode(data.gymCode);
+        setToastMsg('QR Code regenerated! Print the new one for the gym.');
+        setShowToast(true);
+      }
+    } catch (err) {
+      console.error('Error regenerating QR:', err);
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const handlePrintQR = () => {
+    const canvas = qrCanvasRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html><head><title>Gym QR Code</title>
+      <style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;padding:20px;}
+      h2{font-size:22px;font-weight:900;margin-bottom:8px;}
+      p{color:#666;font-size:13px;margin-bottom:24px;}
+      img{width:280px;height:280px;image-rendering:pixelated;}
+      </style></head><body>
+      <h2>${formData.name || 'V-10 Fitness'}</h2>
+      <p>Scan this QR code at the gym entrance to mark attendance</p>
+      <img src="${dataUrl}" />
+      <p style="margin-top:20px;font-size:11px;color:#aaa;">Official Gym Attendance QR</p>
+      <script>window.onload=()=>window.print();<\/script>
+      </body></html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleDownloadQR = () => {
+    const canvas = qrCanvasRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = 'gym-attendance-qr.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
   useEffect(() => {
     fetchGymDetails();
+    fetchGymCode();
   }, []);
 
   const handleFileChange = (e) => {
@@ -162,6 +240,85 @@ const GymDetails = () => {
             <p className={`text-[16px] font-bold tracking-tight ${!formData.gstNo ? 'text-gray-400 font-medium italic' : ''}`}>
               {formData.gstNo || 'Not Provided'}
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== GYM QR CODE SECTION ===== */}
+      <div className={`mt-8 rounded-3xl border overflow-hidden transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-2xl' : 'bg-white border-gray-100 shadow-xl'}`}>
+        <div className="flex justify-between items-center p-8 border-b bg-gradient-to-r from-orange-500/5 to-transparent" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f3f4f6' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+              <QrCode size={20} className="text-orange-500" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black uppercase italic tracking-tight">Gym Attendance QR Code</h2>
+              <p className={`text-xs font-medium mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Only this official QR code marks attendance</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleDownloadQR}
+              disabled={gymCodeLoading || !gymCode}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50"
+            >
+              <Download size={14} />
+              Download
+            </button>
+            <button
+              onClick={handlePrintQR}
+              disabled={gymCodeLoading || !gymCode}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border border-white/10 text-white hover:bg-white/10' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              <Printer size={14} />
+              Print
+            </button>
+            <button
+              onClick={handleRegenerateQR}
+              disabled={regenerating}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50 ${isDarkMode ? 'bg-white/5 border border-white/10 text-white hover:bg-white/10' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              <RefreshCw size={14} className={regenerating ? 'animate-spin' : ''} />
+              Regenerate
+            </button>
+          </div>
+        </div>
+        <div className="p-8 flex flex-col md:flex-row items-center gap-8">
+          {/* QR Code - Canvas based, no logo, high quality, scannable from screenshot */}
+          <div ref={qrCanvasRef} className="rounded-2xl p-6 flex items-center justify-center bg-white" style={{ minWidth: 220, minHeight: 220 }}>
+            {gymCodeLoading ? (
+              <Loader2 className="animate-spin text-orange-500" size={40} />
+            ) : gymCode ? (
+              <QRCodeCanvas
+                value={gymCode}
+                size={200}
+                level="M"
+                includeMargin={true}
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
+            ) : (
+              <div className="text-center">
+                <QrCode size={48} className="text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">QR not available</p>
+              </div>
+            )}
+          </div>
+          {/* Instructions */}
+          <div className="flex-1 space-y-4">
+            <div className={`rounded-2xl p-5 border-l-4 border-orange-500 ${isDarkMode ? 'bg-orange-500/5' : 'bg-orange-50'}`}>
+              <p className="text-xs font-black uppercase tracking-widest text-orange-500 mb-2">How It Works</p>
+              <ul className={`text-sm font-medium space-y-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <li>✅ Print this QR code and place it at the gym entrance</li>
+                <li>✅ Members scan it from their <strong>V-10 App</strong> to mark attendance</li>
+                <li>❌ Any other QR code will be <strong>rejected</strong> — only this official code works</li>
+                <li>🔄 Use <strong>Regenerate</strong> if the QR is compromised (old one becomes invalid)</li>
+              </ul>
+            </div>
+            <div className={`rounded-2xl p-4 ${isDarkMode ? 'bg-white/5 border border-white/5' : 'bg-gray-50 border border-gray-100'}`}>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">QR Code ID</p>
+              <p className={`text-xs font-mono break-all ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{gymCode || '—'}</p>
+            </div>
           </div>
         </div>
       </div>

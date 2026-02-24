@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const GymDetail = require('../../models/GymDetail');
+const crypto = require('crypto');
 
 // @desc    Get gym details
 // @route   GET /api/admin/gym-details
@@ -7,7 +8,7 @@ const GymDetail = require('../../models/GymDetail');
 const getGymDetails = asyncHandler(async (req, res) => {
     let gymDetail = await GymDetail.findOne();
     if (!gymDetail) {
-        // Create initial entry if it doesn't exist
+        // Create initial entry if it doesn't exist (gymCode will auto-generate via schema default)
         gymDetail = await GymDetail.create({
             name: 'V-10 Fitness',
             contactNumber: '8347008511',
@@ -15,7 +16,51 @@ const getGymDetails = asyncHandler(async (req, res) => {
             gstNo: ''
         });
     }
+
+    // If existing record somehow has no gymCode, generate and save one
+    if (!gymDetail.gymCode) {
+        gymDetail.gymCode = `V10GYM_${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+        await gymDetail.save();
+    }
+
     res.json(gymDetail);
+});
+
+// @desc    Get gym QR code data (the secret code to be encoded in the gym's QR)
+// @route   GET /api/admin/gym-details/qr-code
+// @access  Private/Admin
+const getGymQRCode = asyncHandler(async (req, res) => {
+    let gymDetail = await GymDetail.findOne();
+    if (!gymDetail) {
+        gymDetail = await GymDetail.create({
+            name: 'V-10 Fitness',
+            contactNumber: '8347008511',
+            address: '1st Floor, Rajshree Skyz',
+            gstNo: ''
+        });
+    }
+
+    if (!gymDetail.gymCode) {
+        gymDetail.gymCode = `V10GYM_${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+        await gymDetail.save();
+    }
+
+    res.json({ gymCode: gymDetail.gymCode, gymName: gymDetail.name });
+});
+
+// @desc    Regenerate gym QR code (invalidates the old one)
+// @route   POST /api/admin/gym-details/qr-code/regenerate
+// @access  Private/Admin
+const regenerateGymQRCode = asyncHandler(async (req, res) => {
+    let gymDetail = await GymDetail.findOne();
+    if (!gymDetail) {
+        gymDetail = await GymDetail.create({ name: 'V-10 Fitness' });
+    }
+
+    gymDetail.gymCode = `V10GYM_${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+    await gymDetail.save();
+
+    res.json({ gymCode: gymDetail.gymCode, gymName: gymDetail.name, message: 'QR Code regenerated successfully' });
 });
 
 // @desc    Update gym details
@@ -65,5 +110,7 @@ const updateGymDetails = asyncHandler(async (req, res) => {
 
 module.exports = {
     getGymDetails,
+    getGymQRCode,
+    regenerateGymQRCode,
     updateGymDetails
 };
