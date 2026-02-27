@@ -12,7 +12,7 @@ async function generateToken() {
             process.exit(1);
         }
         const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, {
-            expiresIn: '30d',
+            expiresIn: process.env.JWT_EXPIRE || '30d',
         });
         console.log('Token:', token);
         process.exit(0);
