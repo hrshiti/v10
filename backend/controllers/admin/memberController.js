@@ -7,13 +7,164 @@ const Subscription = require('../../models/Subscription');
 // @desc    Get all members with pagination and search
 // @route   GET /api/admin/members
 // @access  Private/Admin
+// const getMembers = asyncHandler(async (req, res) => {
+//     const pageSize = Number(req.query.pageSize) || 10;
+//     const page = Number(req.query.pageNumber) || 1;
+
+//     let matchQuery = {};
+
+//     // 1. Initial Match (Member fields)
+//     if (req.query.keyword) {
+//         matchQuery.$or = [
+//             { firstName: { $regex: req.query.keyword, $options: 'i' } },
+//             { lastName: { $regex: req.query.keyword, $options: 'i' } },
+//             { mobile: { $regex: req.query.keyword, $options: 'i' } },
+//             { memberId: { $regex: req.query.keyword, $options: 'i' } }
+//         ];
+//     }
+
+//     if (req.query.gender && req.query.gender !== 'Gender' && req.query.gender !== 'All') {
+//         matchQuery.gender = req.query.gender;
+//     }
+
+//     // 2. Build Pipeline
+//     const pipeline = [
+//         { $match: matchQuery },
+//         // Join with current subscription (isCurrent: true)
+//         {
+//             $lookup: {
+//                 from: 'subscriptions',
+//                 localField: '_id',
+//                 foreignField: 'memberId',
+//                 as: 'currentSubscription',
+//                 pipeline: [
+//                     { $match: { isCurrent: true } }
+//                 ]
+//             }
+//         },
+//         // Unwind currentSubscription array to an object
+//         { $unwind: { path: '$currentSubscription', preserveNullAndEmptyArrays: true } }
+//     ];
+
+//     // 3. Status Filtering (Post-Lookup using Subscription as truth)
+//     if (req.query.status && req.query.status !== 'All') {
+//         const today = new Date();
+//         today.setHours(0, 0, 0, 0);
+
+//         if (req.query.status === 'expiringSoon') {
+//             const nextMonth = new Date();
+//             nextMonth.setDate(nextMonth.getDate() + 30);
+//             nextMonth.setHours(23, 59, 59, 999);
+
+//             pipeline.push({
+//                 $match: {
+//                     'currentSubscription.status': 'Active',
+//                     'currentSubscription.endDate': { $gte: today, $lte: nextMonth }
+//                 }
+//             });
+//         } else if (req.query.status === 'expired') {
+//             pipeline.push({
+//                 $match: {
+//                     $or: [
+//                         { 'currentSubscription.status': 'Expired' },
+//                         { 'currentSubscription.endDate': { $lt: today } }
+//                     ]
+//                 }
+//             });
+//         } else {
+//             pipeline.push({
+//                 $match: { 'currentSubscription.status': req.query.status }
+//             });
+//         }
+//     }
+
+//     // 4. Sorting
+//     pipeline.push({ $sort: { createdAt: -1 } });
+
+//     // 5. Pagination using Facet for efficiency
+//     pipeline.push({
+//         $facet: {
+//             metadata: [{ $count: "total" }],
+//             data: [
+//                 { $skip: (page - 1) * pageSize },
+//                 { $limit: pageSize },
+//                 // Populate Employee details
+//                 {
+//                     $lookup: {
+//                         from: 'employees',
+//                         localField: 'assignedTrainer',
+//                         foreignField: '_id',
+//                         as: 'assignedTrainer'
+//                     }
+//                 },
+//                 { $unwind: { path: '$assignedTrainer', preserveNullAndEmptyArrays: true } },
+//                 {
+//                     $lookup: {
+//                         from: 'employees',
+//                         localField: 'closedBy',
+//                         foreignField: '_id',
+//                         as: 'closedBy'
+//                     }
+//                 },
+//                 { $unwind: { path: '$closedBy', preserveNullAndEmptyArrays: true } },
+//                 {
+//                     $lookup: {
+//                         from: 'packages',
+//                         localField: 'packageId',
+//                         foreignField: '_id',
+//                         as: 'packageId'
+//                     }
+//                 },
+//                 { $unwind: { path: '$packageId', preserveNullAndEmptyArrays: true } },
+//                 // Sync top-level fields from currentSubscription for backward compatibility and migration support
+//                 {
+//                     $addFields: {
+//                         packageName: {
+//                             $ifNull: [
+//                                 "$currentSubscription.packageName",
+//                                 "$packageId.name",
+//                                 "$packageNameStatic",
+//                                 "N/A"
+//                             ]
+//                         },
+//                         duration: { $ifNull: ["$currentSubscription.duration", "$duration"] },
+//                         durationType: { $ifNull: ["$currentSubscription.durationType", "$durationType"] },
+//                         startDate: { $ifNull: ["$currentSubscription.startDate", "$startDate"] },
+//                         endDate: { $ifNull: ["$currentSubscription.endDate", "$endDate"] },
+//                         status: { $ifNull: ["$currentSubscription.status", "$status"] },
+//                     }
+//                 },
+//                 // Final clean-up of projection
+//                 {
+//                     $project: {
+//                         'assignedTrainer.password': 0,
+//                         'closedBy.password': 0,
+//                     }
+//                 }
+//             ]
+//         }
+//     });
+
+//     const results = await Member.aggregate(pipeline);
+
+//     // Result handling
+//     const data = results[0]?.data || [];
+//     const total = results[0]?.metadata[0]?.total || 0;
+
+//     res.json({
+//         members: data,
+//         page,
+//         pages: Math.ceil(total / pageSize),
+//         total
+//     });
+// });
 const getMembers = asyncHandler(async (req, res) => {
     const pageSize = Number(req.query.pageSize) || 10;
     const page = Number(req.query.pageNumber) || 1;
 
     let matchQuery = {};
 
-    // 1. Initial Match (Member fields)
+    // Search
     if (req.query.keyword) {
         matchQuery.$or = [
             { firstName: { $regex: req.query.keyword, $options: 'i' } },
@@ -27,10 +178,12 @@ const getMembers = asyncHandler(async (req, res) => {
         matchQuery.gender = req.query.gender;
     }
 
-    // 2. Build Pipeline
+    const today = new Date();
+
     const pipeline = [
         { $match: matchQuery },
-        // Join with current subscription (isCurrent: true)
+
+        // Lookup current subscription
         {
             $lookup: {
                 from: 'subscriptions',
@@ -42,53 +195,50 @@ const getMembers = asyncHandler(async (req, res) => {
                 ]
             }
         },
-        // Unwind currentSubscription array to an object
-        { $unwind: { path: '$currentSubscription', preserveNullAndEmptyArrays: true } }
-    ];
+        { $unwind: { path: '$currentSubscription', preserveNullAndEmptyArrays: true } },
 
-    // 3. Status Filtering (Post-Lookup using Subscription as truth)
-    if (req.query.status && req.query.status !== 'All') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (req.query.status === 'expiringSoon') {
-            const nextMonth = new Date();
-            nextMonth.setDate(nextMonth.getDate() + 30);
-            nextMonth.setHours(23, 59, 59, 999);
-
-            pipeline.push({
-                $match: {
-                    'currentSubscription.status': 'Active',
-                    'currentSubscription.endDate': { $gte: today, $lte: nextMonth }
-                }
-            });
-        } else if (req.query.status === 'expired') {
-            pipeline.push({
-                $match: {
-                    $or: [
-                        { 'currentSubscription.status': 'Expired' },
-                        { 'currentSubscription.endDate': { $lt: today } }
+        // 🔥 Dynamic Status Computation
+        {
+            $addFields: {
+                computedStatus: {
+                    $cond: [
+                        { $not: ["$currentSubscription"] },
+                        "$status",
+                        {
+                            $cond: [
+                                { $lt: ["$currentSubscription.endDate", today] },
+                                "Expired",
+                                {
+                                    $cond: [
+                                        { $gt: ["$currentSubscription.startDate", today] },
+                                        "Upcoming",
+                                        "Active"
+                                    ]
+                                }
+                            ]
+                        }
                     ]
                 }
-            });
-        } else {
-            pipeline.push({
-                $match: { 'currentSubscription.status': req.query.status }
-            });
+            }
         }
+    ];
+
+    // Status filter
+    if (req.query.status && req.query.status !== 'All') {
+        pipeline.push({
+            $match: { computedStatus: req.query.status }
+        });
     }
 
-    // 4. Sorting
     pipeline.push({ $sort: { createdAt: -1 } });
 
-    // 5. Pagination using Facet for efficiency
     pipeline.push({
         $facet: {
             metadata: [{ $count: "total" }],
             data: [
                 { $skip: (page - 1) * pageSize },
                 { $limit: pageSize },
-                // Populate Employee details
+
                 {
                     $lookup: {
                         from: 'employees',
@@ -98,6 +248,7 @@ const getMembers = asyncHandler(async (req, res) => {
                     }
                 },
                 { $unwind: { path: '$assignedTrainer', preserveNullAndEmptyArrays: true } },
+
                 {
                     $lookup: {
                         from: 'employees',
@@ -107,6 +258,7 @@ const getMembers = asyncHandler(async (req, res) => {
                     }
                 },
                 { $unwind: { path: '$closedBy', preserveNullAndEmptyArrays: true } },
+
                 {
                     $lookup: {
                         from: 'packages',
@@ -116,7 +268,7 @@ const getMembers = asyncHandler(async (req, res) => {
                     }
                 },
                 { $unwind: { path: '$packageId', preserveNullAndEmptyArrays: true } },
-                // Sync top-level fields from currentSubscription for backward compatibility and migration support
+
                 {
                     $addFields: {
                         packageName: {
@@ -131,14 +283,15 @@ const getMembers = asyncHandler(async (req, res) => {
                         durationType: { $ifNull: ["$currentSubscription.durationType", "$durationType"] },
                         startDate: { $ifNull: ["$currentSubscription.startDate", "$startDate"] },
                         endDate: { $ifNull: ["$currentSubscription.endDate", "$endDate"] },
-                        status: { $ifNull: ["$currentSubscription.status", "$status"] },
+                        status: "$computedStatus"
                     }
                 },
-                // Final clean-up of projection
+
                 {
                     $project: {
                         'assignedTrainer.password': 0,
                         'closedBy.password': 0,
+                        computedStatus: 0
                     }
                 }
             ]
@@ -147,7 +300,6 @@ const getMembers = asyncHandler(async (req, res) => {
 
     const results = await Member.aggregate(pipeline);
 
-    // Result handling
     const data = results[0]?.data || [];
     const total = results[0]?.metadata[0]?.total || 0;
 
@@ -745,12 +897,42 @@ const changeStartDate = asyncHandler(async (req, res) => {
 // @desc    Get all subscriptions for a member
 // @route   GET /api/admin/members/:id/subscriptions
 // @access  Private/Admin
+// const getMemberSubscriptions = asyncHandler(async (req, res) => {
+//     const subscriptions = await Subscription.find({ memberId: req.params.id })
+//         .populate('packageId', 'name baseRate durationValue durationType')
+//         .populate('assignedTrainer', 'firstName lastName')
+//         .sort({ startDate: -1 });
+//     res.json(subscriptions);
+// });
+// 03-03-2026 update the code -> mayur chadokar 
+
+
 const getMemberSubscriptions = asyncHandler(async (req, res) => {
+    const today = new Date();
+
     const subscriptions = await Subscription.find({ memberId: req.params.id })
         .populate('packageId', 'name baseRate durationValue durationType')
         .populate('assignedTrainer', 'firstName lastName')
         .sort({ startDate: -1 });
-    res.json(subscriptions);
+
+    const updatedSubscriptions = subscriptions.map(sub => {
+        let computedStatus;
+
+        if (today < sub.startDate) {
+            computedStatus = "Upcoming";
+        } else if (today > sub.endDate) {
+            computedStatus = "Expired";
+        } else {
+            computedStatus = "Active";
+        }
+
+        return {
+            ...sub.toObject(),
+            status: computedStatus
+        };
+    });
+
+    res.json(updatedSubscriptions);
 });
 
 // @desc    Freeze Membership
