@@ -257,6 +257,7 @@ const getTrainerStats = asyncHandler(async (req, res) => {
             firstName: employee.firstName,
             lastName: employee.lastName,
             photo: employee.photo,
+            role: 'trainer'
         },
         storyCount,
         membersInGym,

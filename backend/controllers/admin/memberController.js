@@ -3,7 +3,10 @@ const Member = require('../../models/Member');
 const Sale = require('../../models/Sale');
 const Subscription = require('../../models/Subscription');
 
+// optimisation day one -> 03/03/2026
 
+
+// today work is getMembeer should work with optimisation dynamically optimisation is applied 
 // @desc    Get all members with pagination and search
 // @route   GET /api/admin/members
 // @access  Private/Admin

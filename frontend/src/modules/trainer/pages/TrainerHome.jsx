@@ -13,11 +13,26 @@ const TrainerHome = () => {
     useEffect(() => {
         const stored = localStorage.getItem('userData');
         if (stored) {
-            setUserData(JSON.parse(stored));
+            try {
+                const user = JSON.parse(stored);
+                setUserData(user);
+
+                // If not a trainer, redirect to user home
+                if (user.role !== 'trainer') {
+                    navigate('/');
+                    return;
+                }
+            } catch (err) {
+                console.error("Error parsing userData in TrainerHome");
+            }
+        } else {
+            // No user data means not logged in
+            navigate('/login');
+            return;
         }
         fetchStats();
         fetchGymDetails();
-    }, []);
+    }, [navigate]);
 
     const fetchGymDetails = async () => {
         try {
@@ -42,9 +57,11 @@ const TrainerHome = () => {
                 setStats(data);
                 // Update profile info if present
                 if (data.user) {
-                    const updated = { ...userData, ...data.user };
-                    setUserData(updated);
-                    localStorage.setItem('userData', JSON.stringify(updated));
+                    setUserData(prev => {
+                        const updated = { ...prev, ...data.user };
+                        localStorage.setItem('userData', JSON.stringify(updated));
+                        return updated;
+                    });
                 }
             }
         } catch (error) {

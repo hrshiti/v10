@@ -1,8 +1,25 @@
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { useNavigate, NavLink, Outlet } from 'react-router-dom';
 import { Home as HomeIcon, Calendar as CalendarIcon, Dumbbell, Crown, QrCode } from 'lucide-react';
 
 const Dashboard = () => {
+    const navigate = useNavigate();
+
+    // Redirect trainers to trainer dashboard if they accidentally land here
+    React.useEffect(() => {
+        const storedUser = localStorage.getItem('userData');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                if (user.role === 'trainer') {
+                    navigate('/trainer');
+                }
+            } catch (err) {
+                console.error("Error parsing userData in Dashboard");
+            }
+        }
+    }, [navigate]);
+
     // Helper function for nav link classes
     const getLinkClasses = (isActive) =>
         `flex flex-col items-center gap-1 group transition-all duration-300 ${isActive ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`;

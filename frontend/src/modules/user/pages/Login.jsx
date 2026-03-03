@@ -9,11 +9,26 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Clear any existing tokens when login page loads
+    // Check for existing token and redirect if already logged in
     useEffect(() => {
-        localStorage.removeItem('userToken');
-        localStorage.removeItem('userData');
-    }, []);
+        const token = localStorage.getItem('userToken');
+        const userData = localStorage.getItem('userData');
+
+        if (token && userData) {
+            try {
+                const user = JSON.parse(userData);
+                if (user.role === 'trainer') {
+                    navigate('/trainer');
+                } else {
+                    navigate('/');
+                }
+            } catch (e) {
+                // If data is corrupt, clear it
+                localStorage.removeItem('userToken');
+                localStorage.removeItem('userData');
+            }
+        }
+    }, [navigate]);
 
     const handleLogin = async (e) => {
         e.preventDefault();

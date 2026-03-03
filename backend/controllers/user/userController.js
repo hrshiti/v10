@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Member = require('../../models/Member');
+const Employee = require('../../models/Employee');
 const MemberAttendance = require('../../models/MemberAttendance');
 const DietPlan = require('../../models/DietPlan');
 const Workout = require('../../models/Workout');
@@ -10,10 +11,17 @@ const WorkoutLibrary = require('../../models/WorkoutLibrary');
 // @route   GET /api/user/profile
 // @access  Private/User
 const getUserProfile = asyncHandler(async (req, res) => {
-    const member = await Member.findById(req.user._id);
+    let user;
+    if (req.user.role === 'trainer') {
+        user = await Employee.findById(req.user._id);
+    } else {
+        user = await Member.findById(req.user._id);
+    }
 
-    if (member) {
-        res.json(member);
+    if (user) {
+        const userData = user.toObject();
+        userData.role = req.user.role; // Preserving role from auth middleware
+        res.json(userData);
     } else {
         res.status(404);
         throw new Error('User not found');

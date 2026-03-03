@@ -52,19 +52,22 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     next30Days.setDate(today.getDate() + 30);
     next30Days.setHours(23, 59, 59, 999);
 
+    // Strictly Today or Overdue (Past Commitment Date)
     const commitmentDuesToday = await Member.countDocuments({
         dueAmount: { $gt: 0 },
-        $or: [
-            { commitmentDate: { $lte: endOfDay } },
-            { commitmentDate: { $exists: false } },
-            { commitmentDate: null }
-        ]
+        commitmentDate: { $type: "date", $lte: endOfDay }
     });
 
+    // Upcoming (Due in next 30 days)
     const commitmentDuesUpcoming = await Member.countDocuments({
         dueAmount: { $gt: 0 },
+        commitmentDate: { $type: "date", $gt: endOfDay, $lte: next30Days }
+    });
+
+    // Members with Dues but NO Commitment Date Set
+    const commitmentDuesUndated = await Member.countDocuments({
+        dueAmount: { $gt: 0 },
         $or: [
-            { commitmentDate: { $lte: next30Days } },
             { commitmentDate: { $exists: false } },
             { commitmentDate: null }
         ]
@@ -161,8 +164,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         }
     });
 
-    // 5. Payment Stats (Paid vs Due) - Focus on Active/Pending members for dashboard context
-    const financialQuery = { status: { $in: ['Active', 'Pending', 'Frozen'] } };
+    // 5. Payment Stats (Paid vs Due) 
+    // Debt is valid even for Expired members
+    const financialQuery = { status: { $in: ['Active', 'Pending', 'Frozen', 'Expired'] } };
 
     const paidAgg = await Member.aggregate([
         { $match: financialQuery },
@@ -226,7 +230,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         },
         commitmentDues: {
             today: commitmentDuesToday,
-            upcoming: commitmentDuesUpcoming
+            upcoming: commitmentDuesUpcoming,
+            undated: commitmentDuesUndated
         },
         enquiries: {
             new: newEnquiries,
@@ -274,36 +279,61 @@ const getCommitmentDues = asyncHandler(async (req, res) => {
     futureDate.setDate(today.getDate() + days);
     futureDate.setHours(23, 59, 59, 999);
 
-    const commitmentDues = await Member.find({
-        dueAmount: { $gt: 0 },
-        $or: [
-            { commitmentDate: { $lte: futureDate } },
-            { commitmentDate: { $exists: false } },
-            { commitmentDate: null }
-        ]
-    })
-        .select('firstName lastName memberId photo mobile packageId packageNameStatic commitmentDate dueAmount')
-        .populate('packageId', 'name')
-        .sort({ commitmentDate: 1 })
-        .limit(50);
+    // Use aggregation to sort nulls last
+    const commitmentDues = await Member.aggregate([
+        {
+            $match: {
+                dueAmount: { $gt: 0 },
+                commitmentDate: { $type: "date", $lte: futureDate }
+            }
+        },
+        {
+            $addFields: {
+                // Assign a very far future date to nulls for sorting purposes
+                sortDate: { $ifNull: ["$commitmentDate", new Date("2099-01-01")] }
+            }
+        },
+        { $sort: { sortDate: 1 } },
+        { $limit: 100 },
+        {
+            $project: {
+                firstName: 1, lastName: 1, memberId: 1, photo: 1, mobile: 1,
+                packageId: 1, packageNameStatic: 1, commitmentDate: 1, dueAmount: 1
+            }
+        }
+    ]);
 
-    const membersWithDaysLeft = commitmentDues.map(member => {
+    // Populate package info manually since aggregate doesn't support .populate() easily without $lookup
+    const populatedDues = await Member.populate(commitmentDues, { path: 'packageId', select: 'name' });
+
+    const membersWithDaysLeft = populatedDues.map(member => {
         let diffDays = 0;
+        let diffOrder = 0; // Helper for sorting: Overdue < Due Today < Upcoming < Undated
+
         if (member.commitmentDate) {
             const commitment = new Date(member.commitmentDate);
             commitment.setHours(0, 0, 0, 0);
-            const diffTime = commitment - today;
-            diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+            const diffTime = commitment.getTime() - today.getTime();
+            diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) diffOrder = 1; // Overdue
+            else if (diffDays === 0) diffOrder = 2; // Due Today
+            else diffOrder = 3; // Upcoming
         } else {
-            // No date set - treat as due today/pending
-            diffDays = 0;
+            diffDays = 999; // Undated
+            diffOrder = 4;
         }
 
         return {
-            ...member._doc,
-            daysLeft: diffDays
+            ...member,
+            daysLeft: diffDays,
+            diffOrder
         };
     });
+
+    // Final sort to ensure Overdue and Due Today are always at the top
+    membersWithDaysLeft.sort((a, b) => a.diffOrder - b.diffOrder || a.daysLeft - b.daysLeft);
 
     res.json(membersWithDaysLeft);
 });
@@ -380,9 +410,9 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     ]);
     expenses.forEach(e => { if (e._id) financialMap[e._id - 1].expenses = e.total; });
 
-    // Pending -> Due Amount from Members based on their admission date (Current Year)
+    // Pending -> Due Amount from ALL Members with dues (not just those admitted in the range)
     const pendingDues = await Member.aggregate([
-        { $match: { admissionDate: { $gte: startOfTrend, $lte: endOfTrend }, dueAmount: { $gt: 0 } } },
+        { $match: { dueAmount: { $gt: 0 } } },
         { $group: { _id: { $month: "$admissionDate" }, total: { $sum: "$dueAmount" } } }
     ]);
     pendingDues.forEach(p => { if (p._id && financialMap[p._id - 1]) financialMap[p._id - 1].pending = p.total; });

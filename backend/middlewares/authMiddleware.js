@@ -53,23 +53,54 @@ const userProtect = asyncHandler(async (req, res, next) => {
             }
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-            req.user = await Member.findById(decoded.id);
+            // Resilient lookup: prioritize hinted role but check both if needed
+            let foundUser = null;
+            let finalRole = decoded.role;
 
-            // If not found in Member, check Employee (Trainer)
-            if (!req.user) {
-                req.user = await Employee.findById(decoded.id);
+            if (decoded.role === 'trainer') {
+                foundUser = await Employee.findById(decoded.id).select('-password');
+                if (foundUser) {
+                    finalRole = 'trainer';
+                } else {
+                    foundUser = await Member.findById(decoded.id).select('-password');
+                    if (foundUser) finalRole = 'member';
+                }
+            } else if (decoded.role === 'member') {
+                foundUser = await Member.findById(decoded.id).select('-password');
+                if (foundUser) {
+                    finalRole = 'member';
+                } else {
+                    foundUser = await Employee.findById(decoded.id).select('-password');
+                    if (foundUser) finalRole = 'trainer';
+                }
+            } else {
+                // No role in token
+                foundUser = await Employee.findById(decoded.id).select('-password');
+                if (foundUser) {
+                    finalRole = 'trainer';
+                } else {
+                    foundUser = await Member.findById(decoded.id).select('-password');
+                    if (foundUser) finalRole = 'member';
+                }
             }
 
-            if (req.user) {
+            if (foundUser) {
+                req.user = foundUser;
+                req.user.role = finalRole;
                 next();
             } else {
+                console.error(`Auth Error: User not found in DB for ID: ${decoded.id}, Role: ${decoded.role}`);
                 res.status(401);
-                throw new Error('Not authorized as user or trainer');
+                throw new Error('Not authorized, user not found');
             }
         } catch (error) {
-            console.error(error);
+            console.error('Auth Middleware Verification Error:', {
+                message: error.message,
+                stack: error.stack,
+                token: token ? (token.substring(0, 10) + '...') : 'null'
+            });
             res.status(401);
-            throw new Error('Not authorized, token failed');
+            throw new Error(`Not authorized, ${error.message.includes('expired') ? 'token expired' : 'token failed'}`);
         }
     }
 

@@ -16,15 +16,16 @@ const sendOTP = asyncHandler(async (req, res) => {
         throw new Error('Mobile number is required');
     }
 
-    // Check if member exists
-    let user = await Member.findOne({ mobile });
-    let role = 'member';
+    // Check if employee (Trainer) exists first
+    // Use regex for flexible matching (handles cases with/without country code if needed)
+    let user = await Employee.findOne({ mobile: mobile.trim() });
+    let role = 'trainer';
 
-    // If not member, check if employee (Trainer)
+    // If not employee, check if member
     if (!user) {
-        user = await Employee.findOne({ mobile });
+        user = await Member.findOne({ mobile: mobile.trim() });
         if (user) {
-            role = 'trainer';
+            role = 'member';
         }
     }
 
@@ -76,14 +77,15 @@ const verifyOTP = asyncHandler(async (req, res) => {
         throw new Error('Mobile and OTP are required');
     }
 
-    // Check if member exists
-    let user = await Member.findOne({ mobile });
-    let role = 'member';
+    // Check if employee (Trainer) exists first
+    let user = await Employee.findOne({ mobile: mobile.trim() });
+    let role = 'trainer';
 
+    // If not employee, check if member
     if (!user) {
-        user = await Employee.findOne({ mobile });
+        user = await Member.findOne({ mobile: mobile.trim() });
         if (user) {
-            role = 'trainer';
+            role = 'member';
         }
     }
 

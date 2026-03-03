@@ -3,11 +3,11 @@ const Admin = require('../../models/Admin');
 const jwt = require('jsonwebtoken');
 
 // Helper to generate token
-const generateToken = (id) => {
+const generateToken = (id, role) => {
     if (!process.env.JWT_SECRET) {
         throw new Error('JWT_SECRET environment variable is not defined');
     }
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
+    return jwt.sign({ id, role }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE || '30d',
     });
 };
@@ -29,7 +29,7 @@ const authAdmin = asyncHandler(async (req, res) => {
                 name: admin.name,
                 email: admin.email,
                 role: admin.role,
-                token: generateToken(admin._id),
+                token: generateToken(admin._id, admin.role),
             });
         } else {
             console.log('Invalid credentials');
@@ -67,7 +67,8 @@ const registerAdmin = asyncHandler(async (req, res) => {
             _id: admin._id,
             name: admin.name,
             email: admin.email,
-            token: generateToken(admin._id),
+            role: admin.role || 'admin',
+            token: generateToken(admin._id, admin.role || 'admin'),
         });
     } else {
         res.status(400);

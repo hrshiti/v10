@@ -25,6 +25,7 @@ import UserSuccessStories from './modules/user/pages/UserSuccessStories';
 import AttendanceCalendar from './modules/user/pages/AttendanceCalendar';
 
 import ProtectedRoute from './modules/user/components/ProtectedRoute';
+import TrainerProtectedRoute from './modules/trainer/components/TrainerProtectedRoute';
 import TrainerRoutes from './modules/trainer/routes/TrainerRoutes';
 import FCMHandler from './components/FCMHandler';
 import { Toaster } from 'react-hot-toast';
@@ -74,7 +75,9 @@ function App() {
           </Route>
 
           {/* Trainer Routes */}
-          <Route path="/trainer/*" element={<TrainerRoutes />} />
+          <Route element={<TrainerProtectedRoute />}>
+            <Route path="/trainer/*" element={<TrainerRoutes />} />
+          </Route>
 
         </Routes>
       </ThemeProvider>
