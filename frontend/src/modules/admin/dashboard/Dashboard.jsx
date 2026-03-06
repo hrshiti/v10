@@ -27,6 +27,7 @@ import DateRangeFilter from '../components/DateRangeFilter';
 import MemberSearch from '../components/MemberSearch';
 import { API_BASE_URL } from '../../../config/api';
 import Pagination from '../../../components/Pagination';
+import EventsModal from './components/EventsModal';
 
 const Dashboard = () => {
     const { isDarkMode } = useOutletContext();
@@ -53,6 +54,23 @@ const Dashboard = () => {
     const [isDoneModalOpen, setIsDoneModalOpen] = useState(false);
     const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
     const [selectedFollowUp, setSelectedFollowUp] = useState(null);
+
+    // Events Modal states
+    const [eventsModalConfig, setEventsModalConfig] = useState({ isOpen: false, type: '', list: [] });
+
+    // Handle Events Click
+    const handleEventsClick = (e, type) => {
+        e.stopPropagation();
+        if (type === 'Birthday') {
+            setEventsModalConfig({ isOpen: true, type, list: stats?.attendance?.birthdayList || [] });
+        } else if (type === 'Anniversary') {
+            setEventsModalConfig({ isOpen: true, type, list: stats?.attendance?.anniversaryList || [] });
+        } else if (type === 'Today Expired') {
+            setEventsModalConfig({ isOpen: true, type: 'Today Expiries', list: stats?.attendance?.todayExpiredList || [] });
+        } else if (type === 'All Expired') {
+            setEventsModalConfig({ isOpen: true, type: 'All Expired Members', list: stats?.members?.expiredList || [] });
+        }
+    };
 
     // Follow Up Response form states
     const [convertibilityStatus, setConvertibilityStatus] = useState('');
@@ -417,7 +435,7 @@ const Dashboard = () => {
                                 <p className="text-[10px] font-normal text-white/80 mt-1">Upcoming</p>
                             </div>
                             <div
-                                onClick={() => handleCardClick('/admin/members/list')}
+                                onClick={(e) => handleEventsClick(e, 'All Expired')}
                                 className="p-4 bg-white/5 cursor-pointer hover:bg-white/20 transition-colors"
                             >
                                 <h3 className="text-[28px] font-bold text-white leading-none">{stats?.members?.expired || 0}</h3>
@@ -494,13 +512,26 @@ const Dashboard = () => {
                             </div>
                             <div className="p-4 bg-white/10 flex flex-col">
                                 <p className="text-[11px] font-bold text-white/80 uppercase">Events</p>
-                                <div className="mt-3">
+                                <div
+                                    className="mt-3 cursor-pointer hover:bg-white/5 rounded-lg p-2 transition-colors -mx-2"
+                                    onClick={(e) => handleEventsClick(e, 'Birthday')}
+                                >
                                     <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.birthday || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Birthday</p>
                                 </div>
-                                <div className="mt-3">
+                                <div
+                                    className="mt-3 cursor-pointer hover:bg-white/5 rounded-lg p-2 transition-colors -mx-2"
+                                    onClick={(e) => handleEventsClick(e, 'Anniversary')}
+                                >
                                     <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.anniversary || 0}</h3>
                                     <p className="text-[10px] font-normal text-white/70 mt-0.5">Anniversary</p>
+                                </div>
+                                <div
+                                    className="mt-3 cursor-pointer hover:bg-white/5 rounded-lg p-2 transition-colors -mx-2"
+                                    onClick={(e) => handleEventsClick(e, 'Today Expired')}
+                                >
+                                    <h3 className="text-[24px] font-bold text-white leading-none">{stats?.attendance?.todayExpired || 0}</h3>
+                                    <p className="text-[10px] font-normal text-white/70 mt-0.5 uppercase">Today Expired</p>
                                 </div>
                             </div>
                         </div>
@@ -1098,6 +1129,14 @@ const Dashboard = () => {
                     </div>
                 </div>
             )}
+
+            <EventsModal
+                isOpen={eventsModalConfig.isOpen}
+                onClose={() => setEventsModalConfig({ isOpen: false, type: '', list: [] })}
+                title={`${eventsModalConfig.type}`}
+                eventList={eventsModalConfig.list}
+                isDarkMode={isDarkMode}
+            />
         </div>
     );
 };

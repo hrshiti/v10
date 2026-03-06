@@ -254,7 +254,7 @@ const SalesReport = () => {
         'Mobile': row.memberId?.mobile || 'N/A',
         'Membership Type': row.type?.includes('PT') ? 'Personal Training' : 'General Training',
         'Plan Name': row.memberId?.packageName || '-',
-        'Start Date': row.memberId?.startDate ? new Date(row.memberId.startDate).toLocaleDateString() : 'N/A',
+        'Start Date': row.memberId?.startDate ? new Date(row.memberId.startDate).toLocaleDateString('en-GB') : 'N/A',
         'Duration': row.memberId?.durationType === 'Months'
           ? `${row.memberId?.durationMonths || row.memberId?.duration || 0} Months`
           : `${row.memberId?.duration || 0} ${row.memberId?.durationType || 'Days'}`,
@@ -269,8 +269,8 @@ const SalesReport = () => {
         'Discount': row.discountAmount || 0,
         'Closed By': `${row.closedBy?.firstName || ''} ${row.closedBy?.lastName || ''}`,
         'Handled By': `${row.trainerId?.firstName || ''} ${row.trainerId?.lastName || ''}`,
-        'Invoice Date': new Date(row.date).toLocaleDateString(),
-        'Payment Date': new Date(row.date).toLocaleDateString(),
+        'Invoice Date': new Date(row.date).toLocaleDateString('en-GB'),
+        'Payment Date': new Date(row.date).toLocaleDateString('en-GB'),
         'Sale Type': row.type || 'N/A',
         'Remarks': row.description || ''
       }));
@@ -473,7 +473,7 @@ const SalesReport = () => {
                         {row.packageName || row.memberId?.packageName || '-'}
                       </div>
                     </td>
-                    <td className="px-6 py-8">{row.memberId?.startDate ? new Date(row.memberId.startDate).toLocaleDateString() : '-'}</td>
+                    <td className="px-6 py-8">{row.memberId?.startDate ? new Date(row.memberId.startDate).toLocaleDateString('en-GB') : '-'}</td>
                     <td className="px-6 py-8 text-center">
                       {row.memberId?.durationType === 'Months'
                         ? `${row.memberId?.durationMonths || row.memberId?.duration || 0} Months`
@@ -503,8 +503,8 @@ const SalesReport = () => {
                       </div>
                     </td>
                     <td className="px-6 py-8 text-center">{row.trainerId?.firstName} {row.trainerId?.lastName}</td>
-                    <td className="px-6 py-8">{new Date(row.date).toLocaleDateString()}</td>
-                    <td className="px-6 py-8">{new Date(row.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-8">{new Date(row.date).toLocaleDateString('en-GB')}</td>
+                    <td className="px-6 py-8">{new Date(row.date).toLocaleDateString('en-GB')}</td>
                     <td className="px-6 py-8">{row.trainerId?.firstName} {row.trainerId?.lastName}</td>
                     <td className="px-6 py-8 text-gray-500">{salesTypeRender(row.type)}</td>
                     <td className="px-6 py-8 text-gray-500 whitespace-normal min-w-[200px]">{row.description || '-'}</td>

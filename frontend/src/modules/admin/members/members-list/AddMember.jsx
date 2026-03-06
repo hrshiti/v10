@@ -76,7 +76,9 @@ const AddMember = () => {
         mobile: existingMember?.mobile || '',
         email: existingMember?.email || '',
         gender: existingMember?.gender || 'Male',
+        maritalStatus: existingMember?.maritalStatus || 'Single',
         dob: existingMember?.dob ? formatISOToDDMMYYYY(existingMember.dob) : '',
+        anniversaryDate: existingMember?.anniversaryDate ? formatISOToDDMMYYYY(existingMember.anniversaryDate) : '',
         address: existingMember?.address || '',
         emergencyContactName: existingMember?.emergencyContact?.name || '',
         emergencyContactNumber: existingMember?.emergencyContact?.number || '',
@@ -304,6 +306,7 @@ const AddMember = () => {
                 payload = {
                     ...formData,
                     dob: formatDDMMYYYYToISO(formData.dob),
+                    anniversaryDate: formatDDMMYYYYToISO(formData.anniversaryDate),
                     startDate: formatDDMMYYYYToISO(formData.startDate),
                     commitmentDate: formatDDMMYYYYToISO(formData.commitmentDate),
                     totalAmount: payableAmount,
@@ -445,6 +448,43 @@ const AddMember = () => {
                                     <SingleDatePicker
                                         value={formData.dob}
                                         onSelect={(val) => setFormData({ ...formData, dob: val })}
+                                        isDarkMode={isDarkMode}
+                                        placeholder="DD-MM-YYYY"
+                                        minYear={1950}
+                                        maxYear={new Date().getFullYear()}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className={`text-[12px] font-black uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Marital Status</label>
+                                <div className="flex gap-4">
+                                    {['Single', 'Married'].map(m => (
+                                        <label key={m} className="flex-1 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                className="hidden"
+                                                name="maritalStatus"
+                                                checked={formData.maritalStatus === m}
+                                                onChange={() => setFormData({ ...formData, maritalStatus: m })}
+                                            />
+                                            <div className={`py-2.5 text-center rounded-lg border font-bold text-sm transition-all ${formData.maritalStatus === m
+                                                ? 'bg-orange-500 border-orange-500 text-white shadow-lg'
+                                                : (isDarkMode ? 'bg-black/20 border-white/5 text-gray-500' : 'bg-gray-50 border-gray-200 text-gray-500')
+                                                }`}>
+                                                {m}
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className={`text-[13px] font-black uppercase tracking-tight ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    Anniversary Date
+                                </label>
+                                <div className="relative">
+                                    <SingleDatePicker
+                                        value={formData.anniversaryDate}
+                                        onSelect={(val) => setFormData({ ...formData, anniversaryDate: val })}
                                         isDarkMode={isDarkMode}
                                         placeholder="DD-MM-YYYY"
                                         minYear={1950}

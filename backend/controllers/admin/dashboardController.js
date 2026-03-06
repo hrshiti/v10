@@ -37,7 +37,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         commitmentDate: { $gte: startOfDay },
         status: { $ne: 'Closed' } // Only count open enquiries
     });
-    const expiredMembersCount = await Member.countDocuments({
+    const expiredMembersData = await Member.find({
         $or: [
             { status: 'Expired' },
             {
@@ -45,7 +45,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
                 endDate: { $lt: startOfDay }
             }
         ]
-    });
+    }).select('firstName lastName memberId mobile photo endDate');
+    const expiredMembersCount = expiredMembersData.length;
 
     // 2. Commitment Dues Stats
     const next30Days = new Date(today);
@@ -210,23 +211,29 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const todayMonth = new Date().getMonth() + 1;
 
     const birthdayCountArr = await Member.aggregate([
-        { $match: { dob: { $ne: null } } },
-        { $project: { month: { $month: "$dob" }, day: { $dayOfMonth: "$dob" } } },
+        { $match: { dob: { $ne: null }, status: { $in: ['Active', 'Pending', 'Frozen'] } } },
+        { $project: { firstName: 1, lastName: 1, memberId: 1, mobile: 1, photo: 1, month: { $month: "$dob" }, day: { $dayOfMonth: "$dob" } } },
         { $match: { month: todayMonth, day: todayDay } }
     ]);
 
     const anniversaryCountArr = await Member.aggregate([
-        { $match: { admissionDate: { $ne: null } } },
-        { $project: { month: { $month: "$admissionDate" }, day: { $dayOfMonth: "$admissionDate" } } },
+        { $match: { anniversaryDate: { $ne: null }, status: { $in: ['Active', 'Pending', 'Frozen'] } } },
+        { $project: { firstName: 1, lastName: 1, memberId: 1, mobile: 1, photo: 1, month: { $month: "$anniversaryDate" }, day: { $dayOfMonth: "$anniversaryDate" } } },
         { $match: { month: todayMonth, day: todayDay } }
     ]);
+
+    const todayExpiredList = await Member.find({
+        status: { $in: ['Active', 'Expired'] },
+        endDate: { $gte: startOfDay, $lte: endOfDay }
+    }).select('firstName lastName memberId mobile photo endDate');
 
 
     const stats = {
         members: {
             active: activeMembersCount,
             upcoming: upcomingMembers,
-            expired: expiredMembersCount
+            expired: expiredMembersCount,
+            expiredList: expiredMembersData
         },
         commitmentDues: {
             today: commitmentDuesToday,
@@ -242,7 +249,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
             absent: absentCount,
             activeTrainers: activeTrainersCount,
             birthday: birthdayCountArr.length,
-            anniversary: anniversaryCountArr.length
+            anniversary: anniversaryCountArr.length,
+            todayExpired: todayExpiredList.length,
+            birthdayList: birthdayCountArr,
+            anniversaryList: anniversaryCountArr,
+            todayExpiredList: todayExpiredList
         },
         financial: {
             totalRevenue,

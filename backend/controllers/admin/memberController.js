@@ -335,7 +335,7 @@ const getMemberById = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const createMember = asyncHandler(async (req, res) => {
     const {
-        firstName, lastName, mobile, email, gender, dob, address,
+        firstName, lastName, mobile, email, gender, dob, anniversaryDate, maritalStatus, address,
         membershipType, packageName, packageId, duration, durationType, durationMonths, startDate, endDate,
         totalAmount, paidAmount, discount, assignedTrainer, closedBy,
         emergencyContactName, emergencyContactNumber,
@@ -372,7 +372,7 @@ const createMember = asyncHandler(async (req, res) => {
     // ----------------------------
 
     const member = await Member.create({
-        firstName, lastName, mobile, email, gender, dob, address,
+        firstName, lastName, mobile, email, gender, dob, anniversaryDate, maritalStatus, address,
         membershipType: membershipType || 'General Training',
         packageNameStatic: packageName,
         packageId,
@@ -453,6 +453,8 @@ const updateMember = asyncHandler(async (req, res) => {
         member.mobile = req.body.mobile || member.mobile;
         member.gender = req.body.gender || member.gender;
         member.dob = req.body.dob || member.dob;
+        member.anniversaryDate = req.body.anniversaryDate || member.anniversaryDate;
+        member.maritalStatus = req.body.maritalStatus || member.maritalStatus;
         member.address = req.body.address || member.address;
 
         if (req.body.emergencyContact) {

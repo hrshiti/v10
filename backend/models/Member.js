@@ -10,6 +10,8 @@ const memberSchema = new mongoose.Schema({
     email: { type: String },
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     dob: { type: Date },
+    anniversaryDate: { type: Date },
+    maritalStatus: { type: String, enum: ['Single', 'Married'], default: 'Single' },
     address: { type: String },
     photo: { type: String }, // URL to image
     weight: { type: Number },

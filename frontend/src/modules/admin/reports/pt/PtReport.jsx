@@ -98,8 +98,8 @@ const PtReport = () => {
           customerNumber: sale.memberId ? sale.memberId.mobile : 'N/A',
           packageName: sale.packageName || sale.packageId?.name || sale.memberId?.packageName || 'PT-Plan',
           sessions: sale.packageId?.sessions || sale.memberId?.packageId?.sessions || '-',
-          startDate: sale.memberId?.startDate ? new Date(sale.memberId.startDate).toLocaleDateString() : 'N/A',
-          endDate: sale.memberId?.endDate ? new Date(sale.memberId.endDate).toLocaleDateString() : 'N/A',
+          startDate: sale.memberId?.startDate ? new Date(sale.memberId.startDate).toLocaleDateString('en-GB') : 'N/A',
+          endDate: sale.memberId?.endDate ? new Date(sale.memberId.endDate).toLocaleDateString('en-GB') : 'N/A',
           amount: sale.amount,
           status: 'Paid'
         }));
@@ -149,8 +149,8 @@ const PtReport = () => {
           'Sessions': sale.packageId?.sessions || sale.memberId?.packageId?.sessions || '-',
           'Customer Name': sale.memberId ? `${sale.memberId.firstName} ${sale.memberId.lastName}` : 'N/A',
           'Customer Number': sale.memberId ? sale.memberId.mobile : 'N/A',
-          'Start Date': sale.memberId?.startDate ? new Date(sale.memberId.startDate).toLocaleDateString() : 'N/A',
-          'Expiry Date': sale.memberId?.endDate ? new Date(sale.memberId.endDate).toLocaleDateString() : 'N/A',
+          'Start Date': sale.memberId?.startDate ? new Date(sale.memberId.startDate).toLocaleDateString('en-GB') : 'N/A',
+          'Expiry Date': sale.memberId?.endDate ? new Date(sale.memberId.endDate).toLocaleDateString('en-GB') : 'N/A',
           'Amount': sale.amount,
           'Status': 'Paid'
         }));

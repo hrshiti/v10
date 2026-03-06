@@ -380,8 +380,8 @@ const ExpiredMemberReport = () => {
                     </td>
                     <td className="px-6 py-8">General Training</td>
                     <td className="px-6 py-8">{row.packageName}</td>
-                    <td className="px-6 py-8 text-center">{new Date(row.startDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-8 text-center">{new Date(row.endDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-8 text-center">{new Date(row.startDate).toLocaleDateString('en-GB')}</td>
+                    <td className="px-6 py-8 text-center">{new Date(row.endDate).toLocaleDateString('en-GB')}</td>
                     <td className="px-6 py-8">{row.assignedTrainer?.firstName || '-'}</td>
                     <td className="px-6 py-8">{row.closedBy?.firstName || '-'}</td>
                     <td className="px-6 py-8 font-black">₹{row.totalAmount}</td>

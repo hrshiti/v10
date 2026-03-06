@@ -199,13 +199,22 @@ const EditProfile = () => {
                 dob = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
             }
 
+            // Handle Anniversary Date Parsing
+            let anniversaryDateInput = null;
+            if (formData.anniversaryDate) {
+                const parts = formData.anniversaryDate.split('-');
+                anniversaryDateInput = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            }
+
             const payload = {
                 firstName,
                 lastName,
                 mobile: formData.mobile,
                 email: formData.email,
                 gender: formData.gender,
+                maritalStatus: formData.maritalStatus,
                 dob: dob,
+                anniversaryDate: anniversaryDateInput,
                 address: formData.address,
                 emergencyContact: {
                     name: formData.emergencyName,

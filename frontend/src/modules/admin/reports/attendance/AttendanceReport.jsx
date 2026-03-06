@@ -134,7 +134,7 @@ const AttendanceReport = () => {
 
   const stats = view === 'audit' ? [
     { label: 'Total Check-ins', value: totalRecords.toString(), icon: UserCheck, theme: 'blue' },
-    { label: 'Today', value: new Date().toLocaleDateString(), icon: Calendar, theme: 'emerald' },
+    { label: 'Today', value: new Date().toLocaleDateString('en-GB'), icon: Calendar, theme: 'emerald' },
   ] : view === 'attendance' ? [
     { label: 'Total Present Members', value: totalRecords.toString(), icon: UserCheck, theme: 'blue' },
     { label: 'Absent Members', value: 'Switch to view', icon: UserCheck, theme: 'red' },
@@ -377,7 +377,7 @@ const AttendanceReport = () => {
                         <td className="px-6 py-8">General Training</td>
                         <td className="px-6 py-8 text-center font-black">{row.attended}</td>
                         <td className="px-6 py-8 text-center font-black">-</td>
-                        <td className="px-6 py-8">{row.endDate ? new Date(row.endDate).toLocaleDateString() : '-'}</td>
+                        <td className="px-6 py-8">{row.endDate ? new Date(row.endDate).toLocaleDateString('en-GB') : '-'}</td>
                         <td className="px-6 py-8">{row.trainerName || '-'}</td>
                         <td className="px-6 py-8">{row.lastMarked ? new Date(row.lastMarked).toLocaleString() : '-'}</td>
                       </tr>
