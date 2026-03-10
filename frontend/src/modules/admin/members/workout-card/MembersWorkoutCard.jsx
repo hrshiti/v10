@@ -373,7 +373,9 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
       <div className={`sticky top-0 z-20 px-6 py-4 border-b flex items-center justify-between ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
         <div className="flex items-center gap-3">
           <div className="bg-black text-white p-1.5 rounded-lg"><Plus size={18} strokeWidth={3} /></div>
-          <h1 className="text-[18px] font-black tracking-tight">{initialData ? 'Edit Workout Plan' : (workoutName || 'Create Workout Plan')}</h1>
+          <h1 className="text-[18px] font-black tracking-tight">
+            {initialData ? `Edit: ${localName || initialData.name}` : (localName || workoutName || 'Create Workout Plan')}
+          </h1>
         </div>
         <button onClick={onClose}><X size={24} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-400 hover:text-black'} /></button>
       </div>
@@ -435,9 +437,37 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
             </div>
           </div>
         </div>
-        <div className="col-span-12 lg:col-span-9 space-y-6">
-          {initialData && <h2 className="text-[16px] font-black opacity-60">Editing: {initialData.name}</h2>}
-          <h2 className="text-[16px] font-black uppercase tracking-tight">Weekly Workout Plan</h2>
+        <div className="col-span-12 lg:col-span-9 space-y-8">
+          <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[11px] font-black mb-3 uppercase tracking-widest text-[#f97316]">Workout Plan Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter workout name..."
+                  value={localName}
+                  onChange={(e) => setLocalName(e.target.value)}
+                  className={`w-full px-5 py-4 border rounded-xl text-[15px] font-bold outline-none transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-[#f97316]' : 'bg-[#fcfcfc] border-gray-200 text-black focus:border-[#f97316]'}`}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-black mb-3 uppercase tracking-widest text-[#f97316]">Privacy Mode</label>
+                <select
+                  value={localPrivacy}
+                  onChange={(e) => setLocalPrivacy(e.target.value)}
+                  className={`w-full px-5 py-4 border rounded-xl text-[15px] font-bold outline-none transition-all cursor-pointer ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-[#f97316]' : 'bg-[#fcfcfc] border-gray-200 text-black focus:border-[#f97316]'}`}
+                >
+                  <option value="Public">Public</option>
+                  <option value="Private">Private</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <h2 className="text-[17px] font-black uppercase tracking-tight flex items-center gap-2">
+            <div className="w-2 h-6 bg-[#f97316] rounded-full"></div>
+            Weekly Workout Plan
+          </h2>
           <div className="flex flex-wrap gap-6 border-b border-gray-200 dark:border-white/10 pb-1">
             {days.map(day => (
               <button
@@ -1098,7 +1128,6 @@ const MembersWorkoutCard = () => {
         const submissionData = {
           ...workoutPlan,
           schedule: cleanedSchedule,
-          privacyMode: newWorkoutData.privacy, // Map from frontend 'privacy' to backend 'privacyMode'
           trainerId: adminInfo?._id
         };
 
