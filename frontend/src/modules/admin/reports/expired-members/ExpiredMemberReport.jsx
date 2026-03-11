@@ -6,7 +6,8 @@ import {
   Search,
   User,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 import { API_BASE_URL } from '../../../../config/api';
 import { useOutletContext, useNavigate } from 'react-router-dom';
@@ -151,6 +152,8 @@ const ExpiredMemberReport = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isExpiredReport, setIsExpiredReport] = useState(false); // Checkbox state
   const [totalRecords, setTotalRecords] = useState(0);
+  const [exportData, setExportData] = useState([]);
+  const [isExportLoading, setIsExportLoading] = useState(false);
 
   const fetchExpiringMembers = async () => {
     setIsLoading(true);
@@ -186,6 +189,56 @@ const ExpiredMemberReport = () => {
       console.error("Error fetching expiry report:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchExportData = async () => {
+    setIsExportLoading(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      if (!token) return;
+
+      const queryParams = new URLSearchParams({
+        pageNumber: 1,
+        pageSize: 10000,
+        search: searchQuery,
+        status: isExpiredReport ? 'Expired' : 'ExpiringSoon',
+        fromDate: fromDate?.split('-').reverse().join('-') || '',
+        toDate: toDate?.split('-').reverse().join('-') || '',
+        membershipType: filterValues['Select Membership Type'] || '',
+        trainer: filterValues['Select Trainer']?.id || '',
+        closedBy: filterValues['Select Closed By']?.id || ''
+      });
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/membership-expiry?${queryParams.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      
+      const formatted = (data.members || []).map(row => ({
+        'Client Id': row.memberId || 'N/A',
+        'Name': `${row.firstName || ''} ${row.lastName || ''}`,
+        'Mobile': row.mobile || 'N/A',
+        'Membership Type': 'General Training',
+        'Plan Name': row.packageName || '-',
+        'Start Date': row.startDate ? new Date(row.startDate).toLocaleDateString('en-GB') : 'N/A',
+        'End Date': row.endDate ? new Date(row.endDate).toLocaleDateString('en-GB') : 'N/A',
+        'Assign Trainer': `${row.assignedTrainer?.firstName || ''} ${row.assignedTrainer?.lastName || ''}`,
+        'Closed By': `${row.closedBy?.firstName || ''} ${row.closedBy?.lastName || ''}`,
+        'Membership Price': row.totalAmount || 0,
+        'Discount Given': row.discount || 0,
+        'Paid Amount': row.paidAmount || 0,
+        'Balance Due': row.dueAmount || 0
+      }));
+
+      setExportData(formatted);
+      setIsReportModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching export data:", error);
+    } finally {
+      setIsExportLoading(false);
     }
   };
 
@@ -323,11 +376,21 @@ const ExpiredMemberReport = () => {
 
         <div className="flex justify-end pt-2 transition-none">
           <button
-            onClick={() => setIsReportModalOpen(true)}
+            onClick={fetchExportData}
+            disabled={isExportLoading}
             className={`flex items-center gap-2 px-8 py-3.5 border rounded-lg text-[14px] font-black transition-none active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-100 shadow-md text-gray-700'}`}
           >
-            <Download size={20} className="text-gray-600" />
-            Generate XLS Report
+            {isExportLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 size={18} className="animate-spin" />
+                Preparing...
+              </div>
+            ) : (
+              <>
+                <Download size={20} className="text-gray-600" />
+                Generate XLS Report
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -435,7 +498,12 @@ const ExpiredMemberReport = () => {
 
       <GenerateReportModal
         isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setExportData([]);
+        }}
+        data={exportData}
+        filename={isExpiredReport ? `Expired_Members_Report_${fromDate}_to_${toDate}` : `Expiring_Soon_Report_${fromDate}_to_${toDate}`}
         isDarkMode={isDarkMode}
       />
     </div>

@@ -228,9 +228,29 @@ const getMembers = asyncHandler(async (req, res) => {
 
     // Status filter
     if (req.query.status && req.query.status !== 'All') {
-        pipeline.push({
-            $match: { computedStatus: req.query.status }
-        });
+        if (req.query.status === 'expiringSoon') {
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+
+            const nextMonth = new Date();
+            nextMonth.setDate(nextMonth.getDate() + 30);
+            nextMonth.setHours(23, 59, 59, 999);
+
+            pipeline.push({
+                $match: {
+                    computedStatus: 'Active',
+                    'currentSubscription.endDate': { $gte: startOfToday, $lte: nextMonth }
+                }
+            });
+        } else if (req.query.status === 'expired') {
+            pipeline.push({
+                $match: { computedStatus: 'Expired' }
+            });
+        } else {
+            pipeline.push({
+                $match: { computedStatus: req.query.status }
+            });
+        }
     }
 
     pipeline.push({ $sort: { createdAt: -1 } });
@@ -500,7 +520,10 @@ const deleteMember = asyncHandler(async (req, res) => {
 const getMemberStats = asyncHandler(async (req, res) => {
     const todayForStats = new Date();
     todayForStats.setHours(0, 0, 0, 0);
-    const active = await Member.countDocuments({ status: 'Active' });
+    const active = await Member.countDocuments({ 
+        status: 'Active',
+        endDate: { $gte: todayForStats }
+    });
     const expired = await Member.countDocuments({
         $or: [
             { status: 'Expired' },
