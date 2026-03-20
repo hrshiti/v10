@@ -6,7 +6,11 @@ import {
   MoreVertical,
   X,
   Utensils,
-  Trash2
+  Trash2,
+  Upload,
+  Image as ImageIcon,
+  Edit2,
+  CheckCircle
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
@@ -194,7 +198,10 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
       days.forEach(day => loadedExercises[day] = []);
       if (initialData.schedule) {
         initialData.schedule.forEach(dayPlan => {
-          loadedExercises[dayPlan.day] = dayPlan.exercises || [];
+          loadedExercises[dayPlan.day] = (dayPlan.exercises || []).map(ex => ({
+            ...ex,
+            id: ex.id || ex._id || `${Date.now()}-${Math.random()}`
+          }));
         });
       }
       setExercisesPerDay(loadedExercises);
@@ -207,7 +214,7 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
       setExercisesPerDay(initial);
       setActiveDay('Monday');
       setCopyRoutes({});
-      setCurrentExercise({ category: '', exercise: '', reps: '', sets: '', weight: '' });
+      setCurrentExercise({ category: '', exercise: '', reps: '', sets: '', weight: '', images: [], description: '' });
       setSelectedMembers([]);
       setLocalName(workoutName || '');
       setLocalPrivacy(privacyMode || 'Public');
@@ -253,7 +260,67 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
     });
   };
 
-  const [currentExercise, setCurrentExercise] = useState({ category: '', exercise: '', reps: '', sets: '', weight: '' });
+  const [currentExercise, setCurrentExercise] = useState({ 
+    category: '', 
+    exercise: '', 
+    reps: '', 
+    sets: '', 
+    weight: '',
+    images: [],
+    description: ''
+  });
+
+  const [editingId, setEditingId] = useState(null);
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('images', file);
+    });
+
+    const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+    const token = adminInfo?.token;
+
+    try {
+      setUploadingImage(true);
+      const loadingToast = toast.loading(`Uploading ${files.length} image(s)...`);
+      const response = await fetch(`${API_BASE_URL}/api/admin/workouts/upload-image`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const data = await response.json();
+      toast.dismiss(loadingToast);
+
+      if (response.ok) {
+        setCurrentExercise(prev => ({ 
+          ...prev, 
+          images: [...(prev.images || []), ...data.imagePaths] 
+        }));
+        toast.success('Images uploaded!');
+      } else {
+        toast.error(data.message || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload Error:', error);
+      toast.error('Network error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const normalizedPath = path.replace(/\\/g, '/');
+    const cleanPath = normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath;
+    return `${API_BASE_URL}/${cleanPath}`;
+  };
 
   if (!isOpen) return null;
 
@@ -295,32 +362,58 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
       toast.error("Please fill in Category and Exercise");
       return;
     }
-    const newExercise = { ...currentExercise, id: Date.now() };
 
     setExercisesPerDay(prev => {
       const newState = { ...prev };
 
-      // Add to current active day
-      newState[activeDay] = [...newState[activeDay], newExercise];
-
-      // Auto-copy to selected target days for this active day
-      const targets = copyRoutes[activeDay] || [];
-      targets.forEach(targetDay => {
-        // Create a unique instance for the copy
-        const copyExercise = { ...newExercise, id: Date.now() + Math.random() };
-        newState[targetDay] = [...newState[targetDay], copyExercise];
-      });
-
-      if (targets.length > 0) {
-        toast.success(`Added to ${activeDay} and copied to ${targets.length} other days`);
+      if (editingId) {
+        // Update existing exercise
+        newState[activeDay] = newState[activeDay].map(ex => 
+          String(ex.id) === String(editingId) ? { ...currentExercise, id: editingId } : ex
+        );
+        toast.success('Exercise updated');
       } else {
-        toast.success('Exercise added');
+        // Add as new
+        const newExercise = { ...currentExercise, id: Date.now() };
+        newState[activeDay] = [...newState[activeDay], newExercise];
+
+        // Auto-copy to selected target days (Only for NEW exercises)
+        const targets = copyRoutes[activeDay] || [];
+        targets.forEach(targetDay => {
+          const copyExercise = { ...newExercise, id: Date.now() + Math.random() };
+          newState[targetDay] = [...newState[targetDay], copyExercise];
+        });
+
+        if (targets.length > 0) {
+          toast.success(`Added to ${activeDay} and copied to ${targets.length} other days`);
+        } else {
+          toast.success('Exercise added');
+        }
       }
 
       return newState;
     });
 
-    setCurrentExercise({ category: '', exercise: '', reps: '', sets: '', weight: '' });
+    setCurrentExercise({ category: '', exercise: '', reps: '', sets: '', weight: '', images: [], description: '' });
+    setEditingId(null);
+  };
+
+  const handleEditExercise = (ex) => {
+    const exerciseId = ex.id || ex._id;
+    if (!exerciseId) {
+      toast.error("Could not find exercise ID");
+      return;
+    }
+    setCurrentExercise({
+      category: ex.category || '',
+      exercise: ex.exercise || '',
+      reps: ex.reps || '',
+      sets: ex.sets || '',
+      weight: ex.weight || '',
+      images: ex.images || [],
+      description: ex.description || ''
+    });
+    setEditingId(exerciseId);
   };
 
   const handleDeleteExercise = (day, id) => {
@@ -330,16 +423,24 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
   const handleSubmit = () => {
     const finalExercises = { ...exercisesPerDay };
 
-    // Auto-add pending exercise if fields are filled but not added
+    // Auto-add/update pending exercise if fields are filled but not added/updated
     if (currentExercise.category && currentExercise.exercise) {
-      const pendingExercise = { ...currentExercise, id: Date.now() };
-      finalExercises[activeDay] = [...finalExercises[activeDay], pendingExercise];
+      if (editingId) {
+        // Correctly update the existing exercise if we were in edit mode
+        finalExercises[activeDay] = finalExercises[activeDay].map(ex => 
+          String(ex.id) === String(editingId) ? { ...currentExercise, id: editingId } : ex
+        );
+      } else {
+        // Add as new if it wasn't an edit
+        const pendingExercise = { ...currentExercise, id: Date.now() };
+        finalExercises[activeDay] = [...finalExercises[activeDay], pendingExercise];
 
-      // Also apply copy logic for pending exercise if any
-      const targets = copyRoutes[activeDay] || [];
-      targets.forEach(targetDay => {
-        finalExercises[targetDay] = [...finalExercises[targetDay], { ...pendingExercise, id: Date.now() + Math.random() }];
-      });
+        // Also apply copy logic for pending exercise if any
+        const targets = copyRoutes[activeDay] || [];
+        targets.forEach(targetDay => {
+          finalExercises[targetDay] = [...finalExercises[targetDay], { ...pendingExercise, id: Date.now() + Math.random() }];
+        });
+      }
     }
 
     const fullSchedule = days.map(day => ({
@@ -514,24 +615,55 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {exercisesPerDay[activeDay].map((ex, idx) => (
                 <div key={ex.id} className={`p-4 rounded-xl border flex justify-between items-center transition-all ${isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white border-gray-200 shadow-sm hover:shadow-md'}`}>
-                  <div>
-                    <span className="font-black text-[#f97316] text-[10px] block uppercase tracking-widest mb-1">{ex.category}</span>
-                    <span className="font-black text-[15px] block mb-1">{ex.exercise}</span>
+                  <div className="flex items-center gap-4">
+                    {ex.images && ex.images.length > 0 ? (
+                      <div className="relative">
+                        <img src={getImageUrl(ex.images[0])} className="w-14 h-14 rounded-xl object-cover border border-[#f97316]/20" alt="" />
+                        {ex.images.length > 1 && (
+                          <div className="absolute -top-1 -right-1 bg-[#f97316] text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-[#121212]">
+                            +{ex.images.length - 1}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center text-gray-400">
+                        <ImageIcon size={20} />
+                      </div>
+                    )}
+                    <div>
+                      <span className="font-black text-[#f97316] text-[10px] block uppercase tracking-widest mb-1">{ex.category}</span>
+                      <span className="font-black text-[15px] block mb-1">{ex.exercise}</span>
                     <div className="flex items-center gap-3">
                       <div className="bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded text-[11px] font-bold">Sets: {ex.sets}</div>
                       <div className="bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded text-[11px] font-bold">Reps: {ex.reps}</div>
                       <div className="bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded text-[11px] font-bold">{ex.weight}</div>
                     </div>
                   </div>
-                  <button onClick={() => handleDeleteExercise(activeDay, ex.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-2 rounded-lg transition-colors"><X size={18} /></button>
                 </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleEditExercise(ex)} 
+                    className="text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 p-2 rounded-lg transition-colors"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteExercise(activeDay, ex.id)} 
+                    className="text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
               ))}
             </div>
           )}
           <div className={`rounded-2xl border p-8 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
             <div className="flex justify-between items-center mb-8 border-b dark:border-white/5 pb-4">
-              <h3 className="text-[17px] font-black uppercase tracking-tight">Add New Exercise</h3>
-              <Plus size={20} className="text-[#f97316]" />
+              <h3 className="text-[17px] font-black uppercase tracking-tight">
+                {editingId ? 'Edit Exercise' : 'Add New Exercise'}
+              </h3>
+              {editingId ? <Edit2 size={20} className="text-[#f97316]" /> : <Plus size={20} className="text-[#f97316]" />}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -545,16 +677,51 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
                   className={`w-full px-5 py-4 border rounded-xl text-[14px] font-bold outline-none transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-[#f97316]' : 'bg-[#fcfcfc] border-gray-300 text-black focus:border-[#f97316]'}`}
                 />
               </div>
-              <div>
-                <label className="block text-[11px] font-black mb-2 uppercase tracking-widest text-[#f97316]">Exercise Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Bench Press"
-                  value={currentExercise.exercise}
-                  onChange={e => setCurrentExercise({ ...currentExercise, exercise: e.target.value })}
-                  className={`w-full px-5 py-4 border rounded-xl text-[14px] font-bold outline-none transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-[#f97316]' : 'bg-[#fcfcfc] border-gray-300 text-black focus:border-[#f97316]'}`}
-                />
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-black mb-2 uppercase tracking-widest text-[#f97316]">Exercise Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Bench Press"
+                    value={currentExercise.exercise}
+                    onChange={e => setCurrentExercise({ ...currentExercise, exercise: e.target.value })}
+                    className={`w-full px-5 py-4 border rounded-xl text-[14px] font-bold outline-none transition-all ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-[#f97316]' : 'bg-[#fcfcfc] border-gray-300 text-black focus:border-[#f97316]'}`}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-4 items-end">
+                  {currentExercise.images?.map((img, i) => (
+                    <div key={i} className="relative group w-14 h-14">
+                      <img src={getImageUrl(img)} className="w-full h-full object-cover rounded-xl border border-[#f97316]/20 shadow-sm" alt="" />
+                      <button 
+                        onClick={() => setCurrentExercise(prev => ({ 
+                          ...prev, 
+                          images: prev.images.filter((_, idx) => idx !== i) 
+                        }))}
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="relative">
+                    <label className="block text-[11px] font-black mb-2 uppercase tracking-widest text-gray-400">Add More</label>
+                    <label className={`w-14 h-14 rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all border-gray-300 hover:border-[#f97316]/50 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-white'}`}>
+                      <Upload size={20} className="text-gray-400" />
+                      <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} multiple />
+                    </label>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <label className="block text-[11px] font-black mb-2 uppercase tracking-widest text-gray-500">Exercise Description</label>
+              <textarea
+                placeholder="Briefly explain the correct form or focal points..."
+                value={currentExercise.description}
+                onChange={e => setCurrentExercise({ ...currentExercise, description: e.target.value })}
+                className={`w-full px-5 py-4 border rounded-xl text-[14px] font-bold outline-none min-h-[100px] resize-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white focus:border-[#f97316]' : 'bg-[#fcfcfc] border-gray-300 text-black focus:border-[#f97316]'}`}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -595,8 +762,8 @@ const CreateWorkoutDetailsModal = ({ isOpen, onClose, isDarkMode, workoutName, p
                 onClick={handleAddExercise}
                 className="bg-black dark:bg-white text-white dark:text-black px-10 py-4 rounded-xl text-[13px] font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-600 dark:hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-2"
               >
-                <Plus size={18} strokeWidth={3} />
-                Add To Plan
+                {editingId ? <CheckCircle size={18} strokeWidth={3} /> : <Plus size={18} strokeWidth={3} />}
+                {editingId ? 'Update Exercise' : 'Add To Plan'}
               </button>
             </div>
           </div>

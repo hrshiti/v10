@@ -199,6 +199,11 @@ const getMembers = asyncHandler(async (req, res) => {
             }
         },
         { $unwind: { path: '$currentSubscription', preserveNullAndEmptyArrays: true } },
+        {
+            $addFields: {
+                subscriptionId: "$currentSubscription._id"
+            }
+        },
 
         // 🔥 Dynamic Status Computation
         {
@@ -1480,6 +1485,85 @@ const toggleBlockStatus = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Delete a subscription, its sales and update member status
+// @route   DELETE /api/admin/members/subscriptions/:subscriptionId
+// @access  Private/Admin
+const deleteSubscription = asyncHandler(async (req, res) => {
+    const { subscriptionId } = req.params;
+
+    const subscription = await Subscription.findById(subscriptionId);
+    if (!subscription) {
+        res.status(404);
+        throw new Error('Subscription not found');
+    }
+
+    const member = await Member.findById(subscription.memberId);
+    if (!member) {
+        // If member is gone, just delete the sub and orphan sales
+        await Sale.deleteMany({ memberId: subscription.memberId, packageId: subscription.packageId });
+        await subscription.deleteOne();
+        return res.json({ message: 'Subscription and related sales deleted' });
+    }
+
+    // 1. Subtract financials from Member record
+    member.totalAmount = Math.max(0, (member.totalAmount || 0) - (subscription.totalAmount || 0));
+    member.paidAmount = Math.max(0, (member.paidAmount || 0) - (subscription.paidAmount || 0));
+    member.discount = Math.max(0, (member.discount || 0) - (subscription.discount || 0));
+    member.dueAmount = Math.max(0, member.totalAmount - (member.paidAmount + member.discount));
+
+    // 2. Delete matching Sale records
+    const saleToDelete = await Sale.findOne({
+        memberId: member._id,
+        packageId: subscription.packageId,
+        amount: subscription.paidAmount
+    }).sort({ createdAt: -1 });
+
+    if (saleToDelete) {
+        await saleToDelete.deleteOne();
+    }
+
+    // 3. Handle Current Subscription logic
+    if (subscription.isCurrent) {
+        // Find the next most recent subscription
+        const nextCurrentSub = await Subscription.findOne({
+            memberId: member._id,
+            _id: { $ne: subscription._id }
+        }).sort({ endDate: -1 });
+
+        if (nextCurrentSub) {
+            nextCurrentSub.isCurrent = true;
+            await nextCurrentSub.save();
+
+            // Resync member profile with the new current sub
+            member.packageId = nextCurrentSub.packageId;
+            member.packageNameStatic = nextCurrentSub.packageName;
+            member.membershipType = nextCurrentSub.membershipType;
+            member.duration = nextCurrentSub.duration;
+            member.durationType = nextCurrentSub.durationType;
+            member.startDate = nextCurrentSub.startDate;
+            member.endDate = nextCurrentSub.endDate;
+            member.status = nextCurrentSub.status;
+            member.assignedTrainer = nextCurrentSub.assignedTrainer;
+        } else {
+            // No other subscriptions left
+            member.status = 'Expired'; // Match UI "Expired" tab
+            member.packageId = null;
+            member.packageNameStatic = 'N/A';
+            member.startDate = null;
+            member.endDate = null;
+            member.assignedTrainer = null;
+        }
+    }
+
+    await member.save();
+    await subscription.deleteOne();
+
+    res.json({
+        success: true,
+        message: 'Subscription and associated payments deleted successfully'
+    });
+});
+
 module.exports = {
     getMembers,
     getMemberById,
@@ -1500,6 +1584,7 @@ module.exports = {
     payDue,
     payDueMember,
     unfreezeMembership,
-    toggleBlockStatus
+    toggleBlockStatus,
+    deleteSubscription
 };
 

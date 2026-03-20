@@ -20,7 +20,8 @@ const {
     payDue,
     payDueMember,
     unfreezeMembership,
-    toggleBlockStatus
+    toggleBlockStatus,
+    deleteSubscription
 } = require('../../controllers/admin/memberController');
 
 const {
@@ -50,6 +51,8 @@ router.post('/:id/upgrade', upgradeMembership);
 router.post('/:id/transfer', transferMembership);
 router.put('/subscriptions/:subscriptionId/pay-due', payDue);
 router.put('/:id/pay-due', payDueMember);
+
+router.delete('/subscriptions/:subscriptionId', deleteSubscription);
 
 router.route('/')
     .get(getMembers)

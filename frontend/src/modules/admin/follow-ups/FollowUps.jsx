@@ -42,7 +42,8 @@ const FollowTypeDropdown = ({ isDarkMode, onChange }) => {
     "Feedback",
     "Membership Renewal",
     "Trial",
-    "Birthday"
+    "Birthday",
+    "Anniversary"
   ];
 
   return (
@@ -684,7 +685,7 @@ const FollowUps = () => {
                     ? (selectedIds.includes(row._id) ? 'bg-[#f97316]/10 border-white/5' : 'border-white/5 hover:bg-white/5')
                     : (selectedIds.includes(row._id) ? 'bg-orange-50 border-orange-100' : 'border-gray-50 hover:bg-gray-50/50')
                     }`}>
-                    <td className="px-4 py-7">
+                    <td className="px-4 py-5">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(row._id)}
@@ -692,32 +693,32 @@ const FollowUps = () => {
                         className="w-4 h-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]"
                       />
                     </td>
-                    <td className="px-6 py-7 font-medium whitespace-nowrap">{new Date(row.dateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="px-6 py-7">
+                    <td className="px-6 py-5 font-medium whitespace-nowrap">{new Date(row.dateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-6 py-5 text-center">
                       <span className={`${row.isDone ? 'bg-[#10b981]' : 'bg-[#f4a261]'} text-white px-4 py-2 rounded-lg text-[11px] font-black uppercase text-center min-w-[80px] inline-block`}>
                         {row.isDone ? 'DONE' : 'PENDING'}
                       </span>
                     </td>
-                    <td className="px-6 py-7">
+                    <td className="px-6 py-5 text-center">
                       <div className={`inline-block border border-[#f97316]/40 bg-[#fff7ed] dark:bg-[#f97316]/10 text-[#f97316] px-4 py-2.5 rounded-lg text-[12px] font-bold`}>
                         {row.type}
                       </div>
                     </td>
-                    <td className="px-6 py-7">
+                    <td className="px-6 py-5">
                       <div className="flex flex-col transition-none">
                         <span className={`text-[13px] font-bold uppercase transition-none ${isDarkMode ? 'text-white' : 'text-black'}`}>{row.name}</span>
                         <span className="text-[12px] font-bold mt-0.5 tracking-tight transition-none">{row.number}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-7 font-bold uppercase">{row.handledBy ? `${row.handledBy.firstName} ${row.handledBy.lastName}` : 'Not Allocated'}</td>
-                    <td className="px-6 py-7 font-bold uppercase">{row.createdBy}</td>
-                    <td className="px-6 py-7">
+                    <td className="px-6 py-5 font-bold uppercase">{row.handledBy ? `${row.handledBy.firstName} ${row.handledBy.lastName}` : 'Not Allocated'}</td>
+                    <td className="px-6 py-5 font-bold uppercase">{row.createdBy}</td>
+                    <td className="px-6 py-5 text-center">
                       <div className={`${row.status === 'Hot' ? 'bg-[#ef4444]' : row.status === 'Warm' ? 'bg-[#f97316]' : 'bg-[#3b82f6]'} text-white px-3 py-1.5 rounded-lg text-[12px] font-black uppercase text-center inline-block min-w-[50px]`}>
                         {row.status}
                       </div>
                     </td>
-                    <td className="px-4 py-7 text-[13px] font-medium leading-relaxed max-w-xs truncate">{row.comment}</td>
-                    <td className={`px-4 py-7 text-right relative sticky right-0 z-10 border-l ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-white border-gray-50'}`} ref={el => actionContainerRefs.current[idx] = el}>
+                    <td className="px-4 py-5 text-[13px] font-medium leading-relaxed max-w-xs truncate">{row.comment}</td>
+                    <td className={`px-4 py-5 text-right relative sticky right-0 z-10 border-l ${isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-white border-gray-50'}`} ref={el => actionContainerRefs.current[idx] = el}>
                       <button
                         onClick={() => setActiveActionRow(activeActionRow === idx ? null : idx)}
                         className={`transition-none p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 ${activeActionRow === idx ? 'text-black dark:text-white' : 'text-gray-400'}`}

@@ -14,7 +14,8 @@ import {
   TrendingUp,
   RotateCcw,
   Edit3,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../../../config/api';
@@ -208,6 +209,75 @@ const ChangeStartDateModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }
   );
 };
 
+const DeleteSubscriptionModal = ({ isOpen, onClose, member, isDarkMode, onSuccess }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  if (!isOpen || !member) return null;
+
+  const handleDelete = async () => {
+    if (!member.subscriptionId) {
+      alert('Subscription ID not found for this member.');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+      const token = adminInfo?.token;
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/subscriptions/${member.subscriptionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        onSuccess();
+        onClose();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to delete subscription');
+      }
+    } catch (error) {
+      console.error('Error deleting subscription:', error);
+      alert('An error occurred during deletion');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`w-full max-w-[400px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+        <div className={`px-6 py-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+          <h2 className={`text-[17px] font-black uppercase text-red-500`}>Delete Subscription</h2>
+          <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500'}><X size={20} /></button>
+        </div>
+        <div className="p-8 space-y-4 text-center">
+          <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trash2 size={32} />
+          </div>
+          <p className={`text-[15px] font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+            Are you sure you want to delete the active subscription for <span className="text-orange-500">{member.firstName} {member.lastName}</span>?
+          </p>
+          <p className="text-[13px] text-gray-500 font-medium">
+            This will also delete the associated payment record and update the member's status. This action cannot be undone.
+          </p>
+        </div>
+        <div className={`px-6 py-4 border-t flex justify-center gap-3 ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+          <button onClick={onClose} className={`px-8 py-2.5 rounded-lg text-[14px] font-bold ${isDarkMode ? 'bg-white/5 text-white' : 'bg-gray-100 text-gray-700'}`}>Cancel</button>
+          <button
+            disabled={isDeleting}
+            onClick={handleDelete}
+            className="bg-red-500 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95 hover:bg-red-600"
+          >
+            {isDeleting ? 'Deleting...' : 'Delete Now'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Main Component ---
 
 const Memberships = () => {
@@ -218,6 +288,7 @@ const Memberships = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [currentStatus, setCurrentStatus] = useState('Active');
 
   const [membershipsData, setMembershipsData] = useState([]);
   const [statsData, setStatsData] = useState(null);
@@ -228,6 +299,7 @@ const Memberships = () => {
 
   const [showAddOnModal, setShowAddOnModal] = useState(false);
   const [showStartDateModal, setShowStartDateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [allDataForExport, setAllDataForExport] = useState([]);
   const [isExporting, setIsExporting] = useState(false);
@@ -258,7 +330,7 @@ const Memberships = () => {
         pageNumber: currentPage,
         pageSize: rowsPerPage,
         keyword: searchQuery,
-        status: 'Active'
+        status: currentStatus
       });
 
       const res = await fetch(`${API_BASE_URL}/api/admin/members?${params.toString()}`, {
@@ -287,7 +359,7 @@ const Memberships = () => {
         pageNumber: 1,
         pageSize: 10000,
         keyword: searchQuery,
-        status: 'Active'
+        status: currentStatus
       });
 
       const res = await fetch(`${API_BASE_URL}/api/admin/members?${params.toString()}`, {
@@ -396,10 +468,19 @@ const Memberships = () => {
       case 'View Documents':
         navigate(`/admin/members/profile/${member._id}/documents`);
         break;
+      case 'Delete Subscription':
+        setShowDeleteModal(true);
+        break;
       default:
         break;
     }
   };
+
+  const tabs = [
+    { name: 'Active', value: 'Active' },
+    { name: 'Upcoming', value: 'Upcoming' },
+    { name: 'Expired', value: 'Expired' },
+  ];
 
   const actionMenuItems = [
     { label: 'View Profile', icon: User },
@@ -410,6 +491,7 @@ const Memberships = () => {
     { label: 'Freeze Plan', icon: Snowflake },
 
     { label: 'View Documents', icon: FileText },
+    { label: 'Delete Subscription', icon: Trash2, variant: 'danger' },
   ];
 
   return (
@@ -466,7 +548,23 @@ const Memberships = () => {
 
       <div className={`mt-8 border rounded-xl overflow-hidden transition-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 shadow-black' : 'bg-white border-gray-100 shadow-sm'}`}>
         <div className="p-6 border-b flex justify-between items-center transition-none bg-white dark:bg-white/5">
-          <span className="text-[14px] font-black uppercase text-gray-400 tracking-wider">Active Memberships</span>
+          <div className="flex items-center gap-8">
+            {tabs.map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => { setCurrentStatus(tab.value); setCurrentPage(1); }}
+                className={`pb-1 text-[13px] font-black uppercase tracking-wider transition-all relative ${currentStatus === tab.value
+                  ? 'text-orange-500'
+                  : 'text-gray-400 hover:text-gray-600'
+                  }`}
+              >
+                {tab.name}
+                {currentStatus === tab.value && (
+                  <span className="absolute -bottom-7 left-0 w-full h-1 bg-orange-500 rounded-t-full"></span>
+                )}
+              </button>
+            ))}
+          </div>
           <div className="text-[11px] font-bold text-gray-500 uppercase">Live database sync enabled</div>
         </div>
         <div className="overflow-x-auto scroll-smooth custom-scrollbar min-h-[400px]">
@@ -558,7 +656,7 @@ const Memberships = () => {
                                 className={`px-5 py-3 text-[13px] font-bold border-b last:border-0 cursor-pointer flex items-center gap-3 transition-all ${isDarkMode ? 'text-gray-300 border-white/5 hover:bg-white/5' : 'text-gray-700 border-gray-50 hover:bg-gray-50'
                                   }`}
                               >
-                                <action.icon size={16} className="text-gray-400" />
+                                <action.icon size={16} className={action.variant === 'danger' ? 'text-red-500' : 'text-gray-400'} />
                                 {action.label}
                               </div>
                             ))}
@@ -617,6 +715,17 @@ const Memberships = () => {
       <ChangeStartDateModal
         isOpen={showStartDateModal}
         onClose={() => setShowStartDateModal(false)}
+        member={selectedMember}
+        isDarkMode={isDarkMode}
+        onSuccess={() => {
+          fetchMembers();
+          fetchStats();
+        }}
+      />
+
+      <DeleteSubscriptionModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
         member={selectedMember}
         isDarkMode={isDarkMode}
         onSuccess={() => {

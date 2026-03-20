@@ -32,8 +32,8 @@ const memberSchema = new mongoose.Schema({
         default: 'General Training'
     },
 
-    startDate: { type: Date, required: true },
-    endDate: { type: Date, required: true },
+    startDate: { type: Date },
+    endDate: { type: Date },
     duration: { type: Number },
     durationType: { type: String, enum: ['Months', 'Days'], default: 'Months' },
     durationMonths: { type: Number }, // For backward compatibility if needed
@@ -51,8 +51,8 @@ const memberSchema = new mongoose.Schema({
     },
 
     // Financials
-    totalAmount: { type: Number, required: true },
-    paidAmount: { type: Number, required: true },
+    totalAmount: { type: Number, required: true, default: 0 },
+    paidAmount: { type: Number, required: true, default: 0 },
     dueAmount: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
 

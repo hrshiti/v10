@@ -103,10 +103,24 @@ const getMemberWorkout = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Upload workout exercise image
+// @route   POST /api/admin/workouts/upload-image
+// @access  Private/Admin
+const uploadWorkoutImage = asyncHandler(async (req, res) => {
+    if (!req.files || req.files.length === 0) {
+        res.status(400);
+        throw new Error('No image files uploaded');
+    }
+
+    const imagePaths = req.files.map(file => file.path);
+    res.json({ imagePaths });
+});
+
 module.exports = {
     createWorkout,
     getWorkouts,
     updateWorkout,
     deleteWorkout,
-    getMemberWorkout
+    getMemberWorkout,
+    uploadWorkoutImage
 };

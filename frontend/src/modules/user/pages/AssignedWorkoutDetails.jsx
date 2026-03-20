@@ -1,7 +1,128 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Clock, Zap, Target, Calendar } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, Zap, Target, Calendar, X, Info } from 'lucide-react';
 import { API_BASE_URL } from '../../../config/api';
+
+const ExerciseDetailModal = ({ exercise, onClose, isDarkMode }) => {
+    const [currentImg, setCurrentImg] = useState(0);
+
+    if (!exercise) return null;
+
+    const getImageUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith('http')) return path;
+        const normalizedPath = path.replace(/\\/g, '/');
+        const cleanPath = normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath;
+        return `${API_BASE_URL}/${cleanPath}`;
+    };
+
+    const images = exercise.images || (exercise.image ? [exercise.image] : []);
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose} />
+            <div className={`relative w-full max-w-lg bg-white dark:bg-[#1A1F2B] rounded-t-[3rem] sm:rounded-[3.5rem] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 duration-500`}>
+                {/* Close Button */}
+                <button 
+                    onClick={onClose}
+                    className="absolute top-6 right-6 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white border border-white/20 hover:bg-black/40 transition-all"
+                >
+                    <X size={20} />
+                </button>
+
+                {/* Exercise Image Slider */}
+                <div className="relative aspect-[4/3] bg-gray-200 dark:bg-gray-800 group">
+                    {images.length > 0 ? (
+                        <img 
+                            src={getImageUrl(images[currentImg])} 
+                            alt={exercise.exercise} 
+                            className="w-full h-full object-cover transition-all duration-500"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <Zap size={64} className="opacity-20" />
+                        </div>
+                    )}
+                    
+                    {/* Navigation Arrows for Multiple Images */}
+                    {images.length > 1 && (
+                        <>
+                            <div className="absolute inset-0 flex items-center justify-between px-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                    onClick={() => setCurrentImg(prev => (prev - 1 + images.length) % images.length)}
+                                    className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm text-white flex items-center justify-center"
+                                >
+                                    <ArrowLeft size={20} />
+                                </button>
+                                <button 
+                                    onClick={() => setCurrentImg(prev => (prev + 1) % images.length)}
+                                    className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm text-white flex items-center justify-center"
+                                >
+                                    <ArrowLeft size={20} className="rotate-180" />
+                                </button>
+                            </div>
+                            
+                            {/* Dot Indicators */}
+                            <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-2">
+                                {images.map((_, i) => (
+                                    <div 
+                                        key={i} 
+                                        className={`w-2 h-2 rounded-full transition-all ${i === currentImg ? 'bg-emerald-500 w-4' : 'bg-white/50'}`} 
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                    
+                    <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white dark:from-[#1A1F2B] to-transparent"></div>
+                </div>
+
+                <div className="px-8 pb-12 -mt-10 relative z-10">
+                    <span className="inline-block px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 border border-emerald-500/20">
+                        {exercise.category || 'General'}
+                    </span>
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase italic tracking-tighter mb-6 leading-tight">
+                        {exercise.exercise}
+                    </h2>
+
+                    {/* Stats Row */}
+                    <div className="grid grid-cols-3 gap-3 mb-8">
+                        <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/5 flex flex-col items-center gap-1">
+                            <Zap size={18} className="text-amber-500 mb-1" fill="currentColor" />
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sets</span>
+                            <span className="text-sm font-black text-gray-900 dark:text-white">{exercise.sets}</span>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/5 flex flex-col items-center gap-1">
+                            <Target size={18} className="text-blue-500 mb-1" />
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Reps</span>
+                            <span className="text-sm font-black text-gray-900 dark:text-white">{exercise.reps}</span>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/5 flex flex-col items-center gap-1">
+                            <Info size={18} className="text-emerald-500 mb-1" />
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Weight</span>
+                            <span className="text-sm font-black text-gray-900 dark:text-white">{exercise.weight || '--'}</span>
+                        </div>
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] italic">About Exercise</h3>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm font-medium leading-relaxed italic">
+                            {exercise.description || "Focus on controlled movements and maintain steady breathing throughout the set. Keep your core engaged for stability."}
+                        </p>
+                    </div>
+
+                    <button 
+                        onClick={onClose}
+                        className="w-full mt-10 bg-emerald-500 text-white py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all"
+                    >
+                        Got It
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const AssignedWorkoutDetails = () => {
     const { id } = useParams();
@@ -11,6 +132,7 @@ const AssignedWorkoutDetails = () => {
     const [activeDay, setActiveDay] = useState('');
     const [completedDays, setCompletedDays] = useState([]);
     const [completedExercises, setCompletedExercises] = useState([]);
+    const [selectedExercise, setSelectedExercise] = useState(null);
 
     // Check completion status from backend
     useEffect(() => {
@@ -267,19 +389,21 @@ const AssignedWorkoutDetails = () => {
                                 activeSchedule.exercises.map((ex, idx) => (
                                     <div
                                         key={idx}
-                                        onClick={() => toggleExercise(idx)}
-                                        className={`p-5 rounded-[2.5rem] shadow-sm border transition-all flex items-center gap-4 group cursor-pointer active:scale-95 ${completedExercises.includes(idx)
+                                        className={`p-5 rounded-[2.5rem] shadow-sm border transition-all flex items-center gap-4 group cursor-pointer ${completedExercises.includes(idx)
                                             ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500/30 ring-1 ring-emerald-500/20'
                                             : 'bg-white dark:bg-[#1A1F2B] border-gray-100 dark:border-gray-800 hover:border-emerald-500/30'
                                             }`}
                                     >
-                                        <div className={`w-14 h-14 rounded-3xl flex items-center justify-center font-black text-lg transition-all duration-300 ${completedExercises.includes(idx)
+                                        <div 
+                                            onClick={(e) => { e.stopPropagation(); toggleExercise(idx); }}
+                                            className={`w-14 h-14 rounded-3xl flex items-center justify-center font-black text-lg transition-all duration-300 active:scale-95 ${completedExercises.includes(idx)
                                             ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 rotate-6'
                                             : 'bg-gray-50 dark:bg-gray-800 text-gray-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-500'
-                                            }`}>
+                                            }`}
+                                        >
                                             {completedExercises.includes(idx) ? <CheckCircle size={24} /> : idx + 1}
                                         </div>
-                                        <div className="flex-1">
+                                        <div className="flex-1" onClick={() => setSelectedExercise(ex)}>
                                             <h3 className={`font-black text-[15px] mb-1.5 transition-colors uppercase tracking-tight ${completedExercises.includes(idx) ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}>{ex.exercise || ex.name}</h3>
                                             <div className="flex items-center gap-4">
                                                 <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 dark:bg-white/5 px-2 py-1 rounded-lg">
@@ -288,20 +412,14 @@ const AssignedWorkoutDetails = () => {
                                                 <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 dark:bg-white/5 px-2 py-1 rounded-lg">
                                                     <Target size={12} className="text-blue-500" /> {ex.reps} Reps
                                                 </div>
-                                                {ex.weight && (
-                                                    <div className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg uppercase tracking-widest">
-                                                        {ex.weight}
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
-                                        {completedExercises.includes(idx) && (
-                                            <div className="text-emerald-500 animate-in zoom-in duration-300 pr-2">
-                                                <div className="bg-emerald-500 rounded-full p-2 text-white shadow-lg shadow-emerald-500/30">
-                                                    <CheckCircle size={20} />
-                                                </div>
-                                            </div>
-                                        )}
+                                        <div 
+                                            onClick={() => setSelectedExercise(ex)}
+                                            className="text-gray-300 group-hover:text-emerald-500 transition-colors p-2"
+                                        >
+                                            <Info size={20} />
+                                        </div>
                                     </div>
                                 ))
                             ) : (
@@ -317,6 +435,12 @@ const AssignedWorkoutDetails = () => {
                     </>
                 )}
             </div>
+
+            <ExerciseDetailModal 
+                exercise={selectedExercise} 
+                onClose={() => setSelectedExercise(null)} 
+                isDarkMode={true} 
+            />
 
 
             {/* Float Mark Completed - Show even for Rest Days so user can track consistency */}

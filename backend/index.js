@@ -7,8 +7,7 @@ const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
 
 // Load env vars
-// Load env vars
-dotenv.config();
+dotenv.config({ override: true });
 console.log('JWT_SECRET Status:', process.env.JWT_SECRET ? 'Loaded' : 'MISSING');
 
 // Connect to database
@@ -16,7 +15,10 @@ connectDB();
 
 // Initialize scheduled tasks
 const { initNotificationTasks } = require('./services/notificationTask');
+const { initFollowUpTasks } = require('./services/followUpTask');
+
 initNotificationTasks();
+initFollowUpTasks();
 
 const app = express();
 

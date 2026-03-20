@@ -5,11 +5,15 @@ const {
     getWorkouts,
     updateWorkout,
     deleteWorkout,
-    getMemberWorkout
+    getMemberWorkout,
+    uploadWorkoutImage
 } = require('../../controllers/admin/workoutController');
 const { protect } = require('../../middlewares/authMiddleware');
+const upload = require('../../middlewares/uploadMiddleware');
 
 router.use(protect);
+
+router.post('/upload-image', upload.array('images', 5), uploadWorkoutImage);
 
 router.route('/')
     .post(createWorkout)

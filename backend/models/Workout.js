@@ -21,7 +21,9 @@ const workoutSchema = new mongoose.Schema({
                     sets: { type: Number },
                     reps: { type: String }, // "12-15"
                     weight: { type: String }, // "10kg"
-                    remark: { type: String }
+                    remark: { type: String },
+                    images: [{ type: String }],
+                    description: { type: String }
                 }
             ]
         }

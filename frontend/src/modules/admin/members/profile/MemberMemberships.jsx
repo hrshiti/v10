@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
-import { MoreVertical, ChevronDown, ArrowLeftRight, Snowflake, Edit3, X, Maximize2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react';
+import { MoreVertical, ChevronDown, ArrowLeftRight, Snowflake, Edit3, X, Maximize2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../../../../config/api';
 
 const Calendar = ({ selectedDate, onSelect, isDarkMode }) => {
@@ -450,6 +450,70 @@ const PayDueModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => 
     );
 };
 
+const DeleteSubscriptionModal = ({ isOpen, onClose, membership, isDarkMode, onSuccess }) => {
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    if (!isOpen || !membership) return null;
+
+    const handleDelete = async () => {
+        setIsDeleting(true);
+        try {
+            const adminInfo = JSON.parse(localStorage.getItem('adminInfo'));
+            const token = adminInfo?.token;
+            const res = await fetch(`${API_BASE_URL}/api/admin/members/subscriptions/${membership._id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (res.ok) {
+                onSuccess();
+                onClose();
+            } else {
+                const err = await res.json();
+                alert(err.message || 'Failed to delete subscription');
+            }
+        } catch (error) {
+            console.error('Error deleting subscription:', error);
+            alert('An error occurred during deletion');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className={`w-full max-w-[400px] rounded-lg shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+                <div className={`px-6 py-4 border-b flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+                    <h2 className={`text-[17px] font-black uppercase text-red-500`}>Delete Subscription</h2>
+                    <button onClick={onClose} className={isDarkMode ? 'text-white' : 'text-gray-500'}><X size={20} /></button>
+                </div>
+                <div className="p-8 space-y-4 text-center">
+                    <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Trash2 size={32} />
+                    </div>
+                    <p className={`text-[15px] font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                        Are you sure you want to delete the <span className="text-orange-500">{membership.packageName}</span> subscription?
+                    </p>
+                    <p className="text-[13px] text-gray-500 font-medium">
+                        This will also delete the associated payment record and update the member's status/totals. This action cannot be undone.
+                    </p>
+                </div>
+                <div className={`px-6 py-4 border-t flex justify-center gap-3 ${isDarkMode ? 'border-white/10' : 'border-gray-100'}`}>
+                    <button onClick={onClose} className={`px-8 py-2.5 rounded-lg text-[14px] font-bold ${isDarkMode ? 'bg-white/5 text-white' : 'bg-gray-100 text-gray-700'}`}>Cancel</button>
+                    <button
+                        disabled={isDeleting}
+                        onClick={handleDelete}
+                        className="bg-red-500 text-white px-8 py-2.5 rounded-lg text-[14px] font-bold shadow-md active:scale-95 hover:bg-red-600"
+                    >
+                        {isDeleting ? 'Deleting...' : 'Delete Now'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const MemberMemberships = () => {
     const { isDarkMode, memberData, refreshProfile } = useOutletContext();
     const navigate = useNavigate();
@@ -460,6 +524,7 @@ const MemberMemberships = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showAddOnModal, setShowAddOnModal] = useState(false);
     const [showPayDueModal, setShowPayDueModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selectedMembership, setSelectedMembership] = useState(null);
     const [subscriptions, setSubscriptions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -518,6 +583,7 @@ const MemberMemberships = () => {
         if (opt === 'Add-On Days') setShowAddOnModal(true);
         if (opt === 'Change Start Date') setShowEditModal(true);
         if (opt === 'Pay Due') setShowPayDueModal(true);
+        if (opt === 'Delete') setShowDeleteModal(true);
         if (opt === 'Renew') navigate(`/admin/members/profile/${id}/membership/renew`);
 
         if (opt === 'Freeze') navigate(`/admin/members/profile/${id}/membership/freeze`);
@@ -572,10 +638,10 @@ const MemberMemberships = () => {
 
                                     {activeMenu === idx && (
                                         <div ref={menuRef} className={`absolute right-10 top-0 w-48 rounded-md shadow-xl border z-50 py-1 ${isDarkMode ? 'bg-[#1e1e1e] border-white/10' : 'bg-white border-gray-200'}`}>
-                                            {['Renew', 'Pay Due', 'Add-On Days', 'Change Start Date', 'Freeze', 'Upgrade'].map((opt, i) => (
+                                            {['Renew', 'Pay Due', 'Add-On Days', 'Change Start Date', 'Freeze', 'Upgrade', 'Delete'].map((opt, i) => (
                                                 <div
                                                     key={i}
-                                                    className={`px-4 py-3 text-[13px] font-bold cursor-pointer transition-all ${isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'} ${opt === 'Pay Due' && item.dueAmount <= 0 ? 'hidden' : ''}`}
+                                                    className={`px-4 py-3 text-[13px] font-bold cursor-pointer transition-all ${isDarkMode ? 'text-gray-300 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50'} ${opt === 'Pay Due' && item.dueAmount <= 0 ? 'hidden' : ''} ${opt === 'Delete' ? 'text-red-500' : ''}`}
                                                     onClick={() => handleActionClick(opt, item)}
                                                 >
                                                     {opt}
@@ -698,6 +764,17 @@ const MemberMemberships = () => {
                 isOpen={showPayDueModal}
                 membership={selectedMembership}
                 onClose={() => setShowPayDueModal(false)}
+                isDarkMode={isDarkMode}
+                onSuccess={() => {
+                    fetchSubscriptions();
+                    if (refreshProfile) refreshProfile();
+                }}
+            />
+
+            <DeleteSubscriptionModal
+                isOpen={showDeleteModal}
+                membership={selectedMembership}
+                onClose={() => setShowDeleteModal(false)}
                 isDarkMode={isDarkMode}
                 onSuccess={() => {
                     fetchSubscriptions();
