@@ -15,7 +15,8 @@ const {
     getHomeStats,
     checkWorkoutStatus,
     getWorkoutLibrary,
-    getWorkoutLibraryItem
+    getWorkoutLibraryItem,
+    deleteUserAccount
 } = require('../../controllers/user/userController');
 const {
     getPresentTrainers,
@@ -51,6 +52,9 @@ router.route('/feedback')
     .get(getUserFeedbacks)
     .post(submitFeedback);
 router.get('/stats', getHomeStats);
+
+// Delete account (Important for Apple Review Compliance)
+router.delete('/account', deleteUserAccount);
 
 // Trainer Routes
 router.post('/trainer/scan', trainerScanQR);

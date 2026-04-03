@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Award, Shield, ChevronRight, Weight, Ruler, Lock, Flame, Pencil, Calendar as CalendarIcon, HelpCircle, FileText, Info, MessageSquare, LogOut, User, Users, Crown } from 'lucide-react';
+import { Settings, Award, Shield, ChevronRight, Weight, Ruler, Lock, Flame, Pencil, Calendar as CalendarIcon, HelpCircle, FileText, Info, MessageSquare, LogOut, User, Users, Crown, Trash2, AlertTriangle, UserX } from 'lucide-react';
 import EditProfileModal from '../components/EditProfileModal';
 import TrainerDetailModal from '../components/TrainerDetailModal';
 import { API_BASE_URL } from '../../../config/api';
@@ -156,6 +156,40 @@ const Profile = () => {
             navigate(routes[item]);
         } else {
             alert(`${item} feature is coming soon! 🚀`);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!window.confirm('Are you SURE you want to delete your account? This action is PERMANENT and will erase all your history, attendance records, and active subscription. This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('userToken');
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/user/account`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                alert('Account deleted successfully. We\'re sorry to see you go.');
+                localStorage.removeItem('userToken');
+                localStorage.removeItem('userData');
+                navigate('/login');
+            } else {
+                const data = await response.json();
+                alert(data.message || 'Failed to delete account');
+            }
+        } catch (error) {
+            console.error('Delete Error:', error);
+            alert('An error occurred while deleting your account. Please check your network connection.');
         }
     };
 
@@ -405,6 +439,20 @@ const Profile = () => {
                             <span className="font-bold text-red-500 text-sm">Logout</span>
                         </div>
                         <ChevronRight className="text-red-300 group-hover:text-red-500" size={18} />
+                    </button>
+
+                    <button
+                        onClick={handleDeleteAccount}
+                        className="w-full p-4 flex items-center justify-between group last:border-0 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+                    >
+                        <div className="flex items-center gap-4">
+                            <Trash2 size={20} className="text-red-600" />
+                            <div className="text-left">
+                                <span className="font-bold text-red-600 text-sm block leading-none mb-1">Delete Account</span>
+                                <span className="text-[10px] text-gray-400 font-medium">Permanently delete profile & data</span>
+                            </div>
+                        </div>
+                        <ChevronRight className="text-red-300 group-hover:text-red-600" size={18} />
                     </button>
 
                     {/* <button onClick={() => handleMenuClick('Admin')} className="w-full p-4 flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl transition-colors">

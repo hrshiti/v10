@@ -1,4 +1,5 @@
-import { ChevronLeft, Scale, LogOut, Moon, Image, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Scale, LogOut, Moon, Image, ChevronRight, UserX, Trash2, AlertTriangle } from 'lucide-react';
+import { API_BASE_URL } from '../../../config/api';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
@@ -9,6 +10,44 @@ const Settings = () => {
 
     // Mock State
     const [units, setUnits] = useState('Metric');
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteAccount = async () => {
+        if (!window.confirm('Are you SURE you want to delete your account? This action is PERMANENT and will erase all your history, attendance records, and active subscription. This cannot be undone.')) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            const token = localStorage.getItem('userToken');
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/user/account`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                alert('Account deleted successfully. We\'re sorry to see you go.');
+                localStorage.removeItem('userToken');
+                localStorage.removeItem('userData');
+                navigate('/login');
+            } else {
+                const data = await response.json();
+                alert(data.message || 'Failed to delete account');
+            }
+        } catch (error) {
+            console.error('Delete Error:', error);
+            alert('An error occurred while deleting your account. Please check your network connection.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-[#121212] min-h-screen transition-colors duration-300">
@@ -99,6 +138,24 @@ const Settings = () => {
                                 </div>
                                 <span className="font-bold text-red-600 text-sm">Log Out</span>
                             </div>
+                        </button>
+
+                        {/* Delete Account */}
+                        <button
+                            onClick={handleDeleteAccount}
+                            disabled={isDeleting}
+                            className="w-full flex items-center justify-between p-4 border-t border-gray-50 dark:border-gray-800 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600">
+                                    <Trash2 size={16} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-red-600 text-sm">Delete Account</h3>
+                                    <p className="text-[10px] text-gray-400 font-medium">Permanently delete your profile and data</p>
+                                </div>
+                            </div>
+                            <ChevronRight size={16} className="text-red-300 group-hover:text-red-500" />
                         </button>
                     </div>
                 </div>

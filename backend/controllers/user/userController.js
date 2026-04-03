@@ -534,6 +534,49 @@ const getWorkoutLibraryItem = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Delete user account
+// @route   DELETE /api/user/account
+// @access  Private/User
+const deleteUserAccount = asyncHandler(async (req, res) => {
+    let user;
+    if (req.user.role === 'trainer') {
+        user = await Employee.findById(req.user._id);
+    } else {
+        user = await Member.findById(req.user._id);
+    }
+
+    if (user) {
+        // Delete the user from respective model
+        if (req.user.role === 'trainer') {
+            await Employee.findByIdAndDelete(req.user._id);
+        } else {
+            const memberId = req.user._id;
+            
+            // 1. Remove member from Assigned Lists (to keep those plans for others)
+            await DietPlan.updateMany(
+                { assignedMembers: memberId },
+                { $pull: { assignedMembers: memberId } }
+            );
+            await Workout.updateMany(
+                { assignedMembers: memberId },
+                { $pull: { assignedMembers: memberId } }
+            );
+
+            // 2. Delete member-specific logs/data
+            await MemberAttendance.deleteMany({ memberId: memberId });
+            await WorkoutLog.deleteMany({ memberId: memberId });
+            await Feedback.deleteMany({ userId: memberId });
+
+            // 3. Finally delete the member
+            await Member.findByIdAndDelete(memberId);
+        }
+        res.json({ success: true, message: 'Account deleted successfully' });
+    } else {
+        res.status(404);
+        throw new Error('User not found');
+    }
+});
+
 module.exports = {
     getUserProfile,
     userScanQR,
@@ -548,5 +591,6 @@ module.exports = {
     getHomeStats,
     checkWorkoutStatus,
     getWorkoutLibrary,
-    getWorkoutLibraryItem
+    getWorkoutLibraryItem,
+    deleteUserAccount
 };

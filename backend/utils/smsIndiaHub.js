@@ -29,7 +29,7 @@ const sendSms = async (mobile, message) => {
 
         // Log response for debugging but be careful with sensitive info
         console.log(`SMS sent to ${mobile}:`, response.data);
-
+        
         // SMS India Hub usually returns a JSON with ErrorCode or similar
         // Check documentation for success condition if possible, otherwise assume 200 OK
         if (response.data && response.data.ErrorCode === '000') {
