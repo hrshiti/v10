@@ -39,9 +39,9 @@ const sendOTP = asyncHandler(async (req, res) => {
         throw new Error('Your account has been blocked. Please contact admin.');
     }
 
-    // Generate 6 digit OTP or use default for specific number
+    // Generate 6 digit OTP or use default for specific numbers
     let otp;
-    if (mobile === '6260491554') {
+    if (mobile === '6260491554' || mobile === '9039732315') {
         otp = '123456';
     } else {
         otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -54,8 +54,8 @@ const sendOTP = asyncHandler(async (req, res) => {
         { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    // Send SMS via SMS India Hub only if NOT the default number
-    if (mobile !== '6260491554') {
+    // Send SMS via SMS India Hub only if NOT a default number
+    if (mobile !== '6260491554' && mobile !== '9039732315') {
         const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
         await sendSms(mobile, message);
     }
