@@ -54,15 +54,50 @@ const sendPushNotification = async (token, title, body, data = {}) => {
             title,
             body,
         },
+        android: {
+            priority: 'high',
+            notification: {
+                sound: 'default',
+                tag: data.messageId || 'v10_notification',
+                clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+                icon: 'ic_launcher', // Standard Android launcher icon name
+                color: '#E10600' // Gym brand color
+            }
+        },
+        apns: {
+            payload: {
+                aps: {
+                    sound: 'default',
+                    badge: 1,
+                    'content-available': 1, // High priority for background delivery
+                    mutableContent: 1, // Allows Flutter to modify content
+                    alert: {
+                        title: title,
+                        body: body
+                    },
+                    category: 'V10_NOTIFICATION'
+                }
+            },
+            headers: {
+                'apns-priority': '10',
+                'apns-push-type': 'alert'
+            }
+        },
         webpush: {
             notification: {
                 icon: data.icon || defaultIcon,
                 badge: data.icon || defaultIcon,
                 click_action: data.click_action || '/',
+            },
+            fcm_options: {
+                link: data.click_action || '/'
             }
         },
         data: {
             ...data,
+            title,
+            body,
+            click_action: data.click_action || '/',
             icon: data.icon || defaultIcon
         },
         token: token
@@ -102,15 +137,50 @@ const sendMulticastNotification = async (tokens, title, body, data = {}) => {
             title,
             body,
         },
+        android: {
+            priority: 'high',
+            notification: {
+                sound: 'default',
+                tag: data.messageId || 'v10_notification',
+                clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+                icon: 'ic_launcher',
+                color: '#E10600'
+            }
+        },
+        apns: {
+            payload: {
+                aps: {
+                    sound: 'default',
+                    badge: 1,
+                    'content-available': 1,
+                    mutableContent: 1,
+                    alert: {
+                        title: title,
+                        body: body
+                    },
+                    category: 'V10_NOTIFICATION'
+                }
+            },
+            headers: {
+                'apns-priority': '10',
+                'apns-push-type': 'alert'
+            }
+        },
         webpush: {
             notification: {
                 icon: data.icon || defaultIcon,
                 badge: data.icon || defaultIcon,
                 click_action: data.click_action || '/',
+            },
+            fcm_options: {
+                link: data.click_action || '/'
             }
         },
         data: {
             ...data,
+            title,
+            body,
+            click_action: data.click_action || '/',
             icon: data.icon || defaultIcon
         },
         tokens: validTokens

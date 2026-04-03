@@ -53,8 +53,18 @@ const FCMHandler = () => {
                 const fcmToken = await requestNotificationPermission(registration);
 
                 if (fcmToken) {
-                    const isMobileUser = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    const platform = adminInfo ? 'web' : (isMobileUser ? 'app' : 'web');
+                    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    const isAndroid = /Android/i.test(navigator.userAgent);
+                    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                    
+                    // If it's a mobile device, we check if it's likely the Flutter app or a PWA
+                    let platform = 'web';
+                    if (adminInfo) {
+                        platform = 'web'; // Admin is usually web
+                    } else if (isIOS || isAndroid) {
+                        // If it's iOS and not standalone, Web Push might not work unless it's the Flutter wrapper
+                        platform = isStandalone ? 'pwa' : 'app';
+                    }
 
                     console.log(`FCM: 📤 Syncing ${adminInfo ? 'Admin' : 'Member'} Token to Backend (${platform})...`);
 
