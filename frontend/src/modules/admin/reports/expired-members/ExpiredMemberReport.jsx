@@ -220,6 +220,7 @@ const ExpiredMemberReport = () => {
       const formatted = (data.members || []).map(row => ({
         'Client Id': row.memberId || 'N/A',
         'Name': `${row.firstName || ''} ${row.lastName || ''}`,
+        'Gender': row.gender || 'N/A',
         'Mobile': row.mobile || 'N/A',
         'Membership Type': 'General Training',
         'Plan Name': row.packageName || '-',
@@ -437,7 +438,14 @@ const ExpiredMemberReport = () => {
                         onClick={() => navigate(`/admin/members/profile/${row._id}/memberships`)}
                         className="flex flex-col cursor-pointer group/name"
                       >
-                        <span className="text-[#3b82f6] uppercase font-black group-hover/name:underline">{row.firstName} {row.lastName}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[#3b82f6] uppercase font-black group-hover/name:underline">{row.firstName} {row.lastName}</span>
+                          {row.gender && (
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${row.gender === 'Male' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : row.gender === 'Female' ? 'bg-pink-50 text-pink-600 dark:bg-pink-500/10 dark:text-pink-400' : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'}`}>
+                              {row.gender}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[#3b82f6] text-[12px] font-bold mt-0.5">{row.mobile}</span>
                       </div>
                     </td>
