@@ -189,7 +189,7 @@ const getBalanceDueReport = asyncHandler(async (req, res) => {
 // @desc    Get Membership Expiry / Expired Report
 // @route   GET /api/admin/reports/membership-expiry
 const getMembershipExpiryReport = asyncHandler(async (req, res) => {
-    const { status, fromDate, toDate, search, membershipType, trainer, closedBy } = req.query;
+    const { status, fromDate, toDate, search, membershipType, trainer, closedBy, gender } = req.query;
     const pageSize = Number(req.query.pageSize) || Number(req.query.limit) || 10;
     const page = Number(req.query.pageNumber) || Number(req.query.page) || 1;
 
@@ -240,6 +240,10 @@ const getMembershipExpiryReport = asyncHandler(async (req, res) => {
     // Advanced Filters
     if (membershipType && membershipType !== 'All' && !membershipType.includes('Select')) {
         query.packageNameStatic = { $regex: membershipType, $options: 'i' };
+    }
+
+    if (gender && gender !== 'All' && !gender.includes('Select')) {
+        query.gender = { $regex: new RegExp(`^${gender}$`, 'i') };
     }
 
     if (trainer && !trainer.includes('Select') && !trainer.includes('No Trainers')) {

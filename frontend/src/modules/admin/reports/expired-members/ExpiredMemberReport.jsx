@@ -142,6 +142,7 @@ const ExpiredMemberReport = () => {
 
   const filterOptions = {
     'Select Membership Type': ['All', 'General Training', 'Personal Training', 'Group Ex'],
+    'Select Gender': ['All', 'Male', 'Female', 'Other'],
     'Select Trainer': trainers.length > 0 ? [{ id: 'All', name: 'All' }, ...trainers] : [{ id: 'none', name: 'No Trainers Found' }],
     'Select Closed By': employees.length > 0 ? [{ id: 'All', name: 'All' }, ...employees] : [{ id: 'none', name: 'No Employees Found' }],
   };
@@ -170,6 +171,7 @@ const ExpiredMemberReport = () => {
         fromDate: fromDate?.split('-').reverse().join('-') || '',
         toDate: toDate?.split('-').reverse().join('-') || '',
         membershipType: filterValues['Select Membership Type'] || '',
+        gender: filterValues['Select Gender'] || '',
         trainer: filterValues['Select Trainer']?.id || '',
         closedBy: filterValues['Select Closed By']?.id || ''
       });
@@ -207,6 +209,7 @@ const ExpiredMemberReport = () => {
         fromDate: fromDate?.split('-').reverse().join('-') || '',
         toDate: toDate?.split('-').reverse().join('-') || '',
         membershipType: filterValues['Select Membership Type'] || '',
+        gender: filterValues['Select Gender'] || '',
         trainer: filterValues['Select Trainer']?.id || '',
         closedBy: filterValues['Select Closed By']?.id || ''
       });
