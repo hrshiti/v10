@@ -428,7 +428,7 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
         const logs = await MemberAttendance.find(query)
             .populate({
                 path: 'memberId',
-                select: 'firstName lastName mobile packageNameStatic packageId endDate assignedTrainer membershipType',
+                select: 'firstName lastName mobile packageNameStatic packageId endDate assignedTrainer membershipType status',
                 populate: { path: 'packageId', select: 'name' },
                 match: membershipType && membershipType !== 'Membership Type' ? { membershipType } : {}
             })
@@ -446,6 +446,7 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
             mobile: log.memberId?.mobile || 'N/A',
             packageName: log.memberId?.packageName || 'N/A',
             endDate: log.memberId?.endDate,
+            status: log.memberId?.status,
             checkIn: log.checkIn,
             method: log.method,
             trainingType: log.trainingType || log.memberId?.membershipType || 'General'
@@ -532,7 +533,8 @@ const getAttendanceReport = asyncHandler(async (req, res) => {
             endDate: item.memberInfo.endDate,
             trainerName: item.trainerInfo ? `${item.trainerInfo.firstName} ${item.trainerInfo.lastName}` : 'N/A',
             lastMarked: item.lastMarked,
-            attended: item.attendedCount
+            attended: item.attendedCount,
+            status: item.memberInfo.status
         }));
         result.total = total;
         result.pages = Math.ceil(total / pageSize);
