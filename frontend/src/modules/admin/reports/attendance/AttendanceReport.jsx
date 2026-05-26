@@ -300,15 +300,16 @@ const AttendanceReport = () => {
                     <th className="px-6 py-5 uppercase tracking-wider">Member Name</th>
                     <th className="px-6 py-5 uppercase tracking-wider">Mobile Number</th>
                     <th className="px-6 py-5 uppercase tracking-wider">Membership Plan</th>
+                    <th className="px-6 py-5 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-5 uppercase tracking-wider">Check-in Method</th>
                     <th className="px-6 py-5 uppercase tracking-wider">Training Type</th>
                   </tr>
                 </thead>
                 <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                   {isLoading ? (
-                    <tr><td colSpan="6" className="text-center py-10">Loading audit logs...</td></tr>
+                    <tr><td colSpan="7" className="text-center py-10">Loading audit logs...</td></tr>
                   ) : reportData.length === 0 ? (
-                    <tr><td colSpan="6" className="text-center py-10">No logs found</td></tr>
+                    <tr><td colSpan="7" className="text-center py-10">No logs found</td></tr>
                   ) : (
                     reportData.map((row, idx) => (
                       <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
@@ -327,6 +328,14 @@ const AttendanceReport = () => {
                         </td>
                         <td className="px-6 py-7 font-black">{row.mobile || 'N/A'}</td>
                         <td className="px-6 py-7 uppercase">{row.packageName || 'N/A'}</td>
+                        <td className="px-6 py-7">
+                          {(() => {
+                              const isExpired = row.status === 'Expired' || (row.endDate && new Date(row.endDate) < new Date(new Date().setHours(0,0,0,0)));
+                              return isExpired 
+                                  ? <span className="px-3 py-1 rounded-full text-[11px] font-black border border-red-500/30 bg-red-500/10 text-red-500">EXPIRED</span>
+                                  : <span className="px-3 py-1 rounded-full text-[11px] font-black border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">ACTIVE</span>;
+                          })()}
+                        </td>
                         <td className="px-6 py-7">
                           <span className={`px-3 py-1 rounded-full text-[11px] font-black border ${row.method === 'QR' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500' : 'border-blue-500/30 bg-blue-500/10 text-blue-500'}`}>
                             {row.method || 'Manual'}
@@ -348,6 +357,7 @@ const AttendanceReport = () => {
                   <tr className={`text-[12px] font-black border-b transition-none ${isDarkMode ? 'bg-white/5 border-white/5 text-gray-400' : 'bg-white border-gray-100 text-[rgba(0,0,0,0.6)]'}`}>
                     <th className="px-6 py-5">Name & Number</th>
                     <th className="px-6 py-5">Membership Plan</th>
+                    <th className="px-6 py-5">Status</th>
                     <th className="px-6 py-5">Membership Type</th>
                     <th className="px-6 py-5 text-center">Attended Sessions</th>
                     <th className="px-6 py-5 text-center">Total Sessions</th>
@@ -358,9 +368,9 @@ const AttendanceReport = () => {
                 </thead>
                 <tbody className={`text-[13px] font-bold transition-none ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                   {isLoading ? (
-                    <tr><td colSpan="8" className="text-center py-10">Loading...</td></tr>
+                    <tr><td colSpan="9" className="text-center py-10">Loading...</td></tr>
                   ) : reportData.length === 0 ? (
-                    <tr><td colSpan="8" className="text-center py-10">No attendance records found</td></tr>
+                    <tr><td colSpan="9" className="text-center py-10">No attendance records found</td></tr>
                   ) : (
                     reportData.map((row, idx) => (
                       <tr key={idx} className={`border-b transition-none ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
@@ -374,6 +384,14 @@ const AttendanceReport = () => {
                           </div>
                         </td>
                         <td className="px-6 py-8">{row.packageName || '-'}</td>
+                        <td className="px-6 py-8">
+                          {(() => {
+                              const isExpired = row.status === 'Expired' || (row.endDate && new Date(row.endDate) < new Date(new Date().setHours(0,0,0,0)));
+                              return isExpired 
+                                  ? <span className="px-3 py-1 rounded-full text-[11px] font-black border border-red-500/30 bg-red-500/10 text-red-500">EXPIRED</span>
+                                  : <span className="px-3 py-1 rounded-full text-[11px] font-black border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">ACTIVE</span>;
+                          })()}
+                        </td>
                         <td className="px-6 py-8">General Training</td>
                         <td className="px-6 py-8 text-center font-black">{row.attended}</td>
                         <td className="px-6 py-8 text-center font-black">-</td>
