@@ -6,7 +6,8 @@ import {
     MoreVertical,
     UserPlus,
     MessageSquare,
-    ShoppingCart
+    ShoppingCart,
+    ClipboardList
 } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -226,6 +227,13 @@ const Dashboard = () => {
                     >
                         <MessageSquare size={18} />
                         New Enquiry
+                    </button>
+                    <button
+                        onClick={() => navigate('/admin/reports/attendance')}
+                        className="bg-[#3b82f6] hover:bg-[#2563eb] text-white px-5 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-600/20"
+                    >
+                        <ClipboardList size={18} />
+                        Attendance Log
                     </button>
                     <button
                         onClick={handleRefresh}
