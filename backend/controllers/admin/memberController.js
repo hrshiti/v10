@@ -813,6 +813,8 @@ const createFreshSale = asyncHandler(async (req, res) => {
     // Mark previous subscriptions as not current
     await Subscription.updateMany({ memberId: member._id }, { isCurrent: false });
 
+    let remainingPaid = Number(paidAmount) || 0;
+
     // Create subscriptions for each selected plan
     for (const plan of selectedPlans) {
         const start = new Date(plan.startDate);
@@ -822,6 +824,9 @@ const createFreshSale = asyncHandler(async (req, res) => {
         } else {
             end.setDate(end.getDate() + plan.durationValue);
         }
+
+        const currentPaid = Math.max(0, Math.min(plan.cost, remainingPaid));
+        remainingPaid -= currentPaid;
 
         await Subscription.create({
             memberId: member._id,
@@ -833,7 +838,7 @@ const createFreshSale = asyncHandler(async (req, res) => {
             startDate: start,
             endDate: end,
             totalAmount: plan.cost,
-            paidAmount: plan.cost,
+            paidAmount: currentPaid,
             status: 'Active',
             isCurrent: true,
             assignedTrainer: plan.trainerId || null,
