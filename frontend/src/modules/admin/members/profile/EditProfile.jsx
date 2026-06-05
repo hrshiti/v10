@@ -141,6 +141,7 @@ const EditProfile = () => {
         name: '',
         mobile: '',
         email: '',
+        serialNumber: '',
         clientId: '',
         emergencyName: '',
         emergencyNumber: '',
@@ -158,6 +159,7 @@ const EditProfile = () => {
                 name: `${memberData.firstName || ''} ${memberData.lastName || ''}`.trim(),
                 mobile: memberData.mobile || '',
                 email: memberData.email || '',
+                serialNumber: memberData.serialNumber || '',
                 clientId: memberData.memberId || id || '',
                 emergencyName: memberData.emergencyContact?.name || '',
                 emergencyNumber: memberData.emergencyContact?.number || '',
@@ -211,6 +213,7 @@ const EditProfile = () => {
                 lastName,
                 mobile: formData.mobile,
                 email: formData.email,
+                serialNumber: formData.serialNumber,
                 gender: formData.gender,
                 maritalStatus: formData.maritalStatus,
                 dob: dob,
@@ -324,6 +327,18 @@ const EditProfile = () => {
                             value={formData.clientId}
                             onChange={handleChange}
                             className={`w-full px-4 py-3 border rounded-lg text-sm outline-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
+                        />
+                    </div>
+
+                    {/* Serial Number */}
+                    <div className="space-y-2">
+                        <label className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Serial Number (Sr. No.)</label>
+                        <input
+                            type="number"
+                            name="serialNumber"
+                            value={formData.serialNumber}
+                            onChange={handleChange}
+                            className={`w-full px-4 py-3 border rounded-lg text-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-gray-300'}`}
                         />
                     </div>
 

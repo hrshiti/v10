@@ -69,6 +69,7 @@ const AddMember = () => {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedPackage, setSelectedPackage] = useState(null);
+    const [nextSerialNumber, setNextSerialNumber] = useState(null);
 
     const [formData, setFormData] = useState({
         firstName: existingMember?.firstName || '',
@@ -99,6 +100,7 @@ const AddMember = () => {
         splitPayment: { cash: 0, online: 0 },
         commitmentDate: '',
         comment: '',
+        serialNumber: existingMember?.serialNumber || '',
         surchargePercent: 0,
         applyTaxes: false,
         taxPercent: 0
@@ -116,16 +118,23 @@ const AddMember = () => {
                 if (!token) return;
 
                 const headers = { 'Authorization': `Bearer ${token}` };
-                const [pkgRes, trainerRes] = await Promise.all([
+                const [pkgRes, trainerRes, serialRes] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/admin/packages`, { headers }),
-                    fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, { headers })
+                    fetch(`${API_BASE_URL}/api/admin/employees/role/Trainer`, { headers }),
+                    fetch(`${API_BASE_URL}/api/admin/members/next-serial-number`, { headers })
                 ]);
 
                 const pkgData = await pkgRes.json();
                 const trainerData = await trainerRes.json();
+                const serialData = serialRes.ok ? await serialRes.json() : null;
 
                 setPackages(Array.isArray(pkgData) ? pkgData.filter(p => p.active) : []);
                 setTrainers(Array.isArray(trainerData) ? trainerData : []);
+                
+                if (serialData && serialData.nextSerialNumber) {
+                    setNextSerialNumber(serialData.nextSerialNumber);
+                    setFormData(prev => ({ ...prev, serialNumber: serialData.nextSerialNumber }));
+                }
 
                 if (adminInfo?._id) {
                     setFormData(prev => ({ ...prev, closedBy: adminInfo._id }));
@@ -378,7 +387,27 @@ const AddMember = () => {
                 <div className="lg:col-span-8 space-y-8">
                     {/* Personal Information Card */}
                     <div className={`p-8 rounded-2xl border ${isDarkMode ? 'bg-[#1a1a1a] shadow-2xl shadow-black/50' : 'bg-white border-gray-100 shadow-xl shadow-gray-200/50'}`}>
-                        <SectionHeader icon={User} title="Member Registration" isDarkMode={isDarkMode} />
+                        <div className="flex justify-between items-center mb-6 border-b pb-2 dark:border-white/10 border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500">
+                                    <User size={20} />
+                                </div>
+                                <h3 className={`text-[17px] font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                                    Member Registration
+                                </h3>
+                            </div>
+                            {(nextSerialNumber || isExistingMember) && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[12px] font-black uppercase text-gray-500">SR. NO:</span>
+                                    <input 
+                                        type="number"
+                                        value={formData.serialNumber}
+                                        onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+                                        className={`w-24 px-3 py-1 bg-orange-500/10 text-orange-500 rounded-lg text-sm font-black text-center tracking-widest border border-orange-500/20 outline-none focus:ring-2 focus:ring-orange-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isDarkMode ? 'text-orange-400 bg-orange-500/20' : ''}`}
+                                    />
+                                </div>
+                            )}
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <FormInput
                                 label="First Name*"

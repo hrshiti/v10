@@ -1020,7 +1020,7 @@ const Members = () => {
             <Search size={20} className="absolute left-4 top-3.5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by Name, ID or Mobile"
+              placeholder="Search by Name, ID, Mobile, or Sr. No."
               className={`w-full pl-12 pr-4 py-2.5 border rounded-xl text-[15px] font-bold outline-none transition-none shadow-sm ${isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white placeholder:text-gray-500' : 'bg-[#f8f9fa] border-gray-200 text-black placeholder:text-gray-400'}`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -1064,6 +1064,7 @@ const Members = () => {
                     onChange={toggleSelectAll}
                   />
                 </th>
+                <th className="px-4 py-6 uppercase tracking-wider text-[11px]">Sr. No.</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-[11px]">Member ID</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-[11px]">Name & Mob. No.</th>
                 <th className="px-4 py-6 uppercase tracking-wider text-center text-[11px]">Gender</th>
@@ -1094,6 +1095,7 @@ const Members = () => {
                         onChange={() => toggleSelectMember(row._id)}
                       />
                     </td>
+                    <td className="px-4 py-6 font-black text-gray-800 dark:text-gray-300">{row.serialNumber || '-'}</td>
                     <td className="px-4 py-6 text-red-500">{row.memberId}</td>
                     <td className="px-4 py-6">
                       <div

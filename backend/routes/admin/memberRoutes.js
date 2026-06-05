@@ -9,6 +9,7 @@ const {
     getMemberStats,
     renewMembership,
     createFreshSale,
+    getNextSerialNumber,
     extendMembership,
     changeStartDate,
     getMemberSubscriptions,
@@ -59,6 +60,7 @@ router.route('/')
     .post(createMember);
 
 router.get('/stats', getMemberStats);
+router.get('/next-serial-number', getNextSerialNumber);
 
 router.route('/:id')
     .get(getMemberById)

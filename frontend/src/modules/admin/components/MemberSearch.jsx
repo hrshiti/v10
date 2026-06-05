@@ -114,8 +114,13 @@ const MemberSearch = ({ isDarkMode }) => {
                                             )}
                                         </div>
                                         <div>
-                                            <p className={`text-[15px] font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                                            <p className={`text-[15px] font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                                                 {member.firstName} {member.lastName}
+                                                {member.serialNumber && (
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${isDarkMode ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'}`}>
+                                                        Sr. {member.serialNumber}
+                                                    </span>
+                                                )}
                                             </p>
                                             <div className="flex items-center gap-1.5 text-gray-500 text-[12px] font-medium">
                                                 <Phone size={12} />

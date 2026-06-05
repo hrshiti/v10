@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const memberSchema = new mongoose.Schema({
     memberId: { type: String, unique: true },
+    serialNumber: { type: Number, unique: true, sparse: true }, // Added sparse to avoid duplicate null errors for existing records initially
 
     // Personal Info
     firstName: { type: String, required: true },
@@ -122,7 +123,18 @@ memberSchema.virtual('name').get(function () {
 // new wla pre -hook we use this 
 
 
-memberSchema.pre('save', async function () {
+memberSchema.pre('save', async function (next) {
+
+    // 0️ Safe Serial Number generation for new members
+    if (this.isNew && !this.serialNumber) {
+        try {
+            const lastMember = await mongoose.model('Member').findOne({}, {}, { sort: { 'serialNumber': -1 } });
+            this.serialNumber = lastMember && lastMember.serialNumber ? lastMember.serialNumber + 1 : 1;
+        } catch (error) {
+            console.error("Error generating serial number:", error);
+            // Optionally handle error, but let's proceed for now
+        }
+    }
 
     // 1️ Safe Member ID generation
     if (!this.memberId) {

@@ -175,6 +175,11 @@ const getMembers = asyncHandler(async (req, res) => {
             { mobile: { $regex: req.query.keyword, $options: 'i' } },
             { memberId: { $regex: req.query.keyword, $options: 'i' } }
         ];
+
+        // If the keyword is a valid number, also search by serialNumber
+        if (!isNaN(req.query.keyword) && req.query.keyword.trim() !== '') {
+            matchQuery.$or.push({ serialNumber: Number(req.query.keyword) });
+        }
     }
 
     if (req.query.gender && req.query.gender !== 'Gender' && req.query.gender !== 'All') {
@@ -258,7 +263,22 @@ const getMembers = asyncHandler(async (req, res) => {
         }
     }
 
-    pipeline.push({ $sort: { createdAt: -1 } });
+    if (req.query.keyword && !isNaN(req.query.keyword) && req.query.keyword.trim() !== '') {
+        pipeline.push({
+            $addFields: {
+                isExactSerialMatch: {
+                    $cond: [
+                        { $eq: ["$serialNumber", Number(req.query.keyword)] },
+                        1,
+                        0
+                    ]
+                }
+            }
+        });
+        pipeline.push({ $sort: { isExactSerialMatch: -1, serialNumber: -1, createdAt: -1 } });
+    } else {
+        pipeline.push({ $sort: { serialNumber: -1, createdAt: -1 } });
+    }
 
     pipeline.push({
         $facet: {
@@ -365,7 +385,7 @@ const createMember = asyncHandler(async (req, res) => {
         totalAmount, paidAmount, discount, assignedTrainer, closedBy,
         emergencyContactName, emergencyContactNumber,
         enquiryId, paymentMode, commitmentDate, comment, splitPayment,
-        subTotal, taxAmount
+        subTotal, taxAmount, serialNumber
     } = req.body;
 
     const memberExists = await Member.findOne({ mobile });
@@ -396,7 +416,24 @@ const createMember = asyncHandler(async (req, res) => {
     }
     // ----------------------------
 
+    // --- SERIAL NUMBER COLLISION HANDLING ---
+    let finalSerialNumber = Number(serialNumber);
+    if (finalSerialNumber) {
+        const existingMemberWithSerial = await Member.findOne({ serialNumber: finalSerialNumber });
+        if (existingMemberWithSerial) {
+            // Find absolute max
+            const lastMember = await Member.findOne().sort({ serialNumber: -1 });
+            const newMaxSerial = lastMember && lastMember.serialNumber ? lastMember.serialNumber + 1 : 1;
+            
+            // Re-assign the old member's serial number to max + 1
+            existingMemberWithSerial.serialNumber = newMaxSerial;
+            await existingMemberWithSerial.save();
+        }
+    }
+    // ----------------------------------------
+
     const member = await Member.create({
+        serialNumber: finalSerialNumber || undefined,
         firstName, lastName, mobile, email, gender, dob, anniversaryDate, maritalStatus, address,
         membershipType: membershipType || 'General Training',
         packageNameStatic: packageName,
@@ -472,6 +509,25 @@ const updateMember = asyncHandler(async (req, res) => {
     const member = await Member.findById(req.params.id);
 
     if (member) {
+        // --- SERIAL NUMBER COLLISION HANDLING FOR UPDATE ---
+        if (req.body.serialNumber) {
+            let finalSerialNumber = Number(req.body.serialNumber);
+            if (finalSerialNumber && member.serialNumber !== finalSerialNumber) {
+                const existingMemberWithSerial = await Member.findOne({ serialNumber: finalSerialNumber });
+                if (existingMemberWithSerial && existingMemberWithSerial._id.toString() !== member._id.toString()) {
+                    // Find absolute max
+                    const lastMember = await Member.findOne().sort({ serialNumber: -1 });
+                    const newMaxSerial = lastMember && lastMember.serialNumber ? lastMember.serialNumber + 1 : 1;
+                    
+                    // Re-assign the old member's serial number to max + 1
+                    existingMemberWithSerial.serialNumber = newMaxSerial;
+                    await existingMemberWithSerial.save();
+                }
+                member.serialNumber = finalSerialNumber;
+            }
+        }
+        // ---------------------------------------------------
+
         member.firstName = req.body.firstName || member.firstName;
         member.lastName = req.body.lastName || member.lastName;
         member.email = req.body.email === "" ? "" : (req.body.email || member.email);
@@ -1563,6 +1619,14 @@ const deleteSubscription = asyncHandler(async (req, res) => {
         message: 'Subscription and associated payments deleted successfully'
     });
 });
+// @desc    Get Next Serial Number
+// @route   GET /api/admin/members/next-serial-number
+// @access  Private/Admin
+const getNextSerialNumber = asyncHandler(async (req, res) => {
+    const lastMember = await Member.findOne().sort({ serialNumber: -1 });
+    const nextSerialNumber = lastMember && lastMember.serialNumber ? lastMember.serialNumber + 1 : 1;
+    res.json({ nextSerialNumber });
+});
 
 module.exports = {
     getMembers,
@@ -1573,6 +1637,7 @@ module.exports = {
     getMemberStats,
     renewMembership,
     createFreshSale,
+    getNextSerialNumber,
     extendMembership,
     changeStartDate,
     getMemberSubscriptions,
