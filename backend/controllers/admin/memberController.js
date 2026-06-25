@@ -492,7 +492,7 @@ const createMember = asyncHandler(async (req, res) => {
         });
 
         // Force Sync Member Dues
-        member.dueAmount = Math.max(0, (Number(totalAmount)) - (Number(paidAmount) + Number(discount || 0)));
+        member.dueAmount = Math.max(0, (Number(totalAmount)) - (Number(paidAmount)));
         await member.save();
 
         res.status(201).json(member);
@@ -868,7 +868,7 @@ const createFreshSale = asyncHandler(async (req, res) => {
     member.totalAmount += Number(totalAmount);
     member.paidAmount += Number(paidAmount);
     member.discount += Number(discount || 0);
-    member.dueAmount = member.totalAmount - (member.paidAmount + member.discount);
+    member.dueAmount = Math.max(0, member.totalAmount - member.paidAmount);
     if (commitmentDate) member.commitmentDate = commitmentDate;
     if (closedBy) member.closedBy = closedBy;
     member.status = 'Active';
@@ -1400,7 +1400,7 @@ const payDue = asyncHandler(async (req, res) => {
     member.paidAmount += Number(amount);
 
     // Update or clear commitment date
-    const remainingDue = member.totalAmount - (member.paidAmount + (member.discount || 0));
+    const remainingDue = member.totalAmount - member.paidAmount;
     if (remainingDue <= 0) {
         member.commitmentDate = null;
     } else {
@@ -1494,7 +1494,7 @@ const payDueMember = asyncHandler(async (req, res) => {
     member.paidAmount += payAmount;
 
     // Update or clear commitment date
-    if (member.totalAmount - (member.paidAmount + (member.discount || 0)) <= 0) {
+    if (member.totalAmount - member.paidAmount <= 0) {
         member.commitmentDate = null;
     } else if (req.body.commitmentDate) {
         member.commitmentDate = req.body.commitmentDate;
@@ -1570,7 +1570,7 @@ const deleteSubscription = asyncHandler(async (req, res) => {
     member.totalAmount = Math.max(0, (member.totalAmount || 0) - (subscription.totalAmount || 0));
     member.paidAmount = Math.max(0, (member.paidAmount || 0) - (subscription.paidAmount || 0));
     member.discount = Math.max(0, (member.discount || 0) - (subscription.discount || 0));
-    member.dueAmount = Math.max(0, member.totalAmount - (member.paidAmount + member.discount));
+    member.dueAmount = Math.max(0, member.totalAmount - member.paidAmount);
 
     // 2. Delete matching Sale records
     const saleToDelete = await Sale.findOne({

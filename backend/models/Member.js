@@ -146,9 +146,7 @@ memberSchema.pre('save', async function (next) {
     // 2️ Calculate Due Amount properly
     const total = Number(this.totalAmount) || 0;
     const paid = Number(this.paidAmount) || 0;
-    const disc = Number(this.discount) || 0;
-
-    this.dueAmount = Math.max(0, total - (paid + disc));
+    this.dueAmount = Math.max(0, total - paid);
 
     // 3️ Safe Status Update
     if (this.endDate) {

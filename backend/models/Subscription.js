@@ -168,8 +168,7 @@ subscriptionSchema.pre('save', async function () {
 
     const total = Number(this.totalAmount) || 0;
     const paid = Number(this.paidAmount) || 0;
-    const disc = Number(this.discount) || 0;
-    this.dueAmount = Math.max(0, total - (paid + disc));
+    this.dueAmount = Math.max(0, total - paid);
 });
 
 module.exports = mongoose.model('Subscription', subscriptionSchema);
