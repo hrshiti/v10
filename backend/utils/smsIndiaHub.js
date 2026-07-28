@@ -25,6 +25,13 @@ const sendSms = async (mobile, message) => {
             route: 1 // Transactional route usually
         };
 
+        const dltTemplateId = process.env.SMSINDIAHUB_DLT_TEMPLATE_ID;
+        if (dltTemplateId) {
+            // According to some documentation it can be templateid or EntityId. 
+            // In SMSIndiaHub typically it's templateid or DLTTemplateId, let's pass it as templateid.
+            params.templateid = dltTemplateId;
+        }
+
         const response = await axios.get(url, { params });
 
         // Log response for debugging but be careful with sensitive info

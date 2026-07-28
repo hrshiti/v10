@@ -56,7 +56,7 @@ const sendOTP = asyncHandler(async (req, res) => {
 
     // Send SMS via SMS India Hub only if NOT a default number
     if (mobile !== '6260491554' && mobile !== '9039732315') {
-        const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+        const message = `Welcome to the V10 gym powered by Appzeto. Your OTP for registration is ${otp}.BGADEC`;
         await sendSms(mobile, message);
     }
 
