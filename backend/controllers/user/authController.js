@@ -41,11 +41,17 @@ const sendOTP = asyncHandler(async (req, res) => {
 
     // Generate 6 digit OTP or use default for specific numbers
     let otp;
-    if (mobile === '6260491554' || mobile === '9039732315') {
+    if (mobile === '9039732315') {
         otp = '123456';
     } else {
         otp = Math.floor(100000 + Math.random() * 900000).toString();
     }
+
+    console.log(`\n=========================================`);
+    console.log(`[AUTH] OTP REQUEST RECEIVED`);
+    console.log(`[AUTH] Mobile: ${mobile}`);
+    console.log(`[AUTH] Generated OTP: ${otp}`);
+    console.log(`=========================================\n`);
 
     // Save OTP to DB (upsert)
     await Otp.findOneAndUpdate(
@@ -55,9 +61,18 @@ const sendOTP = asyncHandler(async (req, res) => {
     );
 
     // Send SMS via SMS India Hub only if NOT a default number
-    if (mobile !== '6260491554' && mobile !== '9039732315') {
-        const message = `Welcome to the V10 gym powered by Appzeto. Your OTP for registration is ${otp}.BGADEC`;
-        await sendSms(mobile, message);
+    if (mobile !== '9039732315') {
+        // Matching the exact DLT template: Welcome to the ##var## powered by Appzeto. Your OTP for registration is ##var##.BGADEC
+        const message = `Welcome to the V10GYM powered by Appzeto. Your OTP for registration is ${otp}.BGADEC`;
+        console.log(`[AUTH] Attempting to send SMS to ${mobile}...`);
+        try {
+            const smsResult = await sendSms(mobile, message);
+            console.log(`[AUTH] SMS send result:`, smsResult);
+        } catch (error) {
+            console.error(`[AUTH] Failed to send SMS to ${mobile}:`, error);
+        }
+    } else {
+        console.log(`[AUTH] Skipped sending SMS, used default test number: ${mobile}`);
     }
 
     res.status(200).json({
