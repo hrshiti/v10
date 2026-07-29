@@ -1,53 +1,55 @@
 const axios = require('axios');
 
-const sendSms = async (mobile, message) => {
+/**
+ * SMSIndiaHub Service
+ * Uses the working pushsms.aspx endpoint with correct param names
+ */
+
+const sendSms = async (mobile, message, options = {}) => {
+    const apiKey = process.env.SMSINDIAHUB_API_KEY;
+    const senderId = options.senderId || process.env.SMSINDIAHUB_SENDER_ID;
+
+    console.log(`[SMS_DEBUG] sendSms called for: ${mobile}`);
+    console.log(`[SMS_DEBUG] API Key exists: ${!!apiKey}, Sender ID: ${senderId}`);
+
+    if (!apiKey || !senderId) {
+        console.error('[SMS_DEBUG] Missing API Key or Sender ID in environment variables');
+        return false;
+    }
+
     try {
-        const apiKey = process.env.SMSINDIAHUB_API_KEY;
-        const senderId = process.env.SMSINDIAHUB_SENDER_ID;
+        // Prefix with 91 if it's a 10-digit number
+        const msisdn = mobile.length === 10 ? `91${mobile}` : mobile;
 
-        if (!apiKey || !senderId) {
-            console.error('SMS India Hub API Key or Sender ID missing in environment variables');
-            return false;
-        }
+        // Use the working pushsms endpoint with correct param names
+        let url = `http://cloud.smsindiahub.in/vendorsms/pushsms.aspx` +
+            `?APIKey=${apiKey}` +
+            `&msisdn=${msisdn}` +
+            `&sid=${senderId}` +
+            `&msg=${encodeURIComponent(message)}` +
+            `&fl=0` +
+            `&gwid=2`;
 
-        // SMS India Hub API endpoint
-        // Using standard transactional parameters: route=1, channel=2, DCS=0, flashsms=0
-        const url = `http://cloud.smsindiahub.in/api/mt/SendSMS`;
+        // Add PE ID and Template ID if available
+        const peid = options.peid || process.env.SMSINDIAHUB_PE_ID;
+        const templateId = options.templateId || process.env.SMSINDIAHUB_DLT_TEMPLATE_ID;
 
-        const params = {
-            APIKey: apiKey,
-            senderid: senderId,
-            channel: 2,
-            DCS: 0,
-            flashsms: 0,
-            number: mobile,
-            text: message,
-            route: 1 // Transactional route usually
-        };
+        if (peid) url += `&peid=${peid}`;
+        if (templateId) url += `&templateid=${templateId}`;
 
-        const dltTemplateId = process.env.SMSINDIAHUB_DLT_TEMPLATE_ID;
-        if (dltTemplateId) {
-            // According to some documentation it can be templateid or EntityId. 
-            // In SMSIndiaHub typically it's templateid or DLTTemplateId, let's pass it as templateid.
-            params.templateid = dltTemplateId;
-        }
+        console.log(`[SMS_DEBUG] Request URL (masked key): ${url.replace(apiKey, '***')}`);
 
-        const response = await axios.get(url, { params });
+        const response = await axios.get(url);
+        console.log(`[SMS_DEBUG] Response Status: ${response.status}`);
+        console.log(`[SMS_DEBUG] Response Data:`, response.data);
 
-        // Log response for debugging but be careful with sensitive info
-        console.log(`SMS sent to ${mobile}:`, response.data);
-        
-        // SMS India Hub usually returns a JSON with ErrorCode or similar
-        // Check documentation for success condition if possible, otherwise assume 200 OK
-        if (response.data && response.data.ErrorCode === '000') {
-            return true;
-        }
-
-        // Some responses might just be the JobId
         return true;
 
     } catch (error) {
-        console.error('Error sending SMS:', error.message);
+        console.error(`[SMS_DEBUG] Request Failed: ${error.message}`);
+        if (error.response) {
+            console.error(`[SMS_DEBUG] Response Data:`, error.response.data);
+        }
         return false;
     }
 };

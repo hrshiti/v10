@@ -1,0 +1,542 @@
+﻿commit 2d1e8b915e7a1a6dc15918f2a837288f9c270e56
+Author: Hritik <63942266+hrshiti@users.noreply.github.com>
+Date:   Tue Jul 28 13:10:40 2026 +0530
+
+    new changes
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+index 1b128aa..e56131d 100644
+--- a/backend/controllers/user/authController.js
++++ b/backend/controllers/user/authController.js
+@@ -56,7 +56,7 @@ const sendOTP = asyncHandler(async (req, res) => {
+ 
+     // Send SMS via SMS India Hub only if NOT a default number
+     if (mobile !== '6260491554' && mobile !== '9039732315') {
+-        const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
++        const message = `Welcome to the V10 gym powered by Appzeto. Your OTP for registration is ${otp}.BGADEC`;
+         await sendSms(mobile, message);
+     }
+ 
+
+commit 0bc1fb76bb15ee3eda566dd085d4c9291abd7208
+Author: mayurchadokar <mayurchadokar14@gmail.com>
+Date:   Fri Apr 3 14:18:51 2026 +0530
+
+    set by default okay
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+index 8a08e7b..1b128aa 100644
+--- a/backend/controllers/user/authController.js
++++ b/backend/controllers/user/authController.js
+@@ -39,9 +39,9 @@ const sendOTP = asyncHandler(async (req, res) => {
+         throw new Error('Your account has been blocked. Please contact admin.');
+     }
+ 
+-    // Generate 6 digit OTP or use default for specific number
++    // Generate 6 digit OTP or use default for specific numbers
+     let otp;
+-    if (mobile === '6260491554') {
++    if (mobile === '6260491554' || mobile === '9039732315') {
+         otp = '123456';
+     } else {
+         otp = Math.floor(100000 + Math.random() * 900000).toString();
+@@ -54,8 +54,8 @@ const sendOTP = asyncHandler(async (req, res) => {
+         { upsert: true, new: true, setDefaultsOnInsert: true }
+     );
+ 
+-    // Send SMS via SMS India Hub only if NOT the default number
+-    if (mobile !== '6260491554') {
++    // Send SMS via SMS India Hub only if NOT a default number
++    if (mobile !== '6260491554' && mobile !== '9039732315') {
+         const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+         await sendSms(mobile, message);
+     }
+
+commit 25f0e12ed00095d1c004068682f29108c176034a
+Author: mayurchadokar <mayurchadokar14@gmail.com>
+Date:   Tue Mar 3 15:47:29 2026 +0530
+
+    trainner logout problem is resolve
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+index 262b88a..8a08e7b 100644
+--- a/backend/controllers/user/authController.js
++++ b/backend/controllers/user/authController.js
+@@ -16,15 +16,16 @@ const sendOTP = asyncHandler(async (req, res) => {
+         throw new Error('Mobile number is required');
+     }
+ 
+-    // Check if member exists
+-    let user = await Member.findOne({ mobile });
+-    let role = 'member';
++    // Check if employee (Trainer) exists first
++    // Use regex for flexible matching (handles cases with/without country code if needed)
++    let user = await Employee.findOne({ mobile: mobile.trim() });
++    let role = 'trainer';
+ 
+-    // If not member, check if employee (Trainer)
++    // If not employee, check if member
+     if (!user) {
+-        user = await Employee.findOne({ mobile });
++        user = await Member.findOne({ mobile: mobile.trim() });
+         if (user) {
+-            role = 'trainer';
++            role = 'member';
+         }
+     }
+ 
+@@ -76,14 +77,15 @@ const verifyOTP = asyncHandler(async (req, res) => {
+         throw new Error('Mobile and OTP are required');
+     }
+ 
+-    // Check if member exists
+-    let user = await Member.findOne({ mobile });
+-    let role = 'member';
++    // Check if employee (Trainer) exists first
++    let user = await Employee.findOne({ mobile: mobile.trim() });
++    let role = 'trainer';
+ 
++    // If not employee, check if member
+     if (!user) {
+-        user = await Employee.findOne({ mobile });
++        user = await Member.findOne({ mobile: mobile.trim() });
+         if (user) {
+-            role = 'trainer';
++            role = 'member';
+         }
+     }
+ 
+
+commit f357d599c43e5449b53b33a3adc566f8ee4f5ae8
+Author: mayurchadokar <mayurchadokar14@gmail.com>
+Date:   Fri Feb 27 21:09:32 2026 +0530
+
+    user token expire problem is resolve
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+index 7932ec5..262b88a 100644
+--- a/backend/controllers/user/authController.js
++++ b/backend/controllers/user/authController.js
+@@ -117,7 +117,7 @@ const verifyOTP = asyncHandler(async (req, res) => {
+     const token = jwt.sign(
+         { id: user._id, role: role },
+         process.env.JWT_SECRET,
+-        { expiresIn: process.env.JWT_EXPIRE || '7d' }
++        { expiresIn: process.env.JWT_EXPIRE || '30d' }
+     );
+ 
+     res.json({
+
+commit ef8254955ff3c8381e444ff0666f7891342375ee
+Author: mayurchadokar <mayurchadokar14@gmail.com>
+Date:   Fri Feb 13 18:39:42 2026 +0530
+
+    push notification is applied
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+index 7fdf0aa..7932ec5 100644
+--- a/backend/controllers/user/authController.js
++++ b/backend/controllers/user/authController.js
+@@ -132,7 +132,48 @@ const verifyOTP = asyncHandler(async (req, res) => {
+     });
+ });
+ 
++// @desc    Save FCM Token
++// @route   PUT /api/user/auth/fcm-token
++// @access  Private
++const saveFCMToken = asyncHandler(async (req, res) => {
++    const { token, platform } = req.body;
++    console.log(`Backend User FCM: Request received for platform ${platform}`);
++
++    if (!token) {
++        console.error('Backend User FCM: Token missing in request body');
++        res.status(400);
++        throw new Error('Token is required');
++    }
++
++    let user = await Member.findById(req.user._id);
++
++    // If not member, check if employee (Trainer)
++    if (!user) {
++        user = await Employee.findById(req.user._id);
++    }
++
++    if (user) {
++        console.log(`Backend User FCM: Found user ${user.firstName} ${user.lastName}`);
++        if (!user.fcmTokens) user.fcmTokens = {};
++
++        if (platform === 'app' || platform === 'mobile') {
++            user.fcmTokens.app = token;
++        } else {
++            user.fcmTokens.web = token;
++        }
++
++        await user.save();
++        console.log(`Backend User FCM: Γ£à Token saved successfully`);
++        res.json({ success: true, message: 'FCM Token saved successfully' });
++    } else {
++        console.error('Backend User FCM: User not found in database');
++        res.status(404);
++        throw new Error('User not found');
++    }
++});
++
+ module.exports = {
+     sendOTP,
+-    verifyOTP
++    verifyOTP,
++    saveFCMToken
+ };
+
+commit 468611dee110092ed355eed424545af66ae3cc9a
+Author: mayurchadokar <mayurchadokar14@gmail.com>
+Date:   Fri Feb 13 12:14:42 2026 +0530
+
+    all changes done
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+index 91f52be..7fdf0aa 100644
+--- a/backend/controllers/user/authController.js
++++ b/backend/controllers/user/authController.js
+@@ -33,6 +33,11 @@ const sendOTP = asyncHandler(async (req, res) => {
+         throw new Error('User not found with this mobile number. Please register or contact admin.');
+     }
+ 
++    if (role === 'member' && user.isBlocked) {
++        res.status(403);
++        throw new Error('Your account has been blocked. Please contact admin.');
++    }
++
+     // Generate 6 digit OTP or use default for specific number
+     let otp;
+     if (mobile === '6260491554') {
+@@ -87,6 +92,11 @@ const verifyOTP = asyncHandler(async (req, res) => {
+         throw new Error('User not found');
+     }
+ 
++    if (role === 'member' && user.isBlocked) {
++        res.status(403);
++        throw new Error('Your account has been blocked. Please contact admin.');
++    }
++
+     // Verify OTP
+     const otpRecord = await Otp.findOne({ mobile });
+ 
+
+commit 01193a97895a0062d490e8af00edf3abd1b01cff
+Author: Abhishek Bhati <bhatiabhishek597@example.com>
+Date:   Thu Feb 12 13:16:48 2026 +0530
+
+    push11
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+index 4f4573a..91f52be 100644
+--- a/backend/controllers/user/authController.js
++++ b/backend/controllers/user/authController.js
+@@ -33,8 +33,13 @@ const sendOTP = asyncHandler(async (req, res) => {
+         throw new Error('User not found with this mobile number. Please register or contact admin.');
+     }
+ 
+-    // Generate 6 digit OTP
+-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
++    // Generate 6 digit OTP or use default for specific number
++    let otp;
++    if (mobile === '6260491554') {
++        otp = '123456';
++    } else {
++        otp = Math.floor(100000 + Math.random() * 900000).toString();
++    }
+ 
+     // Save OTP to DB (upsert)
+     await Otp.findOneAndUpdate(
+@@ -43,9 +48,11 @@ const sendOTP = asyncHandler(async (req, res) => {
+         { upsert: true, new: true, setDefaultsOnInsert: true }
+     );
+ 
+-    // Send SMS via SMS India Hub
+-    const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp};`;
+-    const result = await sendSms(mobile, message);
++    // Send SMS via SMS India Hub only if NOT the default number
++    if (mobile !== '6260491554') {
++        const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
++        await sendSms(mobile, message);
++    }
+ 
+     res.status(200).json({
+         success: true,
+
+commit c956e319bb6a322d8af037421b32560b2ed2eb98
+Author: Abhishek Bhati <bhatiabhishek597@example.com>
+Date:   Thu Feb 12 12:38:37 2026 +0530
+
+    push
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+index 328dcb1..4f4573a 100644
+--- a/backend/controllers/user/authController.js
++++ b/backend/controllers/user/authController.js
+@@ -2,6 +2,8 @@ const asyncHandler = require('express-async-handler');
+ const jwt = require('jsonwebtoken');
+ const Member = require('../../models/Member');
+ const Employee = require('../../models/Employee');
++const Otp = require('../../models/Otp');
++const sendSms = require('../../utils/smsIndiaHub');
+ 
+ // @desc    Send OTP to mobile
+ // @route   POST /api/user/auth/send-otp
+@@ -31,14 +33,23 @@ const sendOTP = asyncHandler(async (req, res) => {
+         throw new Error('User not found with this mobile number. Please register or contact admin.');
+     }
+ 
+-    // In a real app, send OTP via SMS service
+-    // For now, we simulate success
++    // Generate 6 digit OTP
++    const otp = Math.floor(100000 + Math.random() * 900000).toString();
++
++    // Save OTP to DB (upsert)
++    await Otp.findOneAndUpdate(
++        { mobile },
++        { otp, createdAt: Date.now() },
++        { upsert: true, new: true, setDefaultsOnInsert: true }
++    );
++
++    // Send SMS via SMS India Hub
++    const message = `Welcome to the V10 gym powered by SMSINDIAHUB. Your OTP for registration is ${otp};`;
++    const result = await sendSms(mobile, message);
++
+     res.status(200).json({
+         success: true,
+-        message: 'OTP sent successfully (Simulated)',
+-        // For development convenience, we can return the OTP or just assume 123456
+-        otp: '123456',
+-        role: role // Hint for frontend if needed, though mostly used in verify
++        message: 'OTP sent successfully'
+     });
+ });
+ 
+@@ -69,17 +80,27 @@ const verifyOTP = asyncHandler(async (req, res) => {
+         throw new Error('User not found');
+     }
+ 
+-    // Validate OTP (Simple check for demo)
+-    if (otp !== '123456') {
+-        res.status(401);
++    // Verify OTP
++    const otpRecord = await Otp.findOne({ mobile });
++
++    if (!otpRecord) {
++        res.status(400);
++        throw new Error('OTP expired or not found. Please request a new one.');
++    }
++
++    if (otpRecord.otp !== otp) {
++        res.status(400);
+         throw new Error('Invalid OTP');
+     }
+ 
++    // Clear OTP after successful verification
++    await Otp.deleteOne({ mobile });
++
+     // Generate JWT
+     const token = jwt.sign(
+         { id: user._id, role: role },
+         process.env.JWT_SECRET,
+-        { expiresIn: '30d' }
++        { expiresIn: process.env.JWT_EXPIRE || '7d' }
+     );
+ 
+     res.json({
+
+commit df3f820cdb6cb673429d2ff047e537454c75098b
+Author: mayurchadokar <mayurchadokar14@gmail.com>
+Date:   Sat Feb 7 18:05:01 2026 +0530
+
+    Trainer Panel , or User Panel, SuccessStory Module added some Admin Panel Issues Fix
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+index f18357d..328dcb1 100644
+--- a/backend/controllers/user/authController.js
++++ b/backend/controllers/user/authController.js
+@@ -1,6 +1,7 @@
+ const asyncHandler = require('express-async-handler');
+ const jwt = require('jsonwebtoken');
+ const Member = require('../../models/Member');
++const Employee = require('../../models/Employee');
+ 
+ // @desc    Send OTP to mobile
+ // @route   POST /api/user/auth/send-otp
+@@ -14,11 +15,20 @@ const sendOTP = asyncHandler(async (req, res) => {
+     }
+ 
+     // Check if member exists
+-    const member = await Member.findOne({ mobile });
++    let user = await Member.findOne({ mobile });
++    let role = 'member';
+ 
+-    if (!member) {
++    // If not member, check if employee (Trainer)
++    if (!user) {
++        user = await Employee.findOne({ mobile });
++        if (user) {
++            role = 'trainer';
++        }
++    }
++
++    if (!user) {
+         res.status(404);
+-        throw new Error('Member not found with this mobile number. Please register or contact admin.');
++        throw new Error('User not found with this mobile number. Please register or contact admin.');
+     }
+ 
+     // In a real app, send OTP via SMS service
+@@ -27,7 +37,8 @@ const sendOTP = asyncHandler(async (req, res) => {
+         success: true,
+         message: 'OTP sent successfully (Simulated)',
+         // For development convenience, we can return the OTP or just assume 123456
+-        otp: '123456'
++        otp: '123456',
++        role: role // Hint for frontend if needed, though mostly used in verify
+     });
+ });
+ 
+@@ -43,11 +54,19 @@ const verifyOTP = asyncHandler(async (req, res) => {
+     }
+ 
+     // Check if member exists
+-    const member = await Member.findOne({ mobile });
++    let user = await Member.findOne({ mobile });
++    let role = 'member';
++
++    if (!user) {
++        user = await Employee.findOne({ mobile });
++        if (user) {
++            role = 'trainer';
++        }
++    }
+ 
+-    if (!member) {
++    if (!user) {
+         res.status(404);
+-        throw new Error('Member not found');
++        throw new Error('User not found');
+     }
+ 
+     // Validate OTP (Simple check for demo)
+@@ -58,17 +77,19 @@ const verifyOTP = asyncHandler(async (req, res) => {
+ 
+     // Generate JWT
+     const token = jwt.sign(
+-        { id: member._id, role: 'user' },
++        { id: user._id, role: role },
+         process.env.JWT_SECRET,
+         { expiresIn: '30d' }
+     );
+ 
+     res.json({
+-        _id: member._id,
+-        firstName: member.firstName,
+-        lastName: member.lastName,
+-        mobile: member.mobile,
+-        memberId: member.memberId,
++        _id: user._id,
++        firstName: user.firstName,
++        lastName: user.lastName,
++        mobile: user.mobile,
++        photo: user.photo,
++        memberId: user.memberId || user.employeeId,
++        role: role,
+         token
+     });
+ });
+
+commit c29a99eae276795c97deea94fc550b5989b0e8e8
+Author: mayurchadokar <mayurchadokar14@gmail.com>
+Date:   Tue Feb 3 17:58:35 2026 +0530
+
+    Added workout and qr code api , user workflow and, ui fixed ,
+
+diff --git a/backend/controllers/user/authController.js b/backend/controllers/user/authController.js
+new file mode 100644
+index 0000000..f18357d
+--- /dev/null
++++ b/backend/controllers/user/authController.js
+@@ -0,0 +1,79 @@
++const asyncHandler = require('express-async-handler');
++const jwt = require('jsonwebtoken');
++const Member = require('../../models/Member');
++
++// @desc    Send OTP to mobile
++// @route   POST /api/user/auth/send-otp
++// @access  Public
++const sendOTP = asyncHandler(async (req, res) => {
++    const { mobile } = req.body;
++
++    if (!mobile) {
++        res.status(400);
++        throw new Error('Mobile number is required');
++    }
++
++    // Check if member exists
++    const member = await Member.findOne({ mobile });
++
++    if (!member) {
++        res.status(404);
++        throw new Error('Member not found with this mobile number. Please register or contact admin.');
++    }
++
++    // In a real app, send OTP via SMS service
++    // For now, we simulate success
++    res.status(200).json({
++        success: true,
++        message: 'OTP sent successfully (Simulated)',
++        // For development convenience, we can return the OTP or just assume 123456
++        otp: '123456'
++    });
++});
++
++// @desc    Verify OTP and login
++// @route   POST /api/user/auth/verify-otp
++// @access  Public
++const verifyOTP = asyncHandler(async (req, res) => {
++    const { mobile, otp } = req.body;
++
++    if (!mobile || !otp) {
++        res.status(400);
++        throw new Error('Mobile and OTP are required');
++    }
++
++    // Check if member exists
++    const member = await Member.findOne({ mobile });
++
++    if (!member) {
++        res.status(404);
++        throw new Error('Member not found');
++    }
++
++    // Validate OTP (Simple check for demo)
++    if (otp !== '123456') {
++        res.status(401);
++        throw new Error('Invalid OTP');
++    }
++
++    // Generate JWT
++    const token = jwt.sign(
++        { id: member._id, role: 'user' },
++        process.env.JWT_SECRET,
++        { expiresIn: '30d' }
++    );
++
++    res.json({
++        _id: member._id,
++        firstName: member.firstName,
++        lastName: member.lastName,
++        mobile: member.mobile,
++        memberId: member.memberId,
++        token
++    });
++});
++
++module.exports = {
++    sendOTP,
++    verifyOTP
++};
